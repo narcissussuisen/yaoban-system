@@ -1,0 +1,101 @@
+{
+  "_meta": {
+    "purpose": "机器可读证据失效表（蓝图 P0.5）：旧正收益/被污染回测结论的权威登记。Phase 1D 晋级器必须经 src/evidence_guard.py 对候选证据路径硬拒绝命中项。",
+    "created_at": "2026-09-01",
+    "narrative_docs": [
+      "docs/loops/EVIDENCE_INVALIDATION.md",
+      "docs/loops/COMBO_FIXED_FINAL.md"
+    ],
+    "semantic_order": "实际行为 > 同期原话 > 后期总结 > 旧代码（用户确认）；本表只约束'不得作为晋级/放行证据'，不删除原件"
+  },
+  "entries": [
+    {
+      "id": "ev-001",
+      "kind": "stale_claim",
+      "artifact_paths": ["outputs/portfolio_findings.md"],
+      "stale_claim": "R5 组合级模拟 +560%(2026)/+713%(2025) 单吊复利正收益",
+      "invalid_reason": "回测引擎止损 bug（HIGH 误作 LOW）+幻影成交+T+1/T+2 口径错位；修复后 2023-2025 巨亏",
+      "invalidated_at": "2026-08-26",
+      "superseded_by": "docs/loops/EVIDENCE_INVALIDATION.md §三修复后证据；docs/loops/COMBO_FIXED_FINAL.md"
+    },
+    {
+      "id": "ev-002",
+      "kind": "stale_claim",
+      "artifact_paths": ["outputs/regime_switch_2025.md"],
+      "stale_claim": "2025 状态切换模拟正收益结论",
+      "invalid_reason": "同 ev-001 引擎缺陷家族产物；且含执行日信息前视",
+      "invalidated_at": "2026-08-26",
+      "superseded_by": "docs/loops/EVIDENCE_INVALIDATION.md"
+    },
+    {
+      "id": "ev-003",
+      "kind": "stale_claim",
+      "artifact_paths": ["outputs/regime_switch_2026.md"],
+      "stale_claim": "2026 状态切换模拟正收益结论",
+      "invalid_reason": "同 ev-001 引擎缺陷家族产物",
+      "invalidated_at": "2026-08-26",
+      "superseded_by": "docs/loops/EVIDENCE_INVALIDATION.md"
+    },
+    {
+      "id": "ev-004",
+      "kind": "stale_claim",
+      "artifact_paths": ["outputs/regime_switch_findings.md"],
+      "stale_claim": "状态切换空仓开关'双赢'结论（单吊 2025 +713.1% / 2026 +560.2%）",
+      "invalid_reason": "P0-C 空仓开关被前视泄漏评审否决；底层收益数字为引擎缺陷产物",
+      "invalidated_at": "2026-08-26",
+      "superseded_by": "docs/loops/COMBO_FIXED_FINAL.md 失效清单"
+    },
+    {
+      "id": "ev-005",
+      "kind": "stale_claim",
+      "artifact_paths": ["docs/loops/W2_DABAN5_BREAKTHROUGH.md"],
+      "stale_claim": "25+26 连续打板 +2097% 突破性结论",
+      "invalid_reason": "口径修正前产物：连乘复利口径被 w2_daban5_review 判'口径修正前一律作废'；且属引擎缺陷家族",
+      "invalidated_at": "2026-09-01",
+      "superseded_by": "docs/reviews/w2_daban5_review.md 口径修正结论"
+    },
+    {
+      "id": "ev-006",
+      "kind": "stale_claim",
+      "artifact_paths": ["docs/loops/W2_EXEC_AUDIT.md"],
+      "stale_claim": "W2 执行口径下 +2097% 家族数字",
+      "invalid_reason": "同 ev-005：口径修正前结论，评审判定作废",
+      "invalidated_at": "2026-09-01",
+      "superseded_by": "docs/reviews/w2_daban5_review.md"
+    },
+    {
+      "id": "ev-007",
+      "kind": "reviewed_invalid",
+      "artifact_paths": ["docs/reviews/w2_daban5_review.md"],
+      "stale_claim": "评审对象为 +2097% 口径修正前分析",
+      "invalid_reason": "评审结论='口径修正前一律作废'；本文件仅作失效与教训记录，评审对象结论不得引用为正向证据",
+      "invalidated_at": "2026-09-01",
+      "superseded_by": "该评审自身的口径修正后重算部分"
+    },
+    {
+      "id": "ev-008",
+      "kind": "reviewed_invalid",
+      "artifact_paths": ["docs/reviews/p0_batch_review.md"],
+      "stale_claim": "P0 批次评审中引用的 +560/+713 家族结论",
+      "invalid_reason": "所引底层结论属 ev-001 引擎缺陷家族；评审的否决部分有效，被否决对象结论作废",
+      "invalidated_at": "2026-09-01",
+      "superseded_by": "docs/loops/EVIDENCE_INVALIDATION.md"
+    },
+    {
+      "id": "ev-009",
+      "kind": "cohort",
+      "artifact_paths": [],
+      "reference_paths": [
+        "docs/loops/COMBO_FIXED_FINAL.md",
+        "docs/loops/EVIDENCE_INVALIDATION.md",
+        "docs/loops/P3_recheck_4y.md",
+        "docs/loops/FIXED_EVIDENCE_ALL.md"
+      ],
+      "stale_claim": "引擎 bug 家族作废项：R3 打板基线 4/4 年正期望、动量池定稿、回踩池定稿、P0-C 空仓开关、P0-D 早封特征、P3 -3% 止损建议、R6' 修复前 1.51x（前视）",
+      "invalid_reason": "止损 bug/幻影成交/口径错位/前视泄漏，逐项见 COMBO_FIXED_FINAL.md 失效清单与 EVIDENCE_INVALIDATION.md；无独立原始载体文件，结论散见于阶段文档",
+      "invalidated_at": "2026-08-26",
+      "superseded_by": "修复后四年重跑报告（COMBO_FIXED_FINAL.md / P3_recheck_4y.md）",
+      "guard_note": "artifact_paths 为空——本条不参与路径硬拒；晋级器引用 reference_paths 中任何文件时必须人工核对所引具体结论非本条所列作废项"
+    }
+  ]
+}

@@ -1,5 +1,8 @@
 # W2+5+ 打板突破 专家评审（2026-08-26）
 
+> ⚠️ 本文件评审对象（口径修正前 +2097% 分析）已作废；本评审仅作失效与教训记录，不得作为晋级证据：见 docs/loops/evidence_invalidation.json#ev-007（invalidated 2026-09-01, P0.5）
+
+
 > 评审角色：独立量化研究评审（subagent）· 方法：逐行审代码 + 独立复算 + 执行口径敏感性
 > 评审文件：`docs/loops/W2_DABAN5_BREAKTHROUGH.md`、`outputs/w2_daban5_stats.md`、`outputs/w2_daban5_combo.md`、
 > `outputs/daban_audit_fixed_4y.md`、`scripts/open_weak_daban5.py`、`scripts/w2_daban5_stats.py`、

@@ -1,5 +1,8 @@
 # P0 批次（loop engineering）三项结论评审报告
 
+> ⚠️ 本文件所引 +560/+713 家族底层结论已作废；评审否决部分有效：见 docs/loops/evidence_invalidation.json#ev-008（invalidated 2026-09-01, P0.5）
+
+
 > 评审人：独立量化研究评审专家（subagent）｜日期：2026-08-27
 > 评审对象：P0-A 结论（docs/loops/P0-A_conclusion.md）、P0-C 结论（outputs/regime_switch_findings.md）、P0-D 结论（outputs/promo4_findings.md + promo4_findings_final.md），
 > 及支撑证据（outputs/p0a_momentum_4y.md、p0a_pullback_4y.md、regime_switch_2025/2026.md、backtest_market_2023~2026*.md、pullback_b2_2023~2026*.md、backtest_daban_2023~2026*.md、daban_audit_2023_2024.md、daban_audit_2025_2026.md、portfolio_sim_2023~2026.md、scripts/backtest_market.py、regime_switch_sim.py、promo4_study.py 等）

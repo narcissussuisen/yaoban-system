@@ -8,7 +8,7 @@ $codes = New-Object System.Collections.ArrayList
 if ($LASTEXITCODE -eq 0) { & $Py -X utf8 ($Base + "\scripts\r6p_candidates_build.py") --workers 6 }; [void]$codes.Add($LASTEXITCODE)
 if ($LASTEXITCODE -eq 0) { & $Py -X utf8 ($Base + "\scripts\fetch_daily_minute_rebuild.py") }; [void]$codes.Add($LASTEXITCODE)
 if ($LASTEXITCODE -eq 0) { & $Py -X utf8 ($Base + "\scripts\generate_next_plan.py") }; [void]$codes.Add($LASTEXITCODE)
-& $Py -X utf8 ($Base + "\scripts\collect_daily_acceptance.py"); [void]$codes.Add($LASTEXITCODE)
+& $Py -X utf8 ($Base + "\scripts\collect_daily_acceptance.py") --date $Day --final; [void]$codes.Add($LASTEXITCODE)
 $bad = @($codes | Where-Object { $_ -ne 0 })
 if ($bad.Count -eq 0) {
   & $Py -X utf8 $Notify --kind close --date $Day --event-key ("postclose:" + $Day) --message ("盘后链全部通过 " + $Day)
