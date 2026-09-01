@@ -1,0 +1,448 @@
+# ============================================================
+# 妖板交易系统 参数配置 v4.0
+# 单一事实源：所有规则参数来自《妖板选手_完整交易系统_v4.0.md》附录 B
+# 置信度标注：实锤 = 画面+OCR 双重确认且多次重复 | 单源 = 仅单一视频 | 设计 = 系统设计待验证
+# 格式：[[rule]] 为知识表（文档级）；[strategy.*] / [env] / [risk] 为引擎可读参数
+# ============================================================
+
+# ---------- 知识表：37 条规则（对应手册附录 B） ----------
+
+[[rule]]
+id = 1
+name = "上升回档-20日线上方运行"
+category = "上升回档"
+value = ">=10 交易日"
+confidence = "单源"
+source = "v05@00:28"
+
+[[rule]]
+id = 2
+name = "上升回档-放量标准"
+category = "上升回档"
+value = "5日均量 > 20日均量"
+confidence = "单源"
+source = "v05@00:28"
+
+[[rule]]
+id = 3
+name = "上升回档-回档天数(公式口径)"
+category = "上升回档"
+value = "3~5 天"
+confidence = "实锤"
+source = "v05@00:28"
+
+[[rule]]
+id = 4
+name = "上升回档-回档天数(实战口径)"
+category = "上升回档"
+value = "1~3 天，最多 ≤5 天"
+confidence = "实锤"
+source = "v24@02:28"
+
+[[rule]]
+id = 5
+name = "上升回档-回调幅度"
+category = "上升回档"
+value = "5%~15%，一般不超前期涨幅 1/3"
+confidence = "实锤"
+source = "v05@00:28 / v01@00:58"
+
+[[rule]]
+id = 6
+name = "上升回档-缩量标准"
+category = "上升回档"
+value = "5日均量较上涨阶段降 30%+"
+confidence = "实锤"
+source = "v05@00:28"
+
+[[rule]]
+id = 7
+name = "上升回档-止损"
+category = "上升回档"
+value = "有效跌破20日线，或跌破10日线3天不收回"
+confidence = "实锤"
+source = "v05@01:46 / v13@03:13"
+
+[[rule]]
+id = 8
+name = "买点-当日涨幅上限"
+category = "进场"
+value = "≤3%"
+confidence = "实锤"
+source = "v12@01:07 / v19@01:13"
+
+[[rule]]
+id = 9
+name = "买点-分时确认"
+category = "进场"
+value = "放量突破均价线后回踩站稳；分时在均价线下方坚决不买"
+confidence = "实锤"
+source = "v08@01:16"
+
+[[rule]]
+id = 10
+name = "涨停回踩-调整形态"
+category = "涨停回踩低吸"
+value = "3天 / 三根小阴线 / 5~7天缩量到极致"
+confidence = "实锤"
+source = "v07@01:16 / v07@01:31 / v07@01:46"
+
+[[rule]]
+id = 11
+name = "涨停回踩-守线"
+category = "涨停回踩低吸"
+value = "守住5日线 / 站20日线上方 / 不破涨停板实体"
+confidence = "实锤"
+source = "v07@00:55 / v07@01:16"
+
+[[rule]]
+id = 12
+name = "仙人指路-上影线"
+category = "仙人指路"
+value = "上影 ≥2倍实体；上影/昨收 >2.8%"
+confidence = "实锤"
+source = "v70@01:25 / v70@03:25"
+
+[[rule]]
+id = 13
+name = "仙人指路-位置"
+category = "仙人指路"
+value = "C/REF(C,60) ∈ (0.85, 1.35)"
+confidence = "实锤"
+source = "v70@03:25"
+
+[[rule]]
+id = 14
+name = "仙人指路-量能"
+category = "仙人指路"
+value = "V > 5日均量，但不能爆出天量"
+confidence = "实锤"
+source = "v70@02:46"
+
+[[rule]]
+id = 15
+name = "仙人指路-止损"
+category = "仙人指路"
+value = "长上影当天最低价下方一点"
+confidence = "实锤"
+source = "v70@04:10"
+
+[[rule]]
+id = 16
+name = "均线纪律-主升浪持有"
+category = "出场"
+value = "破5日线减半 → 半仓观察次日 → 情绪转弱破10日线离场"
+confidence = "实锤"
+source = "v09@00:58"
+
+[[rule]]
+id = 17
+name = "均线纪律-收盘确认制"
+category = "出场"
+value = "收盘破5/10日线次日不收回=走弱；破60日线=牛熊分界撤退"
+confidence = "实锤"
+source = "v20@04:52"
+
+[[rule]]
+id = 18
+name = "卖出-10点纪律"
+category = "出场"
+value = "隔天不连板的票 10 点前不板则走；或分时跌破均价线就走"
+confidence = "实锤"
+source = "v03@00:37 / v46@00:55 等 6+ 视频"
+
+[[rule]]
+id = 19
+name = "卖出-打板"
+category = "出场"
+value = "次日不板就走；开盘半小时不封板减半或全走"
+confidence = "实锤"
+source = "v20@01:25"
+
+[[rule]]
+id = 20
+name = "止盈-分批"
+category = "出场"
+value = "赚 10%~20% 先走 1/3~1/2"
+confidence = "实锤"
+source = "v20@06:04"
+
+[[rule]]
+id = 21
+name = "做T-仓位/差价"
+category = "做T"
+value = "最多 1/3 仓；差价 1~3 个点"
+confidence = "实锤"
+source = "v14@02:22 / v14@01:37"
+
+[[rule]]
+id = 22
+name = "洗盘-芝麻地量"
+category = "洗盘"
+value = "日常几千万成交额萎缩至千万以内"
+confidence = "实锤"
+source = "v51@01:16"
+
+[[rule]]
+id = 23
+name = "洗盘-大单托底"
+category = "洗盘"
+value = "买二位置数千手固定托单，不被砸穿"
+confidence = "实锤"
+source = "v51@01:31"
+
+[[rule]]
+id = 24
+name = "洗盘-时间止损"
+category = "洗盘"
+value = "超1月警惕，超2月无异动果断换股"
+confidence = "实锤"
+source = "v51@02:40"
+
+[[rule]]
+id = 25
+name = "仓位-分级定义"
+category = "风控"
+value = "空仓0% / 轻仓≤30% / 半仓50% / 重仓≥70% / 满仓100%"
+confidence = "实锤"
+source = "v15@00:43"
+
+[[rule]]
+id = 26
+name = "仓位-市况映射"
+category = "风控"
+value = "牛市50~70% / 震荡30~50% / 熊市≤20%"
+confidence = "实锤"
+source = "v15@00:43"
+
+[[rule]]
+id = 27
+name = "仓位-资金三份结构"
+category = "风控"
+value = "底仓60% + 机动仓30% + 现金10%"
+confidence = "实锤"
+source = "v15@00:43"
+
+[[rule]]
+id = 28
+name = "风控-单笔最大亏损"
+category = "风控"
+value = "≤2% 总资金（新手≤1%），永不追加亏损仓位"
+confidence = "实锤"
+source = "v15@00:43"
+
+[[rule]]
+id = 29
+name = "风控-单只个股上限"
+category = "风控"
+value = "≤30% 总资金"
+confidence = "实锤"
+source = "v26@00:49"
+
+[[rule]]
+id = 30
+name = "风控-总仓硬地板"
+category = "风控"
+value = "总仓位亏 5%~8% 离场（特定情境放宽 8~10%）"
+confidence = "实锤"
+source = "v26@01:49 / v19"
+
+[[rule]]
+id = 31
+name = "选股-公式命中率"
+category = "选股"
+value = "24/0.4%（v06）；8/0.1%（v12）"
+confidence = "实锤"
+source = "v06@01:22 / v12@01:46"
+
+[[rule]]
+id = 32
+name = "龙头-换手率/封板"
+category = "板块"
+value = "换手 10%~30%；10:30 前强势封板、极少炸板"
+confidence = "实锤"
+source = "v36@01:22"
+
+[[rule]]
+id = 33
+name = "环境-涨停家数分档"
+category = "环境"
+value = "冰点34 / 磨底64 / 普反116~124 / 活跃99~106"
+confidence = "实锤"
+source = "v47/v69/v48/v43/v18"
+
+[[rule]]
+id = 34
+name = "环境-连板高度"
+category = "环境"
+value = "5连板=打开短线高度"
+confidence = "实锤"
+source = "v63@01:04"
+
+[[rule]]
+id = 35
+name = "环境-成交额"
+category = "环境"
+value = "连续缩量3天内必选方向；1.93万亿=阶段地量"
+confidence = "实锤"
+source = "v57@02:10 / v57@00:22"
+
+[[rule]]
+id = 36
+name = "情绪-冰点模板"
+category = "环境"
+value = "涨停34/跌停45/涨693跌4796 = 情绪冰点修复预期"
+confidence = "实锤"
+source = "v47@00:40"
+
+[[rule]]
+id = 37
+name = "持股周期"
+category = "出场"
+value = "3 天左右"
+confidence = "单源"
+source = "v45@03:46"
+
+# ---------- 引擎参数 ----------
+
+[env]
+# 环境打分（五维，各 0~2 分，总分 0~10）
+max_score = 10
+# 强势 / 中性 / 弱势 阈值
+regime_strong_ge = 8
+regime_neutral_ge = 4
+# 维度阈值
+trend = { above_ma = 20, need_rising = true }
+volume = { expand_pct = 0.10, shrink_pct = 0.10 }   # 较20日均量 ±10%
+limit_up = { strong_ge = 100, mid_ge = 60 }          # 涨停家数分档
+height = { strong_ge = 5, mid_ge = 3 }               # 最高连板数
+breadth = { strong_pct = 0.60, mid_pct = 0.40 }      # 红盘占比
+# 简版（指数趋势+成交额）先于完整版上线
+fallback_dims = ["trend", "volume"]
+
+[strategy.huigui]
+# 上升回档（核心战法）
+enabled = true
+ma_short = 5
+ma_mid = 10
+ma_long = 20
+ma_trend = 60
+pullback_days_min = 1        # 实战 1~3 天（公式口径 3~5 天见 rule 3/4）
+pullback_days_max = 5
+pullback_pct_min = 5.0       # 幅度 5%~15%
+pullback_pct_max = 15.0
+volume_shrink_ratio = 0.7    # 5日均量较上涨期降 30%+
+above_ma20_days = 10         # 20 日线上方运行天数（公式口径）
+min_prior_gain_pct = 15.0    # 前期一波涨幅下限（设计）
+stop_rule = "break_ma20_or_3d_below_ma10"
+
+# v4.0.1 修正（案例回归校准 2026-08-24）：
+# 视频实战低吸案例（协鑫能科 1.5%、江特电机 5%、振华科技等）显示实战回调幅度远小于
+# 公式筛选口径的 5~15%，且「缩量」指相对拉升峰值日的量能（振华 5/26-27 相对 5/25 冲高日缩量），
+# 并非相对前 5 日均量。detect_huigui(mode="live") 使用以下参数，mode="screen" 用上方公式口径。
+[strategy.huigui.live]
+pullback_days_min = 1
+pullback_days_max = 7
+pullback_pct_min = 1.0
+pullback_pct_max = 15.0
+volume_ratio_max = 0.9       # 回调期日均量 ≤ 拉升峰值日(±1天)量的 90%
+prior_gain_min_pct = 8.0     # 前期一波上涨：近10日高点较20日前收盘涨≥8%
+
+[strategy.zt_huicai]
+# 涨停回踩低吸（v07 五口诀 → 参数化 3 条）
+enabled = true
+pullback_days_min = 2
+pullback_days_max = 7
+hold_ma = 5                 # 回踩守住 5 日线
+hold_above_ma = 20          # 价站 20 日线上方
+not_break_limit_low = true  # 不破涨停板实体
+volume_shrink_ratio = 0.7
+
+[strategy.qu_shi_fanbao]
+# 趋势反包
+enabled = true
+prev_bar_bearish = true     # 前一日阴线
+next_bar_bullish = true     # 次日阳线包住阴线
+volume_expand = true        # 同比放量（图上标注，阈值待验证）
+entry = "分时站上均价线试仓"
+exit = "隔天10点前不拉板或破均价线走"
+
+[strategy.xianren]
+# 仙人指路（公式 + 确认过滤器）
+enabled = true
+upper_shadow_min_pct = 2.8      # 上影/昨收 >2.8%
+upper_shadow_ratio = 2.0        # 上影 ≥2倍实体
+trend_ma = 60
+position_min = 0.85             # C/REF(C,60)
+position_max = 1.35
+volume_ma = 5                   # V > MA(V,5)
+max_volume_ratio = 2.0          # 天量阈值（>2倍5日均量视为天量，设计）
+confirm_rule = "次日/第三日放量反包阳吃掉上影高点才买"
+stop_rule = "长上影当天最低价下方一点"
+
+[risk]
+max_single_trade_loss_pct = 2.0   # 单笔 ≤2%（新手 1%）
+max_single_stock_pct = 30.0       # 单只 ≤30%
+portfolio_floor_pct = [5.0, 8.0]  # 总仓硬地板 5%~8%（放宽 8~10%）
+max_positions = 4                 # 分散 3~4 只
+position_units = [0.0, 30.0, 50.0, 70.0, 100.0]  # 空/轻/半/重/满
+regime_position_cap = { strong = 70.0, neutral = 50.0, weak = 20.0 }
+drawdown_stepdown = 5.0           # 回撤 5% 仓位降一档（设计）
+drawdown_pause = 8.0              # 回撤 8% 强制空仓（设计）
+
+[sell]
+ten_oclock_rule = true            # 隔天 10 点前不板则走
+profit_take_pct = [10.0, 20.0]    # 赚 10~20% 先走 1/3~1/2
+profit_take_fraction = [0.33, 0.5]
+ma5_break_action = "减半，观察次日"
+ma10_break_action = "清仓（主升浪）；3天不收回（回档买点）"
+ma60_break_action = "无条件撤退"
+time_stop_days = 5                # 强势股 3~5 交易日节奏（设计）
+washout_warn_days = 30            # 洗盘超 1 月警惕
+washout_exit_days = 60            # 超 2 月换股
+
+# ---------- 盘中卖出管理引擎（H7.3，src/core/sell.py DEFAULT_PARAMS 的配置化镜像） ----------
+
+[sell.intraday]
+vwap_halve = true              # 收盘破均价线(容差内连续确认) → 减半
+vwap_tol = 0.003
+vwap_confirm = 2
+vwap_break_all = true          # 减半后再次破均价线 → 清仓
+vwap_halve_min_gain = 7.0      # 利润兑现语境：当日高点已相对昨收 ≥7% 才允许破线减仓（v20）
+break_low_clear = true         # 冲高回落破位止损（先冲高 ≥买入价×arm，回撤峰值 trail% → 清）
+break_low_arm = 2.0
+break_low_trail = 4.0
+t_enabled = true               # 做T：1/3 仓、差价 1.5%、每日一次往返（v14/v48/v49）
+t_frac = 0.3333
+t_diff_pct = 1.5
+t_buy_dev = 1.5                # 正T 触发：急跌至均价线下方 ≥1.5%（v49 均价线下方补仓）
+t_sell_dev = 3.0               # 反T 触发：急拉至均价线上方 ≥3%（v14 大幅高开/急速上冲）
+t_min_range = 2.0              # 日内振幅 <2% 不做T
+t_reverse_only = false         # 末日仅反T（T+1 合规，引擎自动置位）
+ten_oclock = false             # 10 点纪律（rule 18）——打板/隔日口径开启（H7.4 验证有效）
+ten_time = "10:00"
+ten_strong_pct = 5.0
+ten_require_limit = false
+ten_action = "all"
+stop_loss_pct = 5.0            # 相对买入价 -5% 清仓（v20@05:31）
+profit_take_pct = 10.0         # 冲高（相对昨收 ≥10%）回落破均价线 → 减 1/3
+profit_take_frac = 0.3333
+zhaban_sell = true               # 炸板卖出（v50/v55）：触及涨停后回落 >0.5% → 清仓
+zhaban_fall_pct = 0.5
+second_high_sell = true            # 次高点卖出（v54/v58/v62）：峰值回落 1% 且 30 分钟未再创新高 → 清
+sh_pull_pct = 1.0
+sh_confirm_n = 60
+sh_min_surge = 5.0
+daily_ma5_halve = true
+daily_ma10_clear = true
+time_stop_days = 5
+
+[data]
+index_symbols = ["sh000001", "sz399001", "sz399006", "sh000688"]
+index_names = { sh000001 = "上证指数", sz399001 = "深证成指", sz399006 = "创业板指", sh000688 = "科创50" }
+case_stocks_file = "tests/cases.json"
+backfill_start = "2019-01-01"
+stock_start = "2024-01-01"
+request_sleep_s = 1.2             # 东财接口限流：请求间隔
+retry_times = 3
+retry_backoff_s = [2.0, 4.0, 8.0]

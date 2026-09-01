@@ -1,0 +1,17 @@
+{
+  "mode": "P1-A",
+  "title": "B 点恐慌衰竭低吸（L2）",
+  "created": "2026-08-26",
+  "action": "research",
+  "cmd": "python -B scripts/p1a_formal.py",
+  "question": "恐慌衰竭低吸正式论证（子模式分治：当日反弹 vs 隔日承接；因子 big_buy/ba_ratio 分治；统计检验 t/聚类/分月）",
+  "verify": "outputs/p1a_formal.md exists; 子模式分治结果表",
+  "artifacts": [
+    "outputs/l2_bsell_findings_v2.md"
+  ],
+  "gate": {
+    "min_years": 2,
+    "min_t": 1.96,
+    "winrate_policy": "report_only"
+  }
+}

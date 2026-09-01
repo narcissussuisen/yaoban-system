@@ -1,0 +1,114 @@
+{
+  "baseline_id": "baseline-0-pre-fix",
+  "purpose": "P0.1 缺陷版存证 manifest（Phase 0 修复前冻结）",
+  "generated_at": "2026-09-01T15:04:04",
+  "repo_root": "C:\\Users\\YZP\\WorkBuddy\\Claw\\方法论与研究文档\\EvoAlpha\\yaoban-system",
+  "manifest_hash": "552fa8237f18c0da66fd67d10ee512de61a51a7fd3732e3984c2dfb2e92d55be",
+  "manifest_file": "manifest.jsonl",
+  "file_count": 299,
+  "total_bytes": 105972635,
+  "by_scope": {
+    "README.md": {
+      "files": 1,
+      "bytes": 3861
+    },
+    "_r7p_review_candcount.py": {
+      "files": 1,
+      "bytes": 588
+    },
+    "_r7p_review_countprobe.py": {
+      "files": 1,
+      "bytes": 1684
+    },
+    "_r7p_review_dd.py": {
+      "files": 1,
+      "bytes": 428
+    },
+    "_r7p_review_dd2.py": {
+      "files": 1,
+      "bytes": 863
+    },
+    "_r7p_review_eqcheck.py": {
+      "files": 1,
+      "bytes": 1288
+    },
+    "_r7p_review_indep.py": {
+      "files": 1,
+      "bytes": 3696
+    },
+    "_r7p_review_monthconv.py": {
+      "files": 1,
+      "bytes": 797
+    },
+    "_r7p_review_monthly.py": {
+      "files": 1,
+      "bytes": 566
+    },
+    "_r7p_review_zuoshou.py": {
+      "files": 1,
+      "bytes": 951
+    },
+    "config": {
+      "files": 3,
+      "bytes": 17323
+    },
+    "data": {
+      "files": 7,
+      "bytes": 104560547
+    },
+    "docs": {
+      "files": 27,
+      "bytes": 52865
+    },
+    "portfolio": {
+      "files": 4,
+      "bytes": 31162
+    },
+    "scripts": {
+      "files": 199,
+      "bytes": 854784
+    },
+    "src": {
+      "files": 24,
+      "bytes": 162793
+    },
+    "templates": {
+      "files": 1,
+      "bytes": 9850
+    },
+    "tests": {
+      "files": 23,
+      "bytes": 56384
+    },
+    "vendor_astock_skill.md": {
+      "files": 1,
+      "bytes": 212205
+    }
+  },
+  "exclude_dirs": [
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    "__pycache__"
+  ],
+  "exclude_dir_prefixes": [
+    "tmp"
+  ],
+  "exclude_suffixes": [
+    ".lock",
+    ".log",
+    ".pyc",
+    ".pyo",
+    ".tmp"
+  ],
+  "exclude_files": [
+    "ledger.lock"
+  ],
+  "task_names_checked": [
+    "YaobanDailyCandidates",
+    "YaobanDailySignal",
+    "YaobanLoopEngine",
+    "YaobanTickCollect"
+  ],
+  "acceptance": "同一输入可重放同一 Top 5（P0.2-P0.4 完成后另行生成 baseline-0 v1 manifest 作为三轨评价基准）"
+}

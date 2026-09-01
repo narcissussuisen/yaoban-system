@@ -1,0 +1,30 @@
+# 数据与缓存（不纳入版本管理）
+data/*.db
+data/cache/
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 外部依赖（akshare 等 --target 安装目录）
+py_libs/
+
+# 临时目录
+.pip_tmp/
+tmp/
+
+# 报告输出（按需纳入；如需归档请用 docs/reports/）
+outputs/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 损坏 git 备份（2026-09-01 fsck: HEAD 树缺失/多处提交断链，本机 loose-object 落盘失败模式）
+.git_corrupted_20260901/
+tmphcrsvf6c/
+tmplvguwe_p/

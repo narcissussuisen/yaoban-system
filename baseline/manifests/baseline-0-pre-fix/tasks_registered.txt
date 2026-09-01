@@ -1,0 +1,10 @@
+# Windows 计划任务注册状态快照
+# generated_at: 2026-09-01T15:04:03
+
+== YaobanDailyCandidates == status: REGISTERED
+
+== YaobanDailySignal == status: REGISTERED
+
+== YaobanLoopEngine == status: REGISTERED
+
+== YaobanTickCollect == status: REGISTERED

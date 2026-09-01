@@ -1,0 +1,37 @@
+{
+  "_meta": {
+    "description": "妖板系统回归测试案例库：来自 72 支视频中已知结果的真实案例，用于验证回测引擎/信号正确性",
+    "usage": "回测引擎应能复现每个 case 的 expected 结果；复现率 ≥80% 视为引擎正确",
+    "field_explanation": {
+      "pattern": "战法/主题：huigui=上升回档, zt_huicai=涨停回踩, fanbao=趋势反包, xianren=仙人指路, fen_shi=分时买点, chengjie=承接力, zuot=做T, zhaban=炸板, gaobiao=高标",
+      "expected": "视频中的已知结果",
+      "outcome": "valid=形态有效(应产生信号/买点) | invalid=形态无效(不应产生信号) | reference=参照案例(用于对比)"
+    },
+    "source": "妖板选手方法论拆解/v4_materials/ + v4.0 手册附录 C"
+  },
+  "cases": [
+    {"id": "C01", "video": "v13", "date": "2026-05-11", "symbol": "603110", "name": "东方材料", "pattern": "huigui", "setup": "回调2天，快速在5日线止跌企稳，分时拉升有量", "expected": "5日线企稳后继续新高；4/29分时无量且破均价线时不买", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C02", "video": "v13", "date": "2026-05-13", "symbol": "002015", "name": "协鑫能科", "pattern": "huigui", "setup": "5/6拉涨停确认趋势向上，5/12回调到10日止跌拉回，5/13竞价买单多，5日线低吸", "expected": "10日线止跌后反弹吃肉", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C03", "video": "v13", "date": "2026-05-13", "symbol": "003036", "name": "泰坦股份", "pattern": "huigui", "setup": "历史规律：回调3天/4天在10日线止跌", "expected": "10日线支撑有效，后面吃了两个板顺利止盈", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C04", "video": "v13", "date": "2026-05-13", "symbol": "003026", "name": "中晶科技", "pattern": "huigui", "setup": "踩着10日线止跌", "expected": "支撑看10日线，企稳后反弹", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C05", "video": "v13", "date": "2026-05-13", "symbol": "002364", "name": "中恒电气", "pattern": "huigui", "setup": "回踩20日线止跌企稳，每次回调缩量，大趋势向上", "expected": "踩着20日线拉涨停", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C06", "video": "v13", "date": "2026-05-13", "symbol": "002201", "name": "九鼎新材", "pattern": "huigui", "setup": "前一波回踩20日线开启反弹，趋势未走坏", "expected": "20日线支撑有效，继续持有等反弹", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C07", "video": "v13", "date": "2026-05-13", "symbol": "600552", "name": "凯盛科技", "pattern": "huigui", "setup": "盯紧10日线：站稳支撑持有等拉升，有效跌破止损", "expected": "10日线站稳则持有", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C08", "video": "v24", "date": "2026-06-02", "symbol": "000733", "name": "振华科技", "pattern": "huigui", "setup": "5/25冲高回落调整2天缩量，5/28与6/2放量阳线，回调2次均缩量，主力未出", "expected": "教科书上升回档，踩着5日线止跌企稳展开拉升", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C09", "video": "v24", "date": "2026-06-02", "symbol": "600667", "name": "太极实业", "pattern": "huigui", "setup": "近半个月平台震荡+符合回档战法+基本面（海太半导体绑定SK海力士）", "expected": "战法筛选后涨停", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C10", "video": "v05", "date": "2026-04-24", "symbol": "002176", "name": "江特电机", "pattern": "huigui", "setup": "4/15起回调4天，到10日均线支撑止跌企稳", "expected": "10日线企稳后吃板", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C11", "video": "v10", "date": "2026-04-29", "symbol": "002885", "name": "京泉华", "pattern": "huigui", "setup": "刚洗盘调整完止跌时筛选，一波最低点分享（30元）", "expected": "后续涨到36元（约+20%）", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C12", "video": "v06", "date": "2026-04-26", "symbol": "300057", "name": "万顺新材", "pattern": "huigui", "setup": "放量突破趋势，视频判定'回调放量=不合格'；但历史数据显示 4/16-4/21 回调段实际缩量（日均69万手 vs 突破日146万手），4/22 起才再次放量", "expected": "叙述-数据差异：'回调放量'定性判断无法用日线规则复现，参考案例不计分", "outcome": "reference", "confidence": "实锤"},
+    {"id": "C13", "video": "v12", "date": "2026-05-12", "symbol": "002606", "name": "大连电瓷", "pattern": "fen_shi", "setup": "分时拉升有量+白线向上+回踩均价线站稳+涨幅3个点以内，四条件同满足", "expected": "当天介入", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C14", "video": "v07", "date": "2026-04-28", "symbol": "603318", "name": "水发燃气", "pattern": "zt_huicai", "setup": "7天6板，分歧转一致（图解案例：涨停梯队/分歧转一致的形态说明，非标准回踩买点）", "expected": "图解案例，不纳入信号复现评分", "outcome": "reference", "confidence": "实锤"},
+    {"id": "C15", "video": "v07", "date": "2026-04-28", "symbol": "603629", "name": "利通电子", "pattern": "zt_huicai", "setup": "涨停后K线调整3天，不曾跌破涨停板支撑", "expected": "涨停板支撑有效，回踩低吸买点", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C16", "video": "v22", "date": "2026-06-02", "symbol": "605589", "name": "圣泉集团", "pattern": "fanbao", "setup": "昨日K线反包（同比放量），今日低点高于昨日低点，分时站上均价线", "expected": "试仓吃肉", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C17", "video": "v25", "date": "2026-06-05", "symbol": "601137", "name": "博威合金", "pattern": "fanbao", "setup": "趋势反包战法筛选，1个多点分享", "expected": "当日收6个点", "outcome": "valid", "confidence": "实锤"},
+    {"id": "C18", "video": "v70", "date": "2024-06-23", "symbol": "002355", "name": "兴民智通", "pattern": "xianren", "setup": "视频叙述'底部放量盘两个月、均线刚捋顺、双上影'；但历史数据显示案例日附近 C<MA60 且 MA60 未向上，公式条件不成立", "expected": "叙述-数据差异：公式正确未触发（MA60 未向上），参考案例不计分", "outcome": "reference", "confidence": "实锤"},
+    {"id": "C19", "video": "v62", "date": "2026-07-31", "symbol": "001309", "name": "德明利", "pattern": "chengjie", "setup": "高位科技龙头：高开低走仅跌1.06%，成交173.55亿，换手25.61%，两席位净卖4.44亿", "expected": "利好带不动=兑现，应远离高位方向", "outcome": "reference", "confidence": "实锤"},
+    {"id": "C20", "video": "v62", "date": "2026-07-31", "symbol": "603171", "name": "税友股份", "pattern": "chengjie", "setup": "低位：竞价结束分时上冲，震荡回落站稳均价线，承接力强，同车不砸盘", "expected": "承接强=继续持有，最终封板实现2连板", "outcome": "reference", "confidence": "实锤"},
+    {"id": "C21", "video": "v49", "date": "2026-07-09", "symbol": "002156", "name": "通富微电", "pattern": "zuot", "setup": "正T：早上分时均价线下方补仓，急跌时T进，拉升有差价T出，T进T出数量一致，底仓不变", "expected": "做T成功，成本降低，底仓数量不变", "outcome": "reference", "confidence": "实锤"},
+    {"id": "C22", "video": "v50", "date": "2026-07-10", "symbol": "600360", "name": "华微电子", "pattern": "zhaban", "setup": "下午反复炸板，封单越来越少", "expected": "封板不坚决=止盈落袋", "outcome": "reference", "confidence": "实锤"},
+    {"id": "C23", "video": "v63", "date": "2026-08-02", "symbol": "003032", "name": "传智教育", "pattern": "gaobiao", "setup": "AI应用板块五连板，打开短线高度", "expected": "高标打开高度=情绪发酵信号", "outcome": "reference", "confidence": "实锤"}
+  ]
+}

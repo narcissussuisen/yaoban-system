@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "updated": "2026-08-26",
+  "gate": {
+    "min_years": 2,
+    "min_t": 1.96,
+    "winrate_policy": "report_only"
+  },
+  "fail_policy": "variant_once",
+  "modes": {
+    "P0-A": {
+      "title": "动量池/回踩池 2023-2024 复验",
+      "status": "archived",
+      "phase": "archived",
+      "gate": {
+        "years": [
+          2023,
+          2024
+        ],
+        "min_t": 1.96
+      },
+      "next_action": "run backtest_market 2023/2024 + pullback research 2023/2024",
+      "artifacts": [
+        "outputs/backtest_market_2023.md",
+        "outputs/backtest_market_2024.md"
+      ],
+      "retries": 0,
+      "note": "修复后重验: 动量池2023-2025负(2026+0.93%唯一显著正), 回踩池四年全负(t-2.76~-16.26) → 两池均不达标, 归档"
+    },
+    "P0-B": {
+      "title": "同日择股系统化（排序规则 vs 随机）",
+      "status": "archived",
+      "phase": "archived",
+      "gate": {
+        "years": [
+          2025,
+          2026
+        ],
+        "min_t": 1.96
+      },
+      "next_action": "design sort rules on raw CSVs; portfolio-level compare vs random",
+      "artifacts": [
+        "outputs/selection_alpha_2025.md",
+        "outputs/selection_alpha_2026.md"
+      ],
+      "retries": 2,
+      "note": "连板降序: 2025多信号日+0.43pp/2026反向-3.7pp; 首封最早: 2025-0.43vs+1.10/2026+4.16vs+7.85均更差; 首封早多为竞价涨停买不进; 同日多信号仅2年50天, 择股alpha空间不足; 组合稀释主因是低期望池占用仓位非同日择股"
+    },
+    "P0-C": {
+      "title": "冰点期空仓开关",
+      "status": "archived",
+      "phase": "archived",
+      "gate": {
+        "years": [
+          2025,
+          2026
+        ]
+      },
+      "next_action": "portfolio-level backtest with regime switch (zhaban>35 or zt<25 → flat)",
+      "artifacts": [
+        "outputs/regime_switch_2025.md",
+        "outputs/regime_switch_2026.md"
+      ],
+      "retries": 1,
+      "note": "评审否决(前视): v1用执行日炸板率做开盘决策=前视泄漏; 改信号日T口径20seed重跑: 2025所有阈值收益-240~-406pp回撤恶化, 2026>55仅-25.5pp回撤无改善 → 空仓开关负贡献, 否决归档"
+    },
+    "P0-D": {
+      "title": "4 板晋级失败特征",
+      "status": "archived",
+      "phase": "archived",
+      "gate": {
+        "years": [
+          2025,
+          2026
+        ]
+      },
+      "next_action": "study 4-board → 5-board promotion conditions",
+      "artifacts": [
+        "outputs/promo4_findings.md"
+      ],
+      "retries": 0,
+      "verified": "2026-08-26",
+      "note": "修复后重验: 4板早封2025-2.29%/2026-2.06%全负, 观察指标作废; 修复后仅2026 5板+1.37%/6板+3.57%为正(小样本n=37/14)"
+    },
+    "P1-A": {
+      "title": "B 点恐慌衰竭低吸（L2）",
+      "status": "waiting_data",
+      "phase": "collect",
+      "data_days_needed": 20,
+      "data_days_now": 3,
+      "next_action": "wait for tick data >= 20 trading days",
+      "artifacts": [
+        "outputs/l2_bsell_findings_v2.md"
+      ],
+      "retries": 0,
+      "note": "预验证完成(76样本×3天): 恐慌衰竭当日+3.43%次日不延续(+0.46% vs 承接强+1.57%); big_buy低档次日-0.91pp/ba_ratio高档+1.65pp分治; 正式论证需区分当日反弹vs隔日承接子模式; 数据积累1/20天"
+    },
+    "P1-B": {
+      "title": "5+ 板内选优（L2 封板质量）",
+      "status": "waiting_data",
+      "phase": "collect",
+      "data_days_needed": 20,
+      "data_days_now": 3,
+      "next_action": "wait for tick data >= 20 trading days",
+      "artifacts": [
+        "outputs/l2_board_quality.md"
+      ],
+      "retries": 0,
+      "note": "预验证完成(72样本×3天): 封单强度(买一量/成交额)高组次日+0.97% vs 低组+0.10%(+0.87pp正相关); 与P1-A的ba_ratio印证; 当日恐慌衰竭vs隔日封单质量=两个子模式; 正式论证待20天数据"
+    },
+    "P2-A": {
+      "title": "做 T 分钟级模拟框架",
+      "status": "archived",
+      "phase": "archived",
+      "gate": {
+        "min_contrib": 0.3
+      },
+      "next_action": "build minute-level holding sim on sell.py T engine; 100-trade sample",
+      "artifacts": [
+        "outputs/t_contribution.md"
+      ],
+      "retries": 2,
+      "note": "基线2025-0.35/2026+0.53pp, 变体2025-0.31/2026+0.49pp, 均<0.9pp gate; 触发T笔选择效应强但机械增量近零 → 归档"
+    },
+    "P2-B": {
+      "title": "分时 B 点执行层（H7）",
+      "status": "archived",
+      "phase": "archived",
+      "next_action": "depends on P1-A B-point definition + mootdx minute data",
+      "artifacts": [
+        "outputs/intraday_bpoint_2025.md",
+        "outputs/intraday_bpoint_2026.md"
+      ],
+      "retries": 2,
+      "note": "评审否决(前视)已闭环; 动量池W2 10:00口径复测也失效(2025+0.54% t=0.78/2026-0.99% t=-1.14)——W2开盘口径结论全部作废; 规避层价值(keep-drop显著)保留待P1-A叠加"
+    },
+    "P3": {
+      "title": "滑点/阈值敏感性 + 板块-情绪交叉",
+      "status": "archived",
+      "phase": "archived",
+      "next_action": "sensitivity report only",
+      "artifacts": [
+        "outputs/sensitivity_report.md"
+      ],
+      "retries": 0,
+      "note": "-3%止损建议被P3评审否决(缺陷口径产物, docs/reviews/p3_stop_review.md); 滑点0.3%四年仍正为修复前口径, 修复后待重验; 止损维持-5%(修复后)"
+    }
+  },
+  "global": {
+    "blocker": "环境时间固定于 2026-08-26（11 轮未推进到新交易日）",
+    "status": "blocked_waiting_data",
+    "survivor": "P2-B 开盘走弱放弃（修复后仍成立，唯一幸存正向信号）",
+    "archived": [
+      "P0-A (动量/回踩修复后全负)",
+      "P0-B",
+      "P0-C",
+      "P0-D (早封修复后不成立)",
+      "P2-A",
+      "P3 (-3%止损已否决)"
+    ],
+    "pending": [
+      "P1-A/B L2 数据积累（≥20交易日，16:30采集已就绪）",
+      "P2-B 执行层框架（唯一幸存信号，待用户方向确认）",
+      "tick 首次正式采集（今日 16:30）"
+    ],
+    "blocker_detail": "P1-A/B 需 tick ≥20 交易日（当前 2 天——2026-08-26/27 两天实证）；每日 16:30 定时器需真实时间推进才能采集新交易日；TDX 仅返回当前日期数据（环境时间冻结 2026-08-26）。P0/P2/P3 论证闭环已全部完成；v5 路线图 R1'-R7' 基板交付完成，模拟盘 1 个月等待数据积累解除。"
+  },
+  "v5": {
+    "version": "v5.0 player replica",
+    "stages": {
+      "R0p": {
+        "status": "done",
+        "note": "基线: 72+6视频证据/37规则/100笔实盘流水/轨迹锚"
+      },
+      "R1p": {
+        "status": "done",
+        "note": "复审通过(docs/reviews/r1p_review_final.md): 覆盖率26/41=63.4%, k≤1命中81%/分母51%, 零假设2.19x(z≈4.9σ); 放行进入R2'作召回组件; 4项记录项随R2'闭环"
+      },
+      "R2p": {
+        "status": "in_progress",
+        "note": "第二轮评审⚠️有条件通过(r2p_round2_review.md), 更正已落地(R2P_round2.md复审请求): 回踩引擎三阶段状态机重写(bar0 touch恒真修复)→三引擎29/48=60.4%(max_pct5:31/48单调,保守下界); realtime全绿(283天4%语义正确/958天重放零不一致); gate软评分禁硬过滤(拒真实买入日10/48); shrink③表述更正(全窗口原始条件560天非零激活); 诚邦5/19强成立(+16.09%自洽); 待复审"
+      },
+      "R3p": {
+        "status": "in_progress",
+        "note": "第一轮: 乖离率止盈+KDJ死叉+回放11/12✓; 第二轮: 评审⚠️有条件放行(r3p_round2_review.md, 四gate机械复算全过: 龙头联动09:37清仓-1.37%vs-6.65%=+5.28pp, 板块退潮09:38/09:50稳健, 无前视); 接线期整改3项(龙头tie-break全日数据/top_n按全日额/信号同分钟收盘改下一根); 放行进入R4'/R6'接线"
+      },
+      "R4p": {
+        "status": "in_progress",
+        "note": "评审⚠️有条件通过(r4r5_round1_review.md)+整改闭环(R4R5_remediation.md): 温度计不放行驱动仓位档→复现改用冰点避险0.9/0.2; T差价~7%更正为反推值无出处; 圣阳7连板日期更正4/9-4/17; 冰点窗口复核=定义差异(次日+0.84% v47口径 vs P1宽口径-1.54%); 待复审"
+      },
+      "R5p": {
+        "status": "in_progress",
+        "note": "评审⚠️有条件通过(r4r5_round1_review.md)+整改: 涨停容差±0.005重建/北交所920修复(market_suffix+limit_pct 92→30%)/冰点=避险20%删加仓表述/权重无出处降级为代理; 温度计仅报告口径; 待复审; 第二轮=板块三信号"
+      },
+      "R6p": {
+        "status": "done",
+        "note": "终局评审⚠️有条件通过(r6p_round3_review.md): 结论=机械复现未达标(0.89-0.92x, 裁决线3x的~14%); C8/C9 gate实现缺陷已修复勘误(最优=C2骑乘0.92x); 差距本质=候选池3/5日负漂移+人工盘感不可机械化; 已结案放行R7'报告制"
+      },
+      "R7p": {
+        "status": "in_progress",
+        "note": "终局评审4项必须整改已落地(r7p_final_review.md): 泛化勘误/昨收涨停价off-by-one修复(301165=126.97/152.36验证)/调度链改接v5+引号修复/--date自动派生; 复审确认中; 模拟盘待P1 tick(data_days_now=2)"
+      }
+    },
+    "alignment": "docs/V5_ALIGNMENT.md (9/9 用户确认)"
+  }
+}
