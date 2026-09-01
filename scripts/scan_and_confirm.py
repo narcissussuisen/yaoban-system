@@ -5,11 +5,12 @@
 --execute: 触发即记账买入（自主执行模式）；否则仅提醒
 """
 from __future__ import annotations
+import hashlib
 import json
 import pathlib
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / 'src'))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
@@ -22,11 +23,22 @@ from market_scan import load_universe, fetch_batch, tencent_symbol  # noqa: E402
 from core.combo_sell import industry_of  # noqa: E402
 from core.intraday import detect_b_point, detect_dibu_buy, detect_pullback_buy, vwap_series  # noqa: E402
 from core.sell import limit_price  # noqa: E402
-from ledger import buy, buy_net, load, transact, record_signal_request  # noqa: E402
+from ledger import buy, buy_net, load, transact, record_signal_request, record_autonomous_decision  # noqa: E402
+from timing_contract import FRESHNESS_SECONDS  # noqa: E402
 
 BASE = pathlib.Path(__file__).resolve().parent.parent
 OUT = BASE / 'outputs' / 'intraday'
 SERVERS = [('115.238.56.198', 7709), ('115.238.90.165', 7709)]
+
+
+def _load_day_plan(day: str):
+    """P0.4: 读取当日计划（fail-closed——计划缺失属基础设施异常，不允许'视为全部计划外'继续买）。"""
+    for src in (BASE / 'outputs' / 'plans' / f'{day}_plan.json',):
+        try:
+            return json.loads(src.read_text(encoding='utf-8'))
+        except Exception:
+            continue
+    return None
 
 
 def market_of(sym: str) -> int:
@@ -138,6 +150,20 @@ def main():
             return 6
     st = load()
     held = set(st['account']['positions'].keys())
+    # P0.4: 读取当日计划（fail-closed）; 盘前研究对交易的约束以计划匹配契约落地
+    day_plan = _load_day_plan(day)
+    if day_plan is None:
+        print(f'当日计划缺失, fail-closed 禁止扫描交易: {BASE / "outputs" / "plans" / f"{day}_plan.json"}', file=sys.stderr, flush=True)
+        return 7
+    plan_picks = {}
+    for _pi, _p in enumerate(day_plan.get('picks') or []):
+        plan_picks[_p.get('sym')] = {'idx': _pi, 'pick': _p}
+    try:
+        plan_sha256 = hashlib.sha256((BASE / 'outputs' / 'plans' / f'{day}_plan.json').read_bytes()).hexdigest()
+    except Exception:
+        plan_sha256 = ''
+    now_str = now.strftime('%Y-%m-%d %H:%M:%S')
+    fresh_floor = now - timedelta(seconds=FRESHNESS_SECONDS)
     temp_now = None
     if args.temp_ladder:
         try:
@@ -241,7 +267,15 @@ def main():
                 continue
             _vw = vwap_series(df)
             t = px = kind = None
+            # P0.2: 只扫新鲜窗口内的 bar（标签 >= now-120s; 在途 bar 视为最新）
+            # —— 消灭全天重放取最早信号导致的回溯成交（300468 案例）
             for _i in range(5, len(df)):
+                try:
+                    _dt = datetime.strptime(str(df['ts'].iloc[_i]), '%Y-%m-%d %H:%M')
+                except ValueError:
+                    continue
+                if _dt < fresh_floor:
+                    continue
                 _px = float(df['close'].iloc[_i])
                 if (_px / pc - 1) >= 0.02 and _px >= float(_vw.iloc[_i]):
                     t, px, kind = str(df['ts'].iloc[_i])[11:16], _px, 'e4_support'
@@ -258,9 +292,18 @@ def main():
                 cands.append((str(b['ts'])[11:16], float(b['price']), 'D'))
             for _, b in detect_pullback_buy(df, prev_close=pc, max_pct=3.0).iterrows():
                 cands.append((str(b['ts'])[11:16], float(b['price']), 'P'))
-            if not cands:
+            # P0.2: 三引擎候选先按 120 秒新鲜度过滤再取最早（在途 bar 视为最新）
+            _fresh = []
+            for _c in cands:
+                try:
+                    _cdt = datetime.strptime(f'{day} {_c[0]}', '%Y-%m-%d %H:%M')
+                except ValueError:
+                    continue
+                if _cdt >= fresh_floor:
+                    _fresh.append(_c)
+            if not _fresh:
                 continue
-            t, px, kind = sorted(cands, key=lambda x: x[0])[0]
+            t, px, kind = sorted(_fresh, key=lambda x: x[0])[0]
         vw = vwap_series(df)
         lim = limit_price(pc, c['sym'])
         if px >= lim - 0.01:
@@ -291,11 +334,36 @@ def main():
                           'exec_bar_volume': int(float(df.iloc[exec_index].get('volume', 0)))})
         print(f"[{now:%H:%M}] ★买点 {c['sym']} {c['name']} {t}@{px_exec:.2f} ({kind}) 涨幅{c['chg']:+.1f}%")
     api.disconnect()
+    # 3.5) P0.2/P0.4: 候选快照（内容寻址）——执行裁决链的可复核输入
+    candidates_snapshot = {
+        'date': day, 'time': now.strftime('%H:%M:%S'),
+        'pool': pool[:8], 'triggered': [dict(tg) for tg in triggered],
+        'mode_flags': {'e4_support': bool(args.e4_support), 'temp_ladder': bool(args.temp_ladder),
+                       'min_amt_yi': args.min_amt, 'execute': bool(args.execute)},
+        'day_plan_ref': {'file': f'outputs/plans/{day}_plan.json', 'sha256': plan_sha256,
+                         'picks': [p.get('sym') for p in (day_plan.get('picks') or [])]},
+    }
+    candidates_ref = hashlib.sha256(
+        json.dumps(candidates_snapshot, ensure_ascii=False, sort_keys=True).encode('utf-8')).hexdigest()
     # 4) Account-scoped execution. Human-confirmed accounts only create requests;
     # autonomous_paper accounts may execute conservative simulated fills.
     request_ids = []
     fill_ids = []
     for tg in triggered[:1]:
+        # P0.4: 计划匹配契约（in_plan → pick_id; 计划外 → 显式理由, 嵌套于 plan_match）
+        pick_info = plan_picks.get(tg['sym'])
+        if pick_info is not None:
+            _pick_id = f"plan-{day}#{pick_info['idx']}:{tg['sym']}"
+            plan_match = {'in_plan': True, 'pick_id': _pick_id, 'plan_sha256': plan_sha256,
+                          'off_plan_reason': None}
+            plan_ref_value = _pick_id
+        else:
+            _rank = next((i + 1 for i, p in enumerate(pool[:8]) if p['sym'] == tg['sym']), None)
+            plan_match = {'in_plan': False, 'pick_id': None, 'plan_sha256': plan_sha256,
+                          'off_plan_reason': {'code': 'intraday_scan_capture',
+                                              'detail': f"engine={tg['kind']};chg={tg['chg']:+.1f}%;pool_rank={_rank}"}}
+            plan_ref_value = f'offplan-{day}:{tg["sym"]}'
+
         def _mutate(state):
             policy = state.get('policy', {})
             if args.execute:
@@ -311,8 +379,19 @@ def main():
                 qty = min(qty, participation_cap)
                 if qty < 100:
                     raise ValueError('下一分钟可成交量不足一手，模拟不成交')
+                # P0.4: 先登记自主决策（裁决链可重放）, 再以完整 provenance 成交
+                did = record_autonomous_decision(state, {
+                    'sym': tg['sym'], 'name': tg['name'],
+                    'signal_ts': f'{day} {tg["ts"]}', 'signal_px': tg.get('px_signal'),
+                    'rule': tg['kind'], 'candidates_ref': candidates_ref,
+                    'plan_pick_ref': plan_match.get('pick_id'),
+                    'off_plan_reason': plan_match.get('off_plan_reason'),
+                    'risk_gates': 'ledger._validate_buy_policy',
+                })
                 buy(state, tg['sym'], f'{day} {tg["exec_ts"]}', float(tg['px']), qty, tg['kind'],
-                    plan_ref=f'plan-{day}')
+                    plan_ref=plan_ref_value, decision_id=did,
+                    signal_ts=f'{day} {tg["ts"]}', decision_ts=now_str,
+                    candidates_ref=candidates_ref, plan_match=plan_match)
                 fill = state['account']['fills'][-1]
                 return {'mode': 'filled', 'id': f"{fill['ts']}:{fill['sym']}:{fill['qty']}", 'qty': qty}
             existing = [r for r in state.get('signal_requests', {}).values()
@@ -324,7 +403,9 @@ def main():
                 'date': day, 'sym': tg['sym'], 'name': tg['name'], 'kind': tg['kind'],
                 'signal_ts': f'{day} {tg["ts"]}', 'signal_px': tg.get('px_signal'),
                 'suggested_px': tg['px'], 'chg_pct': tg['chg'],
-                'plan_ref': f'plan-{day}', 'expires_at': f'{day} 15:00',
+                'plan_ref': plan_ref_value, 'expires_at': f'{day} 15:00',
+                'candidates_ref': candidates_ref,
+                'plan_match': plan_match,
                 'evidence': {'e4_support': bool(args.e4_support),
                              'temp_ladder': bool(args.temp_ladder),
                              'min_amt_yi': args.min_amt}
@@ -345,7 +426,9 @@ def main():
             print(f'  模拟不成交: {tg["sym"]} {exc}', flush=True)
     fp = OUT / f'confirm_{now.strftime("%Y%m%d_%H%M")}.json'
     fp.write_text(json.dumps({'date': day, 'time': now.strftime('%H:%M:%S'), 'pool': pool[:8],
-                              'triggered': triggered, 'request_ids': request_ids, 'fill_ids': fill_ids}, ensure_ascii=False), encoding='utf-8')
+                              'triggered': triggered, 'request_ids': request_ids, 'fill_ids': fill_ids,
+                              'candidates_ref': candidates_ref,
+                              'candidates_snapshot': candidates_snapshot}, ensure_ascii=False), encoding='utf-8')
     return 0
 
 

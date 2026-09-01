@@ -48,7 +48,14 @@ def main():
         if a.cmd=='approve' and a.execute_px is not None:
             qty=_qty(st,a.execute_px)
             if qty<100: raise ValueError('可用仓位不足100股')
-            buy(st,req['sym'],datetime.now().strftime('%Y-%m-%d %H:%M'),a.execute_px,qty,req['kind'],stop_pct=5.0,plan_ref=req.get('plan_ref',''),decision_id=did)
+            # P0.2: 人工执行同样受时序契约约束（信号过期即拒单——见 timing_contract）
+            _now_str=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            buy(st,req['sym'],datetime.now().strftime('%Y-%m-%d %H:%M'),a.execute_px,qty,req['kind'],stop_pct=5.0,plan_ref=req.get('plan_ref',''),decision_id=did,
+                signal_ts=req.get('signal_ts'),decision_ts=_now_str,
+                candidates_ref=req.get('candidates_ref'),
+                plan_match=req.get('plan_match') or {'in_plan': False, 'pick_id': None,
+                                                      'off_plan_reason': {'code': 'human_confirmed', 'detail': '人工确认执行'}},
+                off_plan_reason={'code': 'human_confirmed', 'detail': '人工确认执行'} if not (req.get('plan_match') or {}).get('in_plan') else None)
             fill={'sym':req['sym'],'qty':qty,'px':a.execute_px,'decision_id':did}
             st['signal_requests'][a.request_id]['status']='executed'
         return {'decision_id':did,'fill':fill}

@@ -17,6 +17,8 @@ import time
 import uuid
 from datetime import datetime
 
+from timing_contract import validate_buy_timing
+
 try:
     import msvcrt
 except ImportError:  # pragma: no cover
@@ -72,6 +74,7 @@ def _normalize(state: dict) -> dict:
         policy.setdefault(k, v)
     state.setdefault("signal_requests", {})
     state.setdefault("human_decisions", {})
+    state.setdefault("autonomous_decisions", {})
     state.setdefault("risk_state", {})
     state.setdefault("rules_log", [])
     state.setdefault("plans", {})
@@ -211,6 +214,21 @@ def record_human_decision(state: dict, request_id: str, decision: str, actor: st
     return did
 
 
+def record_autonomous_decision(state: dict, record: dict) -> str:
+    """登记自主决策（P0.4：autonomous_paper 路径的决策 provenance）。
+
+    Phase 0 由确定性规则引擎代行"组合经理"角色；Phase 1C 六角色在同 schema 上
+    扩展 artifacts 哈希与角色签名。record 建议字段：
+    sym/name/signal_ts/signal_px/rule/candidates_ref/plan_pick_ref/off_plan_reason。
+    """
+    did = f"dec-auto-{datetime.now():%Y%m%d%H%M%S}-{uuid.uuid4().hex[:8]}"
+    row = dict(record)
+    row.update({"decision_id": did, "mode": "autonomous_paper",
+                "decided_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+    state.setdefault("autonomous_decisions", {})[did] = row
+    return did
+
+
 def _validate_decision(state: dict, decision_id: str, sym: str, px: float):
     dec = state.get("human_decisions", {}).get(decision_id)
     if not dec or dec.get("decision") != "approve":
@@ -223,7 +241,9 @@ def _validate_decision(state: dict, decision_id: str, sym: str, px: float):
     if hi is not None and px > float(hi): raise ValueError("订单价高于批准区间")
 
 
-def _validate_buy_policy(state: dict, sym: str, ts: str, order_cost: float, decision_id: str):
+def _validate_buy_policy(state: dict, sym: str, ts: str, order_cost: float, decision_id: str,
+                         signal_ts: str | None = None, decision_ts: str | None = None,
+                         plan_match: dict | None = None, off_plan_reason: dict | None = None):
     policy = state["policy"]
     acct = state["account"]
     positions = acct["positions"]
@@ -253,6 +273,29 @@ def _validate_buy_policy(state: dict, sym: str, ts: str, order_cost: float, deci
         raise ValueError("单票权重超过熔断后上限")
     if (_gross_cost(state) + order_cost) / eq > float(policy["max_gross_exposure"]) * mult + 1e-9:
         raise ValueError("毛敞口超过熔断后上限")
+    # ---- P0.4 决策 provenance（蓝图 B0-P0-4: 任何空 decision_id 拒绝）----
+    auto = state.get("autonomous_decisions", {}).get(decision_id)
+    human = state.get("human_decisions", {}).get(decision_id)
+    if not decision_id or not (auto or human):
+        raise ValueError("decision_id 缺失或不可解析(人工/自主决策登记均无)")
+    if auto and auto.get("sym") != sym:
+        raise ValueError("自主决策标的与订单不一致")
+    # ---- P0.2 时序契约（蓝图 B0-P0-2: signal_ts <= decision_ts <= recorded_at, 120s 新鲜度）----
+    if signal_ts is None or decision_ts is None:
+        raise ValueError("买入缺少 signal_ts/decision_ts 时序契约")
+    ok, reason = validate_buy_timing(signal_ts, decision_ts, ts,
+                                     datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    if not ok:
+        raise ValueError(f"时序契约违规: {reason}")
+    # ---- P0.4 计划匹配契约（计划外允许但须显式理由, off_plan_reason 嵌套于 plan_match）----
+    pm = plan_match if isinstance(plan_match, dict) else {}
+    if pm.get("in_plan"):
+        if not pm.get("pick_id"):
+            raise ValueError("计划内买入必须携带 pick_id")
+    else:
+        reason_obj = pm.get("off_plan_reason") or off_plan_reason or {}
+        if not reason_obj.get("code"):
+            raise ValueError("计划外买入必须携带 off_plan_reason.code")
     if policy.get("require_human_decision"):
         dec = state.get("human_decisions", {}).get(decision_id)
         if not dec or dec.get("decision") != "approve":
@@ -260,10 +303,18 @@ def _validate_buy_policy(state: dict, sym: str, ts: str, order_cost: float, deci
 
 
 def buy(state: dict, sym: str, ts: str, px: float, qty: int, reason: str,
-        stop_pct: float = 5.0, plan_ref: str = "", decision_id: str = "") -> dict:
-    """普通买入：统一执行人工确认与账户风险约束。"""
+        stop_pct: float = 5.0, plan_ref: str = "", decision_id: str = "",
+        signal_ts: str | None = None, decision_ts: str | None = None,
+        candidates_ref: str | None = None, plan_match: dict | None = None,
+        off_plan_reason: dict | None = None) -> dict:
+    """普通买入：统一执行决策 provenance、时序契约与账户风险约束（P0.2/P0.4）。
+
+    ts 语义 = 成交时刻（扫描路径为触发 bar 下一根的标签，即 fill.ts）。
+    """
     cost = buy_net(px) * qty
-    _validate_buy_policy(state, sym, ts, cost, decision_id)
+    _validate_buy_policy(state, sym, ts, cost, decision_id,
+                         signal_ts=signal_ts, decision_ts=decision_ts,
+                         plan_match=plan_match, off_plan_reason=off_plan_reason)
     if state["policy"].get("require_human_decision"):
         _validate_decision(state, decision_id, sym, px)
     if cost > state["account"]["cash"] + 1e-6:
@@ -277,12 +328,15 @@ def buy(state: dict, sym: str, ts: str, px: float, qty: int, reason: str,
     else:
         pos.update({"qty": qty, "cost": cost / qty, "entry_ts": ts,
                     "stop_px": px * (1 - stop_pct / 100.0), "days": 0})
-    _fill(state, ts, sym, "buy", qty, px, reason, plan_ref, decision_id)
+    _fill(state, ts, sym, "buy", qty, px, reason, plan_ref, decision_id,
+          signal_ts=signal_ts, decision_ts=decision_ts,
+          candidates_ref=candidates_ref, plan_match=plan_match)
     return state
 
 
 def sell(state: dict, sym: str, ts: str, px: float, qty: int, reason: str,
-         plan_ref: str = "") -> dict:
+         plan_ref: str = "", signal_ts: str | None = None,
+         decision_ts: str | None = None, decision_id: str = "") -> dict:
     pos = state["account"]["positions"].get(sym)
     if not pos or pos.get("qty", 0) < qty: raise ValueError("持仓不足")
     day = ts[:10]
@@ -291,22 +345,26 @@ def sell(state: dict, sym: str, ts: str, px: float, qty: int, reason: str,
     state["account"]["cash"] += sell_net(px) * qty
     pos["qty"] -= qty
     if pos["qty"] <= 0: del state["account"]["positions"][sym]
-    _fill(state, ts, sym, "sell", qty, px, reason, plan_ref, "")
+    _fill(state, ts, sym, "sell", qty, px, reason, plan_ref, decision_id,
+          signal_ts=signal_ts, decision_ts=decision_ts)
     return state
 
 
-def t_buy(state: dict, sym: str, ts: str, px: float, qty: int, plan_ref: str = "") -> dict:
+def t_buy(state: dict, sym: str, ts: str, px: float, qty: int, plan_ref: str = "",
+          signal_ts: str | None = None, decision_ts: str | None = None) -> dict:
     if sym not in state["account"]["positions"]: raise ValueError("T进仅允许已有底仓")
     cost = buy_net(px) * qty
     if cost > state["account"]["cash"] + 1e-6: raise ValueError("现金不足(T进)")
     state["account"]["cash"] -= cost
     pos = state["account"]["positions"][sym]
     pos["qty"] += qty
-    _fill(state, ts, sym, "buy", qty, px, "t_buy", plan_ref, "")
+    _fill(state, ts, sym, "buy", qty, px, "t_buy", plan_ref, "",
+          signal_ts=signal_ts, decision_ts=decision_ts)
     return state
 
 
-def t_sell(state: dict, sym: str, ts: str, px: float, qty: int, plan_ref: str = "") -> dict:
+def t_sell(state: dict, sym: str, ts: str, px: float, qty: int, plan_ref: str = "",
+           signal_ts: str | None = None, decision_ts: str | None = None) -> dict:
     pos = state["account"]["positions"].get(sym)
     if not pos or pos.get("qty", 0) < qty: raise ValueError("T出持仓不足")
     available = sellable_qty(state, sym, ts[:10])
@@ -314,17 +372,25 @@ def t_sell(state: dict, sym: str, ts: str, px: float, qty: int, plan_ref: str = 
     state["account"]["cash"] += sell_net(px) * qty
     pos["qty"] -= qty
     if pos["qty"] <= 0: del state["account"]["positions"][sym]
-    _fill(state, ts, sym, "sell", qty, px, "t_sell", plan_ref, "")
+    _fill(state, ts, sym, "sell", qty, px, "t_sell", plan_ref, "",
+          signal_ts=signal_ts, decision_ts=decision_ts)
     return state
 
 
-def _fill(state, ts, sym, side, qty, px, reason, plan_ref, decision_id=""):
-    state["account"]["fills"].append({
+def _fill(state, ts, sym, side, qty, px, reason, plan_ref, decision_id="",
+          signal_ts=None, decision_ts=None, candidates_ref=None, plan_match=None):
+    """写入成交记录。ts = 成交时刻（fill_ts）；provenance 字段仅在提供时写入（历史 fill 不回改）。"""
+    row = {
         "date": ts[:10], "ts": ts, "sym": sym, "side": side, "qty": qty,
         "px": round(px, 3), "reason": reason, "plan_ref": plan_ref,
         "decision_id": decision_id,
         "recorded_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    })
+    }
+    if signal_ts is not None: row["signal_ts"] = signal_ts
+    if decision_ts is not None: row["decision_ts"] = decision_ts
+    if candidates_ref is not None: row["candidates_ref"] = candidates_ref
+    if plan_match is not None: row["plan_match"] = plan_match
+    state["account"]["fills"].append(row)
 
 
 def equity(state: dict, date: str, mark_px: dict) -> float:

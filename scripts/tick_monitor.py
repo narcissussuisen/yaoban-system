@@ -114,7 +114,9 @@ def main():
        raise ValueError('risk execution is limited to autonomous_paper')
       q=min(qty,sellable_qty(s,sym,day))//100*100
       if q<100:raise ValueError('无可卖份额')
-      sell(s,sym,f'{day} {ev["time"]}',epx,q,trig,plan_ref='tick-risk');return {'sym':sym,'qty':q,'px':epx,'trigger':trig}
+      sell(s,sym,f'{day} {ev["time"]}',epx,q,trig,plan_ref='tick-risk',
+           signal_ts=f'{day} {ev["time"]}',decision_ts=f'{day} {ev["time"]}',
+           decision_id=f'dec-tick-{day.replace("-","")}-{sym}');return {'sym':sym,'qty':q,'px':epx,'trigger':trig}
      try:st,res=transact(mut);print('[RISK-EXEC] '+json.dumps(res,ensure_ascii=False),flush=True)
      except Exception as e:ev['action']='failed';ev['blocked_reason']=str(e);append_event(ev);print('[RISK-FAIL] '+str(e),file=sys.stderr);return 4
   atomic_json(OUT/'pos_live.json',live);time.sleep(interval)
