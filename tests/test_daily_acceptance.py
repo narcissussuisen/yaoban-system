@@ -103,4 +103,37 @@ class AcceptanceFinalProbeTests(unittest.TestCase):
    self.assertEqual(json.loads(official.read_text(encoding='utf-8'))['marker'],'official')
    self.assertTrue((out/f'acceptance_{self.day}_probe.json').exists())
 
+class ChainOrderAndDualEntryTests(unittest.TestCase):
+ """C4(计划批次C4/§3.3): 链序 index 单调断言 + acceptance 双入口参数一致性。
+
+ 链序断言防 9/2 事故根因回归(情绪/候选在 rebuild 之前跑 → 永读不到当日日线);
+ 双入口一致性防单入口修好、另一入口回归(E10: 手动入口裸调用降级 probe 却推 passed 文案)。
+ """
+ def test_post_close_chain_stage_order_monotonic(self):
+  chain=(ROOT/'scripts'/'post_close_chain.ps1').read_text(encoding='utf-8')
+  stages=['fetch_daily_minute_rebuild.py','r5p_sentiment_build.py','r6p_candidates_build.py',
+          'generate_next_plan.py','collect_daily_acceptance.py']
+  idx=[chain.find(s) for s in stages]
+  for s,i in zip(stages,idx):
+   self.assertGreaterEqual(i,0,f'链脚本缺阶段: {s}')
+  for a,b in zip(idx,idx[1:]):
+   self.assertLess(a,b,f'链序被调换: 相邻阶段 index {a} >= {b}(9/2 事故根因防回归)')
+
+ def test_run_trading_task_acceptance_has_final_params(self):
+  rt=(ROOT/'scripts'/'run_trading_task.ps1').read_text(encoding='utf-8')
+  self.assertIn('--date $Day --final',rt)  # C2 回归锚: 手动补跑入口补齐参数
+
+ def test_dual_entry_acceptance_params_consistent(self):
+  chain=(ROOT/'scripts'/'post_close_chain.ps1').read_text(encoding='utf-8')
+  rt=(ROOT/'scripts'/'run_trading_task.ps1').read_text(encoding='utf-8')
+  self.assertIn('--date $Day --final',chain)  # 生产入口(16:30 链)
+  self.assertIn('--date $Day --final',rt)     # 手动补跑入口: 双入口一致
+
+ def test_post_close_chain_manifest_observability(self):
+  # C7 回归锚: manifest 观测字段齐全(skipped_due_to 显式化, 不以上游失败码冒充)
+  chain=(ROOT/'scripts'/'post_close_chain.ps1').read_text(encoding='utf-8')
+  for token in ('chain_manifest_','Invoke-ChainStage','skipped_due_to','attempt_no',
+                'command_hash','input_manifest_hash','output_paths','run_id'):
+   self.assertIn(token,chain,f'C7 manifest 缺要素: {token}')
+
 if __name__=='__main__':unittest.main(verbosity=2)

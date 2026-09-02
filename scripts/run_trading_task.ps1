@@ -50,7 +50,9 @@ switch($Mode){
  'close' {Run-Stage 'close' {& $Py -X utf8 ($Base+'\scripts\close_pipeline.py');if($LASTEXITCODE -eq 0){& $Py -X utf8 $Notify --kind close --date $Day}}}
  'rebuild' {Run-Stage 'rebuild' {& $Py -X utf8 ($Base+'\scripts\fetch_daily_minute_rebuild.py');if($LASTEXITCODE -eq 0){& $Py -X utf8 ($Base+'\scripts\generate_next_plan.py')}}}
  'next-plan' {Run-Stage 'next-plan' {& $Py -X utf8 ($Base+'\scripts\generate_next_plan.py')}}
- 'acceptance' {Run-Stage 'acceptance' {& $Py -X utf8 ($Base+'\scripts\collect_daily_acceptance.py');if($LASTEXITCODE -eq 0){$msg=('Yaoban daily acceptance passed '+$Day+[Environment]::NewLine+'Evidence: outputs/acceptance/acceptance_'+$Day+'.json');& $Py -X utf8 $Notify --kind alert --date $Day --event-key ('acceptance:'+$Day) --message $msg}}} 'data-refresh' {Run-Stage 'data-refresh' {& $Py -X utf8 ($Base+'\scripts\r5p_sentiment_build.py') --workers 6;if($LASTEXITCODE -eq 0){& $Py -X utf8 ($Base+'\scripts\r6p_candidates_build.py') --workers 6}}}
+ # 手动补跑入口(非生产链), 生产入口=post_close_chain.ps1 16:30 (计划批次C2/§2.5: 唯一正式 acceptance 生产入口为 16:30 链)
+ 'acceptance' {Run-Stage 'acceptance' {& $Py -X utf8 ($Base+'\scripts\collect_daily_acceptance.py') --date $Day --final;if($LASTEXITCODE -eq 0){$msg=('Yaoban daily acceptance passed '+$Day+[Environment]::NewLine+'Evidence: outputs/acceptance/acceptance_'+$Day+'.json');& $Py -X utf8 $Notify --kind alert --date $Day --event-key ('acceptance:'+$Day) --message $msg}}}
+ 'data-refresh' {Run-Stage 'data-refresh' {& $Py -X utf8 ($Base+'\scripts\r5p_sentiment_build.py') --workers 6;if($LASTEXITCODE -eq 0){& $Py -X utf8 ($Base+'\scripts\r6p_candidates_build.py') --workers 6}}}
  # P0时间表重构(2026-09-01, 用户评审): 盘后链合并为单任务 16:30 (逻辑见 scripts/post_close_chain.ps1)
  'post-close' {& powershell.exe -NoProfile -ExecutionPolicy Bypass -File ($Base+'\scripts\post_close_chain.ps1') -Py $Py -Base $Base -Day $Day -Notify $Notify; exit $LASTEXITCODE}
  default {[Console]::Error.WriteLine('unknown mode '+$Mode);exit 22}

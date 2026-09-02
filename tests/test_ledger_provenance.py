@@ -151,5 +151,81 @@ class LedgerProvenanceTests(unittest.TestCase):
                        plan_match={'in_plan': False}, off_plan_reason={'code': 'human'})
 
 
+class TickRiskSellPathTests(unittest.TestCase):
+ """C1(计划批次C1/§3.4 真实路径测试): tick 卖出 provenance。
+
+ 驱动从 tick_monitor.py 提取的模块级 execute_tick_risk_sell(替代原 mut 闭包), 断言:
+ ① autonomous_decisions[did] 存在、sym 匹配、signal_ts 合法;
+ ② 产生的 fill decision_id 可从账本反查 decision;
+ ③ decision_id 不匹配 dec-tick-* 模式(人工拼接 ID 已退役);
+ 辅助回归锚: 源码中登记调用位置早于 sell( 调用(登记在卖出前)。
+ """
+ @staticmethod
+ def _import_tick_monitor():
+  import importlib.util
+  fp=pathlib.Path(ledger.__file__).resolve().parents[1]/'scripts'/'tick_monitor.py'
+  spec=importlib.util.spec_from_file_location('tick_monitor_under_test',fp)
+  m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+  return m
+
+ def setUp(self):
+  self.tm=self._import_tick_monitor()
+  self.s=_auto_state()
+  self.s['account']['positions']['000001']={'qty':1000,'cost':10.0,
+   'entry_ts':'2026-08-28 10:06','stop_px':9.5,'days':0}
+  # 前日买入 → T+1 可卖(sellable_qty 依据 fills 的 buy/sell 差额)
+  self.s['account']['fills'].append({'date':'2026-08-28','ts':'2026-08-28 10:06',
+   'sym':'000001','side':'buy','qty':1000,'px':10.0,'reason':'P',
+   'plan_ref':'plan-x','decision_id':'','recorded_at':''})
+
+ def test_register_before_sell_and_fill_traceable(self):
+  res=self.tm.execute_tick_risk_sell(self.s,'000001','2026-08-29','09:40:00',9.8,400,'stop_loss')
+  did=res['decision_id']
+  self.assertTrue(did.startswith('dec-auto-'))              # 登记返回合法 dec-auto-*
+  self.assertNotRegex(did,r'^dec-tick-')                    # ③ 人工拼接 ID 已退役
+  self.assertIn(did,self.s['autonomous_decisions'])         # ① 决策登记可反查
+  dec=self.s['autonomous_decisions'][did]
+  self.assertEqual(dec['sym'],'000001')
+  self.assertEqual(dec['signal_ts'],'2026-08-29 09:40:00')
+  self.assertEqual(dec['rule'],'tick_risk:stop_loss')
+  self.assertEqual(dec['plan_ref'],'tick-risk')
+  fill=self.s['account']['fills'][-1]                       # ② fill 可反查 decision
+  self.assertEqual(fill['decision_id'],did)
+  self.assertEqual(fill['side'],'sell')
+  self.assertEqual(fill['qty'],400)
+  self.assertEqual(fill['px'],9.8)
+  self.assertEqual(fill['signal_ts'],'2026-08-29 09:40:00')
+  self.assertEqual(fill['decision_ts'],'2026-08-29 09:40:00')
+
+ def test_qty_floored_to_board_lot(self):
+  res=self.tm.execute_tick_risk_sell(self.s,'000001','2026-08-29','09:40:00',9.8,450,'stop_loss')
+  self.assertEqual(res['qty'],400)  # min(450,1000)//100*100
+
+ def test_no_sellable_qty_rejected(self):
+  s=_auto_state()  # 无持仓无 fills
+  with self.assertRaisesRegex(ValueError,'无可卖份额'):
+   self.tm.execute_tick_risk_sell(s,'000001','2026-08-29','09:40:00',9.8,400,'stop_loss')
+
+ def test_non_autonomous_mode_rejected(self):
+  s=ledger._default_state()  # require_human_decision=True
+  s['account']['positions']['000001']={'qty':1000,'cost':10.0,'entry_ts':'2026-08-28 10:06','days':0}
+  with self.assertRaisesRegex(ValueError,'autonomous_paper'):
+   self.tm.execute_tick_risk_sell(s,'000001','2026-08-29','09:40:00',9.8,400,'stop_loss')
+
+ def test_source_anchor_register_before_sell(self):
+  import re
+  src=pathlib.Path(self.tm.__file__).read_text(encoding='utf-8')
+  m_reg=re.search(r'\brecord_autonomous_decision\(',src)
+  m_sell=re.search(r'\bsell\(',src)  # \b 排除 execute_tick_risk_sell/sellable_qty 内嵌
+  self.assertIsNotNone(m_reg);self.assertIsNotNone(m_sell)
+  self.assertLess(m_reg.start(),m_sell.start(),
+   '辅助回归锚: 登记调用必须出现在 sell( 调用之前')
+
+ def test_timezone_pinned_shanghai(self):
+  src=pathlib.Path(self.tm.__file__).read_text(encoding='utf-8')
+  self.assertIn("ZoneInfo('Asia/Shanghai')",src)  # C1 顺带: L52/L77 时区加固(A1b 同口径)
+  self.assertNotIn('datetime.now()',src)           # 裸 datetime.now() 清零
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

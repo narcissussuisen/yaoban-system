@@ -5,18 +5,89 @@ param([Parameter(Mandatory=$true)][string]$Py, [Parameter(Mandatory=$true)][stri
 #   sentiment 滞后一天 → 次日 infra 恒 FAIL → 盘中 gate 恒拦截(9/2 全天盘中任务死)。
 #   新序: daily_rebuilt(TDX) -> r5p情绪 -> r6p候选 -> next_plan -> acceptance
 #   (qfq_store 已同步修复: daily_rebuilt 也并入 _agg_daily 补充源, 口径: rebuilt vol 已为股)
-# 每步失败不中止后续(尽力而为, 失败在 acceptance 中可见), 最后按整体结果推送
+# 严格依赖链: 上游失败则下游跳过并在 manifest 记录 skipped_due_to, acceptance 始终执行并如实记录 missing
+#   (2026-09-02 批次C7 注释改写: 原"尽力而为"表述与 if 门控实现矛盾, 以实现为准, 计划§2.8)
+# C7 链 manifest 观测(只加观测, 不动门控控制流): 每步向 outputs/acceptance/chain_manifest_{day}.jsonl
+#   append 一行, 字段=G8 全集(run_id/stage/attempt_no/started_at/finished_at/exit_code/status/
+#   skipped_due_to/command_hash/input_manifest_hash/output_paths); 被跳过步骤写 status=skipped +
+#   skipped_due_to(上游:exit_N), 不以上游失败码冒充本步结果(修复 E11); 同日重跑只追加 attempt_no
+#   递增的新行不覆盖, 机械选择规则=取该 stage attempt_no 最大行; 9/2 不追溯补造 manifest(仅用于9/3起)。
 $ErrorActionPreference = "Continue"
+
+$Manifest = Join-Path $Base ("outputs\acceptance\chain_manifest_" + $Day + ".jsonl")
+$RunId = "pc_" + $Day.Replace("-","") + "_" + (Get-Date -Format "HHmmss")
+$NextDay = ([datetime]::ParseExact($Day,'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture)).AddDays(1).ToString('yyyy-MM-dd')
+
+function Get-Sha256([string]$Text) {
+  $sha=[System.Security.Cryptography.SHA256]::Create()
+  try { ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Text)))).Replace('-','').ToLower() }
+  finally { $sha.Dispose() }
+}
+function Get-NextAttempt([string]$Stage) {
+  $n=0
+  if (Test-Path $Manifest) {
+    foreach ($ln in (Get-Content $Manifest -Encoding UTF8)) {
+      if ([string]::IsNullOrWhiteSpace($ln)) { continue }
+      try { $mj=$ln|ConvertFrom-Json } catch { continue }
+      if ($mj.stage -eq $Stage -and $null -ne $mj.attempt_no) { $v=[int]$mj.attempt_no; if ($v -gt $n) { $n=$v } }
+    }
+  }
+  return ($n+1)
+}
+$script:PrevLine = 'day=' + $Day
+$script:UpStage = $null
+$script:UpCode = 0
+function Invoke-ChainStage([string]$Stage,[bool]$Run,[scriptblock]$Body,[string]$CmdText,[string[]]$Outputs) {
+  # 门控语义与原 if ($LASTEXITCODE -eq 0) 等价: 上游失败则本步跳过; 区别仅在跳过被显式记录, 不再冒充
+  $attempt=Get-NextAttempt $Stage
+  $t0=(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+  if ($Run) {
+    & $Body
+    $code=$LASTEXITCODE
+    if ($null -eq $code) { $code=0 }
+    $t1=(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+    $status='failed'; if ($code -eq 0) { $status='success' }
+    $skip=$null
+  } else {
+    $code=$null; $t1=$t0; $status='skipped'; $skip=($script:UpStage + ':exit_' + $script:UpCode)
+  }
+  $row=[ordered]@{ run_id=$RunId; stage=$Stage; attempt_no=$attempt; started_at=$t0; finished_at=$t1;
+    exit_code=$code; status=$status; skipped_due_to=$skip; command_hash=(Get-Sha256 $CmdText);
+    input_manifest_hash=(Get-Sha256 $script:PrevLine); output_paths=$Outputs }
+  $line=($row|ConvertTo-Json -Compress)
+  Add-Content -Path $Manifest -Value $line -Encoding UTF8
+  $script:PrevLine=$line
+  if ($Run) { $script:UpStage=$Stage; $script:UpCode=$code }
+  return $code
+}
+
 $codes = New-Object System.Collections.ArrayList
-& $Py -X utf8 ($Base + "\scripts\fetch_daily_minute_rebuild.py"); [void]$codes.Add($LASTEXITCODE)
-if ($LASTEXITCODE -eq 0) { & $Py -X utf8 ($Base + "\scripts\r5p_sentiment_build.py") --workers 6 }; [void]$codes.Add($LASTEXITCODE)
-if ($LASTEXITCODE -eq 0) { & $Py -X utf8 ($Base + "\scripts\r6p_candidates_build.py") --workers 6 }; [void]$codes.Add($LASTEXITCODE)
-if ($LASTEXITCODE -eq 0) { & $Py -X utf8 ($Base + "\scripts\generate_next_plan.py") }; [void]$codes.Add($LASTEXITCODE)
-& $Py -X utf8 ($Base + "\scripts\collect_daily_acceptance.py") --date $Day --final; [void]$codes.Add($LASTEXITCODE)
+$skipped = New-Object System.Collections.ArrayList
+
+$c = Invoke-ChainStage 'rebuild' $true { & $Py -X utf8 ($Base + "\scripts\fetch_daily_minute_rebuild.py") } ($Py + ' -X utf8 ' + $Base + '\scripts\fetch_daily_minute_rebuild.py') @('F:/WorkBuddyItem/a股level2/daily_rebuilt')
+[void]$codes.Add($c)
+$gate = ($c -eq 0)
+
+$c = Invoke-ChainStage 'r5p' $gate { & $Py -X utf8 ($Base + "\scripts\r5p_sentiment_build.py") --workers 6 } ($Py + ' -X utf8 ' + $Base + '\scripts\r5p_sentiment_build.py --workers 6') @('outputs/sentiment_full_2026.csv')
+if ($null -eq $c) { [void]$skipped.Add('r5p') } else { [void]$codes.Add($c) }
+$gate = ($c -eq 0)
+
+$c = Invoke-ChainStage 'r6p' $gate { & $Py -X utf8 ($Base + "\scripts\r6p_candidates_build.py") --workers 6 } ($Py + ' -X utf8 ' + $Base + '\scripts\r6p_candidates_build.py --workers 6') @('outputs/r6p_candidates_2026.csv')
+if ($null -eq $c) { [void]$skipped.Add('r6p') } else { [void]$codes.Add($c) }
+$gate = ($c -eq 0)
+
+$c = Invoke-ChainStage 'next_plan' $gate { & $Py -X utf8 ($Base + "\scripts\generate_next_plan.py") } ($Py + ' -X utf8 ' + $Base + '\scripts\generate_next_plan.py') @(('outputs/plans/' + $NextDay + '_plan.json'))
+if ($null -eq $c) { [void]$skipped.Add('next_plan') } else { [void]$codes.Add($c) }
+
+$c = Invoke-ChainStage 'acceptance' $true { & $Py -X utf8 ($Base + "\scripts\collect_daily_acceptance.py") --date $Day --final } ($Py + ' -X utf8 ' + $Base + '\scripts\collect_daily_acceptance.py --date ' + $Day + ' --final') @(('outputs/acceptance/acceptance_' + $Day + '.json'))
+[void]$codes.Add($c)
+
 $bad = @($codes | Where-Object { $_ -ne 0 })
+$skipNote = ''
+if ($skipped.Count -gt 0) { $skipNote = '; skipped=' + ($skipped -join ',') + '(manifest skipped_due_to)' }
 if ($bad.Count -eq 0) {
-  & $Py -X utf8 $Notify --kind close --date $Day --event-key ("postclose:" + $Day) --message ("盘后链全部通过 " + $Day)
+  & $Py -X utf8 $Notify --kind close --date $Day --event-key ("postclose:" + $Day) --message ("盘后链全部通过 " + $Day + $skipNote)
 } else {
-  & $Py -X utf8 $Notify --kind failure --date $Day --event-key ("failure:" + $Day + ":post-close") --message ("盘后链部分失败 " + $Day + " codes=" + ($codes -join ","))
+  & $Py -X utf8 $Notify --kind failure --date $Day --event-key ("failure:" + $Day + ":post-close") --message ("盘后链部分失败 " + $Day + " codes=" + ($codes -join ",") + $skipNote)
 }
 if ($bad.Count -gt 0) { exit 1 } else { exit 0 }

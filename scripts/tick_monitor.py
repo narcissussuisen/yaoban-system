@@ -6,6 +6,7 @@
 from __future__ import annotations
 import argparse,json,os,pathlib,sys,time
 from datetime import datetime
+from zoneinfo import ZoneInfo
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent.parent/'src'))
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent.parent))
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent.parent/'portfolio'))
@@ -13,7 +14,7 @@ import pandas as pd
 from pytdx.hq import TdxHq_API
 from core.intraday import vwap_series
 from core.sell import limit_price,limit_pct_of
-from ledger import load,transact,sell,sellable_qty
+from ledger import load,transact,sell,sellable_qty,record_autonomous_decision
 BASE=pathlib.Path(__file__).resolve().parent.parent
 OUT=BASE/'outputs'/'intraday'; OUT.mkdir(parents=True,exist_ok=True)
 SERVERS=[('115.238.56.198',7709),('115.238.90.165',7709)]
@@ -47,9 +48,25 @@ def prev_limit_close(sym,day):
   return c1>=round(c2*(1+limit_pct_of(sym)),2)-0.005
  except Exception:return False
 
+def execute_tick_risk_sell(s,sym,day,ev_time,epx,qty,trig):
+ """tick 风险卖出执行器（P0.4/C1）：先登记自主决策 provenance，后卖出。
+
+ 模块级可测函数（计划 §3.4 真实路径测试直接驱动，替代原 mut 闭包）；
+ 登记返回 dec-auto-* 合法 decision_id 透传给 ledger 卖出调用，退役人工拼接的 dec-tick-*。
+ """
+ if s.get('policy', {}).get('account_mode') != 'autonomous_paper' or s.get('policy', {}).get('require_human_decision'):
+  raise ValueError('risk execution is limited to autonomous_paper')
+ q=min(qty,sellable_qty(s,sym,day))//100*100
+ if q<100:raise ValueError('无可卖份额')
+ ts=f'{day} {ev_time}'
+ did=record_autonomous_decision(s,{'sym':sym,'signal_ts':ts,'signal_px':epx,
+  'rule':f'tick_risk:{trig}','plan_ref':'tick-risk'})
+ sell(s,sym,ts,epx,q,trig,plan_ref='tick-risk',signal_ts=ts,decision_ts=ts,decision_id=did)
+ return {'sym':sym,'qty':q,'px':epx,'trigger':trig,'decision_id':did}
+
 def main():
  ap=argparse.ArgumentParser();ap.add_argument('--interval',type=int,default=5);ap.add_argument('--rounds',type=int,default=0);ap.add_argument('--daemon',action='store_true');ap.add_argument('--execute-risk',action='store_true')
- a=ap.parse_args(); now=datetime.now(); day=now.strftime('%Y-%m-%d'); hm=now.strftime('%H:%M')
+ a=ap.parse_args(); now=datetime.now(ZoneInfo('Asia/Shanghai')); day=now.strftime('%Y-%m-%d'); hm=now.strftime('%H:%M')
  if now.weekday()>=5: print(f'[{hm}] 周末非交易日，退出'); return 0
  if not a.daemon and not (('09:30' <= hm <= '11:30') or ('13:00' <= hm <= '15:00')):
   print(f'[{hm}] 非交易时段，退出'); return 0
@@ -74,7 +91,7 @@ def main():
   return False
  fired=set(); rounds=0; interval=a.interval; err=0
  while a.rounds==0 or rounds<a.rounds:
-  rounds+=1; n=datetime.now(); hm2=n.strftime('%H:%M')
+  rounds+=1; n=datetime.now(ZoneInfo('Asia/Shanghai')); hm2=n.strftime('%H:%M')
   if a.daemon and not(('09:30'<=hm2<='11:30')or('13:00'<=hm2<='15:05')):
    if hm2>'15:05':break
    time.sleep(60);continue
@@ -110,13 +127,7 @@ def main():
      if st.get('policy', {}).get('account_mode') != 'autonomous_paper' or st.get('policy', {}).get('require_human_decision'):
       ev['action']='blocked_account_mode';ev['blocked_reason']='risk execution is limited to autonomous_paper';append_event(ev);print('[RISK-BLOCK] account mode',file=sys.stderr);return 5
      def mut(s):
-      if s.get('policy', {}).get('account_mode') != 'autonomous_paper' or s.get('policy', {}).get('require_human_decision'):
-       raise ValueError('risk execution is limited to autonomous_paper')
-      q=min(qty,sellable_qty(s,sym,day))//100*100
-      if q<100:raise ValueError('无可卖份额')
-      sell(s,sym,f'{day} {ev["time"]}',epx,q,trig,plan_ref='tick-risk',
-           signal_ts=f'{day} {ev["time"]}',decision_ts=f'{day} {ev["time"]}',
-           decision_id=f'dec-tick-{day.replace("-","")}-{sym}');return {'sym':sym,'qty':q,'px':epx,'trigger':trig}
+      return execute_tick_risk_sell(s,sym,day,ev['time'],epx,qty,trig)
      try:st,res=transact(mut);print('[RISK-EXEC] '+json.dumps(res,ensure_ascii=False),flush=True)
      except Exception as e:ev['action']='failed';ev['blocked_reason']=str(e);append_event(ev);print('[RISK-FAIL] '+str(e),file=sys.stderr);return 4
   atomic_json(OUT/'pos_live.json',live);time.sleep(interval)
