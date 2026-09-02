@@ -64,6 +64,31 @@ def pull_day_minutes(sym: str, day: str, api) -> pd.DataFrame | None:
     return pd.DataFrame(rows, columns=['ts', 'open', 'high', 'low', 'close', 'volume', 'amount'])
 
 
+def build_close_decision(decisions: dict, st: dict, eq: float, mark: dict) -> dict:
+    """构建 close_decision 扩展 schema（终审三轮方案A，2026-09-02 裁定）。
+
+    在原 date/buys/sells/t/notes 之上追加 G1 机械核对所需字段:
+    run_id / generated_at / ledger_revision / equity / positions{qty, close_px, market_value}。
+    必须在 save(st) 之后调用, 使 ledger_revision 指向已含当日净值点的账本版本(CAS)。
+    """
+    import uuid as _uuid
+    day = decisions['date']
+    positions = {}
+    for sym, pos in st['account']['positions'].items():
+        px = float(mark[sym])
+        qty = int(pos.get('qty', 0))
+        positions[sym] = {'qty': qty, 'close_px': px, 'market_value': round(qty * px, 2)}
+    doc = dict(decisions)
+    doc.update({
+        'run_id': f"close-{day}-{datetime.now():%H%M%S}-{_uuid.uuid4().hex[:6]}",
+        'generated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'ledger_revision': int(st.get('_revision', 0)),
+        'equity': round(float(eq), 2),
+        'positions': positions,
+    })
+    return doc
+
+
 def main():
     import argparse as _ap
     _parser = _ap.ArgumentParser()
@@ -231,8 +256,9 @@ def main():
     }
     record_review(st, day, review)
     save(st)
+    close_doc = build_close_decision(decisions, st, eq, mark)
     (INTRADAY / f'close_decision_{day}.json').write_text(
-        json.dumps(decisions, ensure_ascii=False, indent=1), encoding='utf-8')
+        json.dumps(close_doc, ensure_ascii=False, indent=1), encoding='utf-8')
     print(f'收盘净值 {eq:.2f} 持仓 {len(st["account"]["positions"])} 只', flush=True)
     # ---- 4) 交易员日报（阶段二: 自省层）——输出用文件重定向: 任务环境管道捕获EPERM, 参考 premarket 修复)
     with open(INTRADAY / f'trader_daily_{day}.log', 'w', encoding='utf-8') as _f:
@@ -243,7 +269,7 @@ def main():
     with open(INTRADAY / f'build_board_{day}.log', 'w', encoding='utf-8') as _f:
         _r5 = subprocess.run([sys.executable, str(BASE / 'scripts' / 'build_board.py'), '--fills-day', day],
                             cwd=str(BASE), stdout=_f, stderr=subprocess.STDOUT)
-    print('看板已更新', flush=True)
+    print(f'看板子任务 rc={_r5.returncode}', flush=True)
     if _r4.returncode != 0 or _r5.returncode != 0:
         print(f'ERROR: 子任务失败: trader_daily={_r4.returncode} build_board={_r5.returncode}', file=sys.stderr)
         return 7

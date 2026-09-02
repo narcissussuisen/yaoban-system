@@ -65,6 +65,69 @@ class ClosePipelineArgTests(unittest.TestCase):
         self.assertNotIn('buy(st', source)
         self.assertNotIn('sell(st', source)
 
+    def test_board_print_reflects_rc(self):
+        # 终审三轮: 看板打印不得无条件宣称成功(9/2 close stdout 曾误导"看板已更新"而 rc=1)
+        source = (ROOT / 'scripts' / 'close_pipeline.py').read_text(encoding='utf-8')
+        self.assertNotIn("print('看板已更新'", source, '看板打印不得无条件宣称成功')
+        self.assertIn('看板子任务 rc=', source)
+
+
+class CloseDecisionSchemaTests(unittest.TestCase):
+    """终审三轮方案A(2026-09-02): close_decision 扩展 schema 使 G1 判据可机械核对。"""
+
+    def _doc(self, revision=14):
+        decisions = {'date': '2026-09-03',
+                     'buys': [{'sym': '600000', 'ts': '09:45', 'px': 10.0, 'kind': 'B', 'seg': 'AM'}],
+                     'sells': [], 't': [], 'notes': ['600000: 无当日分钟']}
+        st = {'account': {'positions': {'600000': {'qty': 100, 'cost': 10.0},
+                                        '300468': {'qty': 1800, 'cost': 24.61}},
+                          'cash': 50000.0, 'fills': [], 'equity_curve': []},
+              '_revision': revision}
+        mark = {'600000': 10.2, '300468': 24.5}
+        eq = 50000.0 + 100 * 10.2 + 1800 * 24.5
+        return cp.build_close_decision(decisions, st, eq, mark), st, eq, mark
+
+    def test_new_fields_present(self):
+        doc, st, eq, mark = self._doc()
+        for key in ('run_id', 'generated_at', 'ledger_revision', 'equity', 'positions'):
+            self.assertIn(key, doc, f'缺少方案A字段 {key}')
+        self.assertEqual(doc['ledger_revision'], 14)
+        self.assertEqual(doc['equity'], round(eq, 2))
+        self.assertEqual(doc['positions']['600000'],
+                         {'qty': 100, 'close_px': 10.2, 'market_value': 1020.0})
+
+    def test_old_fields_preserved(self):
+        doc, *_ = self._doc()
+        self.assertEqual(doc['date'], '2026-09-03')
+        self.assertEqual(doc['buys'][0]['sym'], '600000')
+        self.assertEqual(doc['sells'], [])
+        self.assertEqual(doc['t'], [])
+        self.assertEqual(doc['notes'], ['600000: 无当日分钟'])
+
+    def test_run_id_embeds_day(self):
+        # B2 语义: run_id 可辨识生成于当日本次 run
+        doc, *_ = self._doc()
+        self.assertTrue(doc['run_id'].startswith('close-2026-09-03-'), doc['run_id'])
+
+    def test_g1_mechanical_comparison(self):
+        # G1 判据(方案A): close_doc.equity == equity_curve 当日末点;
+        # cash 可由 equity - sum(market_value) 反推; mv == qty*close_px; close_px == mark
+        doc, st, eq, mark = self._doc()
+        from ledger import equity as _eq_fn
+        _eq_fn(st, '2026-09-03', mark)
+        row = st['account']['equity_curve'][-1]
+        self.assertEqual(doc['equity'], row['equity'])
+        self.assertEqual(doc['equity'],
+                         round(row['cash'] + sum(p['market_value'] for p in doc['positions'].values()), 2))
+        for sym, p in doc['positions'].items():
+            self.assertEqual(p['market_value'], round(p['qty'] * p['close_px'], 2))
+            self.assertEqual(p['close_px'], mark[sym])
+
+    def test_main_writes_expanded_doc(self):
+        source = (ROOT / 'scripts' / 'close_pipeline.py').read_text(encoding='utf-8')
+        self.assertIn('close_doc = build_close_decision(decisions, st, eq, mark)', source)
+        self.assertIn('json.dumps(close_doc', source)
+
 
 class ClosePipelineRunTests(unittest.TestCase):
     day = datetime.now().strftime('%Y-%m-%d')
