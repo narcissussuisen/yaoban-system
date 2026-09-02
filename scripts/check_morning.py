@@ -1,13 +1,18 @@
 """P0 开盘前晨检脚本（每个交易日 08:58 运行）。
 检查 08:45-08:55 盘前任务链、preflight 报告和失败推送，输出 PASS/FAIL 报告。
-用法: python scripts/check_morning.py [--date 2026-09-01]
+2026-09-02 修复: 推送 tpoint 式交互卡片到 EvoAlpha webhook(此前仅 stdout/落盘,
+用户无任何可见通知——9/2 gate 全灭事件暴露的报告盲区)。
+用法: python scripts/check_morning.py [--date 2026-09-01] [--no-push]
 """
 from __future__ import annotations
 import argparse
+import datetime
 import json
+import os
 import pathlib
 import subprocess
 import sys
+import urllib.request
 
 BASE = pathlib.Path(__file__).resolve().parent.parent
 OUT = BASE / 'outputs'
@@ -17,6 +22,9 @@ CHAIN = [
     ('YaobanPreflight', '08:45'), ('YaobanPremarket', '08:50'), ('YaobanPlanGate', '08:55'),
 ]
 NEXT_DAY = [('YaobanPostCloseChain', '16:30'), ('YaobanClosePipeline', '15:10')]
+# 与 feishu_notify.py 同源的生产 webhook(用户 2026-08-30 23:14 设置, 2026-09-02 确认为 EvoAlpha 专用)
+WEBHOOK_FILE = pathlib.Path(os.environ.get('YAOBAN_FEISHU_SECRET_FILE',
+                                           r'C:\Users\YZP\WorkBuddy\yaoban_tasks\feishu_webhook.txt'))
 
 
 def norm_date(s: str) -> str:
@@ -66,11 +74,77 @@ def result_zero(v) -> bool:
         return False
 
 
+def build_card(report: dict) -> dict:
+    """tpoint 式盘前自检交互卡片(结构对齐 selfcheck_daily._build_status_text)。"""
+    ok_all = report['summary']['pass']
+    tpl = 'green' if ok_all else 'red'
+    icon = '✅' if ok_all else '❌'
+    label = '正常' if ok_all else '异常'
+    md = lambda t: {'tag': 'lark_md', 'content': t}
+    elements = [
+        {'tag': 'div', 'text': md(f"**运行状态：{icon} {label}**　　　时间：{report['date']} 08:58")},
+        {'tag': 'hr'},
+        {'tag': 'div', 'text': md('**🔧 盘前任务链（08:45-08:55）**')},
+    ]
+    for name, at in CHAIN:
+        c = report['chain'][name]
+        mark = '🟢' if c['ok'] else '🔴'
+        elements.append({'tag': 'div', 'text': md(
+            f"{mark} {name}（{at}）：last={c['last_run'] or '无'} result={c['result'] or '无'}")})
+    elements.append({'tag': 'hr'})
+    elements.append({'tag': 'div', 'text': md('**📋 Gate 检查报告**')})
+    for stage, title in (('infra', '基础设施'), ('post_plan', '盘前计划')):
+        c = report['checks'].get(stage, {})
+        if c.get('missing'):
+            elements.append({'tag': 'div', 'text': md(f"🔴 {title}：报告缺失（gate 未放行，盘中任务将被拦截）")})
+        elif c.get('status') == 'pass':
+            elements.append({'tag': 'div', 'text': md(f"🟢 {title}：PASS（pass={c.get('pass')} fail={c.get('fail')}）")})
+        else:
+            elements.append({'tag': 'div', 'text': md(f"🔴 {title}：{c.get('status', '?')}（pass={c.get('pass')} fail={c.get('fail')}）")})
+    fails = report.get('delivery_failures', [])
+    if fails:
+        elements.append({'tag': 'hr'})
+        elements.append({'tag': 'div', 'text': md(f"**❌ 当日失败告警（{len(fails)} 条）**")})
+        for f in fails[:6]:
+            elements.append({'tag': 'div', 'text': md(f"🔴 {f['event']}（{str(f['time'])[11:19]}）")})
+    if not ok_all:
+        elements.append({'tag': 'hr'})
+        elements.append({'tag': 'div', 'text': md(
+            "**处理建议**：盘前链/gate 异常 → 盘中任务 fail-closed 拦截（无错误交易风险）；"
+            "请对 WorkBuddy 助手说「例行」发起根因分析与修复。")})
+    elements.append({'tag': 'hr'})
+    elements.append({'tag': 'note', 'elements': [{'tag': 'plain_text', 'content':
+        f"完整报告 | outputs/validation/morning_check_{report['date']}.json  |  EvoAlpha 盘前自检 · 仅供内部运维参考"}]})
+    return {'msg_type': 'interactive', 'card': {
+        'header': {'template': tpl,
+                   'title': {'tag': 'plain_text', 'content': f'EvoAlpha 盘前自检 · {icon} {label}'}},
+        'elements': elements}}
+
+
+def push_card(card: dict) -> str:
+    """优先 requests(继承系统代理, tpoint 2026-08-12 同款修复); 不可用回退 urllib。"""
+    try:
+        hook = WEBHOOK_FILE.read_text(encoding='utf-8').strip()
+        if not hook.startswith('https://open.feishu.cn/open-apis/bot/v2/hook/'):
+            return 'PUSH_FAIL: invalid webhook'
+        body = json.dumps(card, ensure_ascii=False).encode('utf-8')
+        try:
+            import requests
+            resp = requests.post(hook, data=body, headers={'Content-Type': 'application/json'}, timeout=15)
+            return resp.text[:60]
+        except ImportError:
+            req = urllib.request.Request(hook, data=body, headers={'Content-Type': 'application/json'})
+            resp = urllib.request.urlopen(req, timeout=15)
+            return resp.read().decode('utf-8')[:60]
+    except Exception as e:
+        return f'PUSH_FAIL: {e}'
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--date', default='')
+    ap.add_argument('--no-push', action='store_true', help='不推送飞书卡片（测试用）')
     args = ap.parse_args()
-    import datetime
     day = args.date or datetime.date.today().isoformat()
     report = {'date': day, 'checks': {}, 'chain': {}, 'next_day': {}}
     # 1) 早晨链: 最后运行日期必须是 day 且结果 0
@@ -123,6 +197,9 @@ def main():
     vfp = vdir / f'morning_check_{day}.json'
     vfp.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding='utf-8')
     print(json.dumps(report, ensure_ascii=False, indent=1))
+    # 2026-09-02: 推送 tpoint 式卡片(此前仅落盘+stdout, 用户零可见通知)
+    if not args.no_push:
+        print('card_push:', push_card(build_card(report)))
     return 0 if report['summary']['pass'] else 2
 
 

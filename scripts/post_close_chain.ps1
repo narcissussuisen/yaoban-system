@@ -1,12 +1,16 @@
 param([Parameter(Mandatory=$true)][string]$Py, [Parameter(Mandatory=$true)][string]$Base, [Parameter(Mandatory=$true)][string]$Day, [Parameter(Mandatory=$true)][string]$Notify)
 # P0时间表重构(2026-09-01, 用户评审): 盘后链 16:30 单任务一次跑完
-# 顺序: r5p情绪 -> r6p候选 -> daily_rebuilt(TDX) -> next_plan(依赖新候选) -> acceptance(依赖全部盘后产物)
+# 2026-09-02 修复(gate 阻塞根因): 顺序调换——rebuild 最先!
+#   旧序(情绪→候选→rebuild→计划): 情绪/候选在 rebuild 之前跑, 永远读不到当日日线,
+#   sentiment 滞后一天 → 次日 infra 恒 FAIL → 盘中 gate 恒拦截(9/2 全天盘中任务死)。
+#   新序: daily_rebuilt(TDX) -> r5p情绪 -> r6p候选 -> next_plan -> acceptance
+#   (qfq_store 已同步修复: daily_rebuilt 也并入 _agg_daily 补充源, 口径: rebuilt vol 已为股)
 # 每步失败不中止后续(尽力而为, 失败在 acceptance 中可见), 最后按整体结果推送
 $ErrorActionPreference = "Continue"
 $codes = New-Object System.Collections.ArrayList
-& $Py -X utf8 ($Base + "\scripts\r5p_sentiment_build.py") --workers 6; [void]$codes.Add($LASTEXITCODE)
+& $Py -X utf8 ($Base + "\scripts\fetch_daily_minute_rebuild.py"); [void]$codes.Add($LASTEXITCODE)
+if ($LASTEXITCODE -eq 0) { & $Py -X utf8 ($Base + "\scripts\r5p_sentiment_build.py") --workers 6 }; [void]$codes.Add($LASTEXITCODE)
 if ($LASTEXITCODE -eq 0) { & $Py -X utf8 ($Base + "\scripts\r6p_candidates_build.py") --workers 6 }; [void]$codes.Add($LASTEXITCODE)
-if ($LASTEXITCODE -eq 0) { & $Py -X utf8 ($Base + "\scripts\fetch_daily_minute_rebuild.py") }; [void]$codes.Add($LASTEXITCODE)
 if ($LASTEXITCODE -eq 0) { & $Py -X utf8 ($Base + "\scripts\generate_next_plan.py") }; [void]$codes.Add($LASTEXITCODE)
 & $Py -X utf8 ($Base + "\scripts\collect_daily_acceptance.py") --date $Day --final; [void]$codes.Add($LASTEXITCODE)
 $bad = @($codes | Where-Object { $_ -ne 0 })

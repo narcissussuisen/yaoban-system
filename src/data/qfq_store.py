@@ -19,6 +19,10 @@ from data.qfq_minute import market_suffix
 ROOT = pathlib.Path(r"F:/WorkBuddyItem/a股分钟线")
 # P0-5(2026-08-31): 近端 qfq 日线补齐源(fetch_daily_incremental.py 维护, 含 volume/amount)
 DAILY_DIR = pathlib.Path(r"F:/WorkBuddyItem/a股level2/daily")
+# 2026-09-02 修复(gate 阻塞根因): TDX 60m 重建日线(fetch_daily_minute_rebuild.py 维护,
+# post_close_chain 每日 16:30 写入)——r5p 情绪/r6p 候选此前只读 DAILY_DIR(停在 8/31),
+# 导致 sentiment 永远滞后、infra 预检恒 FAIL、盘中 gate 恒拦截。
+REBUILT_DIR = pathlib.Path(r"F:/WorkBuddyItem/a股level2/daily_rebuilt")
 
 
 class QFQStore:
@@ -94,18 +98,23 @@ class QFQStore:
     def _agg_daily(self, symbol: str) -> list[tuple]:
         out = self._agg_daily_minute(symbol)
         # P0-5(2026-08-31): 分钟线缺口(8/22+)由 daily/(qfq日线) 按动态分界补充
-        last_min = out[-1][1] if out else ''
-        fp2 = DAILY_DIR / f'{symbol}.parquet'
-        if fp2.exists():
+        # 2026-09-02 修复: 再由 daily_rebuilt/(TDX 重建) 补最末段——两源按日期边界接力,
+        # 保证 rebuild 之后 r5p/r6p 当晚即可读到当日(否则情绪表滞后 → gate 恒拦截)
+        # 口径(实测 2026-09-02, 000001 对比): daily/ volume 为手(×100 归一股);
+        # daily_rebuilt/ volume 已为股(pytdx 60m b['vol'] 直传, 勿再乘)
+        for src_dir, vol_mult in ((DAILY_DIR, 100.0), (REBUILT_DIR, 1.0)):
+            last = out[-1][1] if out else ''
+            fp2 = src_dir / f'{symbol}.parquet'
+            if not fp2.exists():
+                continue
             try:
                 d = pd.read_parquet(fp2, columns=['date', 'open', 'high', 'low', 'close', 'volume', 'amount'])
                 for _, row in d.iterrows():
                     ds = str(row['date'])[:10]
-                    if ds > last_min:
-                        # P0-5修正: daily volume 为手, ×100 统一为股(与分钟聚合口径一致, 保证 vr 等比值指标跨边界自洽)
+                    if ds > last:
                         out.append((symbol, ds, float(row['open']), float(row['high']),
                                     float(row['low']), float(row['close']),
-                                    float(row['volume']) * 100, float(row['amount'])))
+                                    float(row['volume']) * vol_mult, float(row['amount'])))
             except Exception:
                 pass
         return out
