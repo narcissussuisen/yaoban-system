@@ -70,7 +70,13 @@ def build_close_decision(decisions: dict, st: dict, eq: float, mark: dict) -> di
     在原 date/buys/sells/t/notes 之上追加 G1 机械核对所需字段:
     run_id / generated_at / ledger_revision / equity / positions{qty, close_px, market_value}。
     必须在 save(st) 之后调用, 使 ledger_revision 指向已含当日净值点的账本版本(CAS)。
+
+    复核四轮裁定（2026-09-02 19:48 用户裁定: 共享 run_id）——scheduled-run 归属升级为精确关联:
+    launch.ps1 生成 run_id 并以 YAOBAN_RUN_ID 环境变量注入, task log 与本产物双写同值,
+    G1 机械核对 task_log.run_id == close_decision.run_id; 无 env 的手动运行回退自造
+    close-* ID（不得充当 scheduled-run 证据, 手动补跑只追加记录, 见计划 §2.5）。
     """
+    import os as _os
     import uuid as _uuid
     day = decisions['date']
     positions = {}
@@ -78,9 +84,10 @@ def build_close_decision(decisions: dict, st: dict, eq: float, mark: dict) -> di
         px = float(mark[sym])
         qty = int(pos.get('qty', 0))
         positions[sym] = {'qty': qty, 'close_px': px, 'market_value': round(qty * px, 2)}
+    run_id = _os.environ.get('YAOBAN_RUN_ID') or f"close-{day}-{datetime.now():%H%M%S}-{_uuid.uuid4().hex[:6]}"
     doc = dict(decisions)
     doc.update({
-        'run_id': f"close-{day}-{datetime.now():%H%M%S}-{_uuid.uuid4().hex[:6]}",
+        'run_id': run_id,
         'generated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'ledger_revision': int(st.get('_revision', 0)),
         'equity': round(float(eq), 2),

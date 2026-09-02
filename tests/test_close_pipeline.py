@@ -9,7 +9,7 @@
   - 卖出审计打印无 NameError（修 F3: 未定义变量 qty/sym）
 """
 from __future__ import annotations
-import pathlib, sys, tempfile, unittest
+import os, pathlib, sys, tempfile, unittest
 from datetime import datetime
 from unittest import mock
 
@@ -127,6 +127,47 @@ class CloseDecisionSchemaTests(unittest.TestCase):
         source = (ROOT / 'scripts' / 'close_pipeline.py').read_text(encoding='utf-8')
         self.assertIn('close_doc = build_close_decision(decisions, st, eq, mark)', source)
         self.assertIn('json.dumps(close_doc', source)
+
+
+LAUNCH_PS1 = pathlib.Path(r'C:\Users\YZP\WorkBuddy\yaoban_tasks\launch.ps1')
+
+
+class SharedRunIdTests(unittest.TestCase):
+    """复核四轮(2026-09-02 19:48 用户裁定: 共享 run_id)——G1 scheduled-run 归属升级为精确关联。
+
+    launch.ps1 生成 run_id 并以 YAOBAN_RUN_ID 注入, task log 与 close_decision 双写同值;
+    G1 机械核对 task_log.run_id == close_decision.run_id。
+    """
+
+    def _minimal(self):
+        decisions = {'date': '2026-09-03', 'buys': [], 'sells': [], 't': [], 'notes': []}
+        st = {'account': {'positions': {}, 'cash': 100.0}, '_revision': 3}
+        return decisions, st
+
+    def test_run_id_uses_env_when_present(self):
+        # scheduled 路径: launch.ps1 注入 YAOBAN_RUN_ID → 产物透传同值(精确等值核对基础)
+        env_run_id = 'run-20260903_151000_996'
+        decisions, st = self._minimal()
+        with mock.patch.dict(os.environ, {'YAOBAN_RUN_ID': env_run_id}):
+            doc = cp.build_close_decision(decisions, st, 100.0, {})
+        self.assertEqual(doc['run_id'], env_run_id)
+
+    def test_run_id_empty_env_falls_back(self):
+        # env 为空串(或未注入的手动运行) → 回退自造 close-* ID, 不得充当 scheduled-run 证据
+        decisions, st = self._minimal()
+        with mock.patch.dict(os.environ, {'YAOBAN_RUN_ID': ''}):
+            doc = cp.build_close_decision(decisions, st, 100.0, {})
+        self.assertTrue(doc['run_id'].startswith('close-2026-09-03-'), doc['run_id'])
+
+    @unittest.skipUnless(LAUNCH_PS1.exists(), 'launch.ps1 仅存在于部署机')
+    def test_launch_wrapper_injects_shared_run_id(self):
+        # task log 写入方(launch.ps1)须生成并注入共享 run_id, 且注入必须先于子进程启动
+        source = LAUNCH_PS1.read_text(encoding='utf-8')
+        self.assertIn('$env:YAOBAN_RUN_ID=$runId', source, 'launch.ps1 未注入 YAOBAN_RUN_ID')
+        self.assertIn('run_id=$runId', source, 'task log $meta 缺 run_id 字段')
+        env_at = source.index('$env:YAOBAN_RUN_ID=')
+        start_at = source.index('Start-Process')
+        self.assertLess(env_at, start_at, 'YAOBAN_RUN_ID 必须在 Start-Process 之前注入(否则子进程不继承)')
 
 
 class ClosePipelineRunTests(unittest.TestCase):
