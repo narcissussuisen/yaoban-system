@@ -13,6 +13,7 @@ import pathlib
 import subprocess
 import sys
 import urllib.request
+from zoneinfo import ZoneInfo
 
 BASE = pathlib.Path(__file__).resolve().parent.parent
 OUT = BASE / 'outputs'
@@ -50,8 +51,12 @@ _KEY_ALIASES = {
 
 
 def task_info(name: str) -> dict:
+    # A1(2026-09-02, P0 计划 v2.1 批次 A): zh-CN 系统 schtasks 输出 GBK 字节——
+    # text=True 无 encoding 时按 locale(或 -X utf8 下按 UTF-8)解码, 中文键成替换符,
+    # 解析恒空(9/2 晨检假阴性根因, E1 实测)。显式 encoding='gbk' 使解码确定化,
+    # 与 -X utf8 运行标志解耦; errors='replace' 容错未知字节。
     r = subprocess.run(['schtasks', '/Query', '/TN', chr(92) + name, '/FO', 'LIST', '/V'],
-                       capture_output=True, text=True, errors='replace', timeout=45)
+                       capture_output=True, text=True, encoding='gbk', errors='replace', timeout=45)
     info = {}
     for line in r.stdout.splitlines():
         for key, aliases in _KEY_ALIASES.items():
@@ -140,12 +145,18 @@ def push_card(card: dict) -> str:
         return f'PUSH_FAIL: {e}'
 
 
+def today_shanghai() -> str:
+    """当前上海时区日期(ISO)。A1b(2026-09-02, P0 计划 v2.1): E12——显式固定
+    Asia/Shanghai, 不依赖本机时区设置; 默认日期与 --date 参数同一取值路径。"""
+    return datetime.datetime.now(ZoneInfo('Asia/Shanghai')).date().isoformat()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--date', default='')
     ap.add_argument('--no-push', action='store_true', help='不推送飞书卡片（测试用）')
     args = ap.parse_args()
-    day = args.date or datetime.date.today().isoformat()
+    day = args.date or today_shanghai()
     report = {'date': day, 'checks': {}, 'chain': {}, 'next_day': {}}
     # 1) 早晨链: 最后运行日期必须是 day 且结果 0
     for name, at in CHAIN:
