@@ -1,5 +1,5 @@
 {
- "_revision": 12,
+ "_revision": 13,
  "start_cash": 100000.0,
  "start_date": "2026-08-31",
  "benchmark": "000852.SH",
@@ -60,6 +60,12 @@
     "equity": 99244.12,
     "cash": 75269.12,
     "mv": 23975.0
+   },
+   {
+    "date": "2026-09-02",
+    "equity": 97884.6,
+    "cash": 53910.6,
+    "mv": 43974.0
    }
   ]
  },
@@ -265,6 +271,31 @@
    },
    "equity": 99244.12,
    "circuit_break": null
+  },
+  "2026-09-02": {
+   "buys": [
+    {
+     "sym": "000882",
+     "ts": "10:50",
+     "px": 1.55,
+     "kind": "P",
+     "seg": "AM"
+    },
+    {
+     "sym": "300189",
+     "ts": "13:10",
+     "px": 6.87,
+     "kind": "D",
+     "seg": "PM"
+    }
+   ],
+   "sells": [],
+   "notes": [],
+   "close": {
+    "300468": 24.43
+   },
+   "equity": 97884.6,
+   "circuit_break": null
   }
  },
  "rules_log": [
@@ -294,9 +325,9 @@
   "paused": false,
   "terminated": false,
   "peak_equity": 100000.0,
-  "drawdown_pct": -0.76
+  "drawdown_pct": -2.12
  },
  "date": "2026-09-02",
- "updated_at": "2026-09-02 09:40:04",
+ "updated_at": "2026-09-02 15:10:03",
  "autonomous_decisions": {}
 }

@@ -222,3 +222,88 @@ Action: fail closed; no new positions when the critical intraday path fails.
 5. **盘中修改纪律**：交易日 09:30 前后是批量启动时刻，脚本修改应避开该窗口，或改完立即 `py_compile` + 单轮试跑 + 恢复守护三步完成后再离手。
 
 ---
+
+## INC-2026-09-02-01 · 盘前门禁链失效→全天 fail-closed（零新仓）+ 手动解锁卖出侧 + 15:06「卖出执行器死亡」告警实为收盘自退出
+
+### 1. 事件原文（飞书推送，2026-09-02 多条）
+
+```
+08:45:25 failure:2026-09-02:infra / 08:50:01 failure:gate-infra / 08:58:03 failure:morning-check / 09:15:02 failure:gate-post_plan（×2，幂等去重后全天仅此二条）
+15:06:08 [manual-tick][ALERT] 卖出执行器死亡且不再自拉起(pid=2796)，持仓失去盘中守护，请人工关注
+15:10:06 failure:2026-09-02:close（Exit code 7，详见 INC-2026-09-02-02）
+```
+
+### 2. 链路核验（全部通过 ✅）
+
+| 环节 | 证据 | 状态 |
+|---|---|---|
+| infra 晨检 fail | `outputs/preflight_2026-09-02_infra.json`：12 pass / 3 critical fail——净值守恒 curve=99244.12(8/31 点) vs calc=98481.82；情绪表 last=2026-08-31 expected∈{9/1,9/2}；候选表 max=2026-08-31 expected≥9/1 | ✅ 3 fail 属实 |
+| 门禁级联 | 08:50 premarket `Gate infra` exit 21（gate status invalid）；08:55 plan-gate exit 21（同因，event_key 幂等去重不再推）→ `preflight_2026-09-02_post_plan.json` **全天未生成**；09:15 起 auction/tick/scan/monitor/notify 每分钟 exit 20（gate missing，如 `20260902_093002_127_tick.json`） | ✅ 全天 fail-closed |
+| 手动解锁存证 | `outputs/task_logs/2026-09-02/20260902_manual_tick.json`：用户 09:07 授权（follow system sell rules, no human override）；09:23:57 daemon pid=2796 + watcher pid=7112；scope=sell-side only | ✅ 授权与范围清晰 |
+| 卖出执行 | 09:40:04 daemon 执行 300489 stop_loss 100股@229.81（`risk_events.jsonl` + ledger fills + watcher 推送 RISK/RISK-EXEC 共 2 条） | ✅ 当日唯一必需出场被完成 |
+| daemon 全天存活 | `pos_live.json` 每 ~5s 原子写，最后 time=15:05:57（300468 px=24.43）；watcher `restarts=0`（5s 周期检查，盘中死亡必触发重启） | ✅ 无盘中守护缺口 |
+| 15:06「死亡」告警 | `tick_monitor.py` L78-79：daemon 循环在 `hm>'15:05'` 时 break→disconnect→return 0（设计性收盘自退出，该路径无 stdout 输出，与日志仅 264 字节吻合）；watcher 15:06:08 检测到 pid 死亡，因 `hm≥"15:00"` 走「仅告警」分支 | ✅ 收盘自退出，非暴毙 |
+| 账本安全 | ledger（15:10:03）：现金 53,910.60 + 持仓 300468×1800；equity 97884.60；回撤 -2.12% 未触线；零新仓成交 | ✅ 无虚假成交 |
+
+### 3. 根因链（三层，均为前一日遗留）
+
+1. **9/1 15:10 close 崩溃**（`20260901_151001_008_close.stderr.log`）：`argparse.ArgumentError: argument --execute: conflicting option string`——close_pipeline.py 处于编辑中间态（与 INC-2026-09-01-02 GBK 事故同模式），参数解析即崩、零工作完成 → **9/1 净值点缺失**（equity_curve 最后一点停在 8/31 99244.12）→ 9/2 晨检「净值守恒」fail。（close 链本身已于 9/1 16:22 commit `770b7a4`「P0.3 close 链修复」修复。）
+2. **9/1 16:30 盘后链旧序**：r5p 情绪/r6p 候选跑在 `fetch_daily_minute_rebuild` **之前**，永远读不到当日日线 → 情绪/候选滞后一天（last/max=8/31）→ 9/2 晨检两项 fail。（已由 9/2 晨间会话 commit `bcc967c` 调序修复：rebuild 最先 + qfq_store 并入。）
+3. **门禁拓扑放大**：infra status=fail → gate-infra invalid → plan-gate 无法生成 post_plan 门禁 → **进场（scan）与出场（tick）双通道同时被拦**。按 fail-closed 语义手动解锁卖出侧（封进场、放出场），是当日唯一正确的处置。
+
+### 4. 处置结论
+
+- **系统行为正确且安全**：fail-closed 全天生效（灰度决策 买入 000882@1.55 / 300189@6.87 均未执行）；手动解锁的卖出执行器完成当日唯一必需止损（300489 −7.0% 割离）；账本、净值、复盘、日报全链正常。
+- **15:06 告警为误报级别**：daemon 09:23:57→15:05:57 全程存活，15:05 后按设计自退出；「持仓失去盘中守护」仅对收盘后时段字面成立，无实际风险。
+- **已修复并提交**（晨间会话）：`bcc967c`（盘后链调序=gate 阻塞根因）+ `c274f55`（晨检 GBK/时区修复）。
+- **今晚自愈预期**：16:30 盘后链（新序 rebuild→r5p→r6p→next_plan→acceptance）将带回 9/2 当日情绪/候选/日线；今晨 close 已补 9/2 净值点（97884.60）→ 明晨 infra「净值守恒/情绪表/候选表」三项应 pass → 门禁链恢复正常拓扑（9/3 无需手动干预）。
+
+### 5. 改进观察（非阻塞建议）
+
+1. **watcher 告警语义分级**：`_risk_watch_20260902.py` 的 ALERT 分支未区分「盘中暴毙不再拉起」与「收盘自退出」，后者应降级为 INFO/收尾汇总一行（本次告警措辞引发不必要的紧急感）。
+2. **equity_curve 缺 9/1 点**：曲线 8/31 99244.12 → 9/2 97884.60 跳变缺中间点；回补需专用脚本（close_pipeline 无 --date 回填口），是否补、如何补待用户决策。
+3. **编辑纪律再犯**：9/1 argparse 事故与 8/31-9/1 GBK 事故同模式（任务触发时脚本处于编辑中间态）；建议 15:10/16:30 任务窗口前 30 分钟冻结脚本改动，或改后立即 `py_compile` + 单轮试跑。
+
+---
+
+## INC-2026-09-02-02 · close exit 7（build_board 导入 timing_contract 失败）——已修复并验证
+
+### 1. 事件原文（飞书推送，2026-09-02 15:10:06，即用户转发本条）
+
+```
+Yaoban task failed 2026-09-02
+Stage: close
+Exit code: 7
+Action: fail closed; no new positions when the critical intraday path fails.
+```
+
+### 2. 链路核验（全部通过 ✅）
+
+| 环节 | 证据 | 状态 |
+|---|---|---|
+| close 核心步骤 | `20260902_151000_996_close.stdout.log`：决策重建（灰度 2 买 0 卖）、收盘估值 97884.60、review 记账（ledger 15:10:03 saved）、trader_daily rc=0 | ✅ 记账/估值/日报全部成功 |
+| 失败定位 | stderr：`ERROR: 子任务失败: trader_daily=0 build_board=1`；`close_pipeline.py` L247-249 → exit 7 | ✅ exit 7 = build_board 单点失败 |
+| build_board 死因 | `outputs/intraday/build_board_2026-09-02.log`：`portfolio\ledger.py line 20: from timing_contract import validate_buy_timing → ModuleNotFoundError` | ✅ 根因明确 |
+| 引入时间 | `ledger.py` 于 9/1 16:59-17:10（commit `acb0d38` P0.2 信号时序契约）加入该裸导入；9/2 是改动后首个交易日 close → 首次暴露 | ✅ 非当日新错 |
+| 影响面 | 仅看板（display 层）；账本/净值/验收证据不受影响 | ✅ 无资金路径影响 |
+
+### 3. 根因判定
+
+- **导入上下文不兼容**：`ledger.py` 内部 `from timing_contract import ...` 是裸导入，仅当 `portfolio/` 自身在 sys.path 时可解析（tick_monitor/close_pipeline/scan_and_confirm 均按此惯例插路径）；`build_board.py` 以包风格 `from portfolio.ledger import ...` 导入且未插 `portfolio/` 路径 → ledger.py 顶层裸导入必然 ModuleNotFoundError。
+- **次生日志误导**：`close_pipeline.py` L246「看板已更新」在 rc 检查**之前**无条件打印（stdout 报成功、stderr 报失败并存）。
+
+### 4. 处置结论（2026-09-02 15:43 本会话修复）
+
+- **修复**：`build_board.py` 补 `sys.path.insert(0, BASE/'portfolio')`（与其余消费方惯例一致；**不动资金路径模块 ledger.py**）。
+- **验证**：`py_compile` OK；`build_board.py --fills-day 2026-09-02` rc=0，输出「看板已生成: http://127.0.0.1:8765/ (2026-09-02, 持仓 1 只)」；`board.json`（15:43 重生成）持仓与 ledger 一致（300468×1800 / cost 24.611 / stop 23.351）。
+- **不重跑 close_pipeline**：其记账路径已正确执行完毕（equity/review 均已落账），仅补跑失败的看板子步骤，避免重复执行账本写入路径。
+- **已知显示滞后（非回归）**：看板 `last=24.54` 为 9/1 收盘价——日线仓今晚 16:30 rebuild 后才含 9/2 bar；权威净值以 ledger 97884.60（300468@24.43）为准。
+
+### 5. 改进观察（非阻塞建议）
+
+1. **「看板已更新」打印位置**：移到 rc 检查之后，按实际结果打印。
+2. **裸导入脆弱性**：`ledger.py` 的 timing_contract 裸导入对消费方导入方式敏感；可改为双兼容（try 裸导入 except `from portfolio.timing_contract import`）——涉资金路径模块，留待评审后实施。
+3. **改动后冒烟**：P0.2（9/1 晚）改 ledger.py 后未跑 build_board 冒烟即过夜；建议资金路径相关模块改动后，收盘子任务三件套（trader_daily/build_board/close_pipeline --dry-run）至少各跑一次再收工。
+
+---
+

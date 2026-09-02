@@ -16,6 +16,10 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / 'src'))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+# 2026-09-02 修复(close exit 7): ledger.py 以 `from timing_contract import ...` 裸导入时序契约,
+# 该符号只有在 portfolio/ 自身位于 sys.path 时才可解析(与 tick_monitor/close_pipeline/scan_and_confirm 一致);
+# 否则 build_board 的 `from portfolio.ledger import ...` 在 ledger.py line 20 抛 ModuleNotFoundError。
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / 'portfolio'))
 
 import pandas as pd  # noqa: E402
 
