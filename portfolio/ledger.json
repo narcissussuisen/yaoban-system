@@ -1,5 +1,5 @@
 {
- "_revision": 13,
+ "_revision": 14,
  "start_cash": 100000.0,
  "start_date": "2026-08-31",
  "benchmark": "000852.SH",
@@ -251,6 +251,97 @@
     }
    ],
    "published_at": "2026-09-01 17:38:03"
+  },
+  "2026-09-03": {
+   "date": "2026-09-03",
+   "mode": "候选观察(输入≤2026-09-02收盘)",
+   "emotion": {
+    "zt": 55,
+    "dt": 10,
+    "zhaban_rate": 27.6,
+    "max_h": 5,
+    "lianban_rate": 17.4,
+    "temp": 59.0,
+    "stage": "发酵"
+   },
+   "mainline": [
+    [
+     "280200",
+     5
+    ],
+    [
+     "630800",
+     4
+    ],
+    [
+     "640100",
+     3
+    ],
+    [
+     "350200",
+     3
+    ],
+    [
+     "450300",
+     2
+    ]
+   ],
+   "global": {
+    "usDJI": {
+     "name": "道琼斯",
+     "price": 53185.9,
+     "chg_pct": -0.7
+    },
+    "usIXIC": {
+     "name": "纳斯达克",
+     "price": 26370.89,
+     "chg_pct": -0.12
+    },
+    "usINX": {
+     "name": "标普500",
+     "price": 7686.14,
+     "chg_pct": -0.33
+    }
+   },
+   "picks": [
+    {
+     "sym": "000816",
+     "name": "智慧农业",
+     "sig_date": "2026-08-28",
+     "l2": "280200",
+     "heat": 5,
+     "brk5": true,
+     "yang": true
+    },
+    {
+     "sym": "002190",
+     "name": "成飞集成",
+     "sig_date": "2026-09-02",
+     "l2": "280200",
+     "heat": 5,
+     "brk5": true,
+     "yang": true
+    },
+    {
+     "sym": "002451",
+     "name": "摩恩电气",
+     "sig_date": "2026-09-02",
+     "l2": "630800",
+     "heat": 4,
+     "brk5": true,
+     "yang": true
+    },
+    {
+     "sym": "300670",
+     "name": "大烨智能",
+     "sig_date": "2026-09-02",
+     "l2": "630800",
+     "heat": 4,
+     "brk5": true,
+     "yang": true
+    }
+   ],
+   "published_at": "2026-09-02 17:48:06"
   }
  },
  "reviews": {
@@ -328,6 +419,6 @@
   "drawdown_pct": -2.12
  },
  "date": "2026-09-02",
- "updated_at": "2026-09-02 15:10:03",
+ "updated_at": "2026-09-02 17:48:06",
  "autonomous_decisions": {}
 }
