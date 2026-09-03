@@ -307,3 +307,48 @@ Action: fail closed; no new positions when the critical intraday path fails.
 
 ---
 
+
+## INC-2026-09-03-01 tick daemon 11:16 崩溃 + 重启排障链 + 缩进自伤事故
+
+### 1. 事件原文
+
+- 11:18 `[tick][ALERT] 监控中断: pos_live 超过300秒未更新`；11:31 假恢复（午休窗口外检查清空状态）；13:05/13:15 再次中断告警
+- 上午正常事件（非异常，背景）：10:15 300468 vwap_break alert、10:34 603538 zhaban_sell alert_only（涨停打开回落触发，被"无量/无可卖份额"保守门禁拦截，合规）、10:35 scan --execute 买入 603538 1500股@28.28（e4_support）
+- 10:25 monitor exit 4（见附录）
+
+### 2. 链路核验
+
+| 环节 | 证据 | 状态 |
+|---|---|---|
+| daemon 死亡时刻 | `pos_live.json` 最后写入 11:15:57；孤儿 tmp `pos_live.json.23384.tmp`（11:16） | ✅ 死于 11:16，非 13:05 |
+| 死亡直接原因 | `20260903_093001_541_tick.stderr.log`：`tick_monitor.py L35 os.replace(tmp,path) → PermissionError [WinError 5]`，主循环无 try/except，一次异常打死 daemon | ✅ 根因明确 |
+| 为何 9/2 未发生 | 9/2 monitor/scan/notify 全天被门禁拦（exit 20）无并发读者；9/3 门禁修复后每分钟读 pos_live.json，daemon 每 5s 写，Windows 上 replace 目标被并发读锁 → 撞锁概率 ~1h46m 后兑现 | ✅ 因果链闭合 |
+| scan exit 6 | 每分钟 stderr `伴随监控失效，禁止新仓: tick stale >2m` | ✅ fail-closed 预期行为，根因在 tick |
+| 13:41-14:10 重启屡败 | daemon 空转不写 pos_live、无 WARN、`--rounds 1` 却成功——缩进 bug 特征三联 | ✅ 见根因判定 |
+
+### 3. 根因判定（两层）
+
+- **第一层（原始 bug，已修）**：`atomic_json` 的 `os.replace` 无重试 + 主循环无兜底。Windows 下 monitor/scan/notify 并发读 pos_live.json 时 replace 抛 WinError 5，一次撞锁即打死唯一卖出执行器。
+- **第二层（修复引入的自伤，已修）**：首轮修复的 Edit 把 `try:atomic_json(...)/time.sleep(interval)` 写成 1 空格缩进——本文件 while 行为 1 空格、循环体为 2 空格，1 空格 = 语句被挪出循环体。daemon 模式（`while True`）永不退出循环 → atomic_json/sleep 永不执行 → 空转（无 sleep 狂转、r125+ 轮次暴增）、pos_live 停更、无 WARN。`--rounds 1` 单轮测试阴差阳错"通过"（出循环后执行到循环外语句），掩盖了 bug。
+- **排障弯路（记录备查）**：沙箱 Job Object 在命令返回后清理全部后代进程（DETACHED 假阳性：启动器存活期内验证通过、退出后 Job 关闭才杀子进程）；schtasks 直拉 python.exe 卡在 import 前（恒 3.4MB）；多 watcher 并存互杀对方 daemon 耗尽重启配额；"检测到别人就退出"互斥在 Task Scheduler 启动延迟下双退。TDX 服务器与代码循环经实测均正常（前台 --rounds 1 七秒完整跑通）。
+
+### 4. 处置结论（2026-09-03 14:15 恢复守护）
+
+- **修复 1**：`atomic_json` 对 `os.replace` 加 8 次×50ms PermissionError 重试（读者读完即释放）；主循环对写入加 try/except 兜底（单轮写失败仅告警，下轮重写，daemon 不死）。
+- **修复 2**：缩进回正（`try:atomic_json`/`time.sleep` 2 空格 = while 循环体内），文件内注明缩进陷阱注释。
+- **新增看门狗架构**（`_tick_watch.py` + `_restart_tick_daemon.py`）：schtasks(沙箱外) → spawner → watcher(文件锁单实例) → daemon(detached)。watcher 每 20s 检查 pos_live 停写 >90s 判挂死自动重启（上限 5 次，超限 halt 告警），15:10 自退，_tick_watch.beat 心跳。
+- **验证**：14:14 起 pos_live 每 5s 刷新（300468@24.13 + 603538@28.49 涨停 t1_locked），scan exit_code=0（fail-closed 解除），watcher beat restarts=0。
+- **清理**：schtasks 任务 `yaoban_tick_manual` 已删除（避免 23:59 重复触发）；孤儿 tmp 已清。
+
+### 5. 改进观察（非阻塞）
+
+1. **Edit 缩进纪律**：本仓库脚本用 1 空格缩进风格（while 行 1 空格、循环体 2 空格），Edit 的 new_string 必须逐字符核对缩进层级；改循环体后冒烟必须用 **daemon 模式**跑（`--rounds 1` 单轮测不出"语句挪出循环"类 bug）。
+2. **DBG 打点待清**：`tick_monitor.py` 主循环现有 [DBG] 诊断打点（约 L99-107），收盘后施工时移除或降级为低频心跳。
+3. **603538 数据瞬时缺席**：14:12 一轮 pos_live 缺 603538（get_bars 偶发 None → continue），下轮自愈；若频发考虑 err 计数提示。
+4. **watcher 重启计数语义**：重启计数按 watcher 生命周期累计，多 watcher 时代的事件（13:52-13:54 watch_restart #1-3×2 波）与单实例时代不可直接比较；risk_events 中 watch_* 事件可辨析。
+
+### 附录：monitor exit 4（10:25）定因
+
+单轮瞬时事件：该轮 002451/300468/300670 三只数据拉取不完整（`监控数据不完整: unavailable=[...]`），与今晨 08:55 盘前自检 TDX all_servers_failed 警告同源（TDX 服务器间歇抖动）；10:26 下一轮自愈 exit 0。非代码缺陷，无需处置。
+
+---

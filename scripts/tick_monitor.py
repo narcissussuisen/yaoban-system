@@ -32,7 +32,14 @@ def atomic_json(path,obj):
  tmp=path.with_name(path.name+f'.{os.getpid()}.tmp')
  with tmp.open('w',encoding='utf-8') as f:
   json.dump(obj,f,ensure_ascii=False); f.flush(); os.fsync(f.fileno())
- os.replace(tmp,path)
+ # 2026-09-03 修复(daemon 11:16 死亡根因): Windows 下 monitor/scan/notify 并发读 pos_live.json 时
+ # os.replace 目标被短暂锁住抛 PermissionError(WinError 5); 原实现无重试, 一次撞锁即打死唯一卖出执行器。
+ # 读者读完即释放, 50ms 级退避重试可覆盖; 耗尽后抛出交由调用方兜底。
+ for _i in range(8):
+  try:os.replace(tmp,path);return
+  except PermissionError:
+   if _i==7:raise
+   time.sleep(0.05)
 
 def append_event(ev):
  with (OUT/'risk_events.jsonl').open('a',encoding='utf-8') as f:
@@ -90,15 +97,19 @@ def main():
    time.sleep(3)
   return False
  fired=set(); rounds=0; interval=a.interval; err=0
+ print(f'[DBG] main loop starting daemon={a.daemon}',file=sys.stderr,flush=True)
  while a.rounds==0 or rounds<a.rounds:
   rounds+=1; n=datetime.now(ZoneInfo('Asia/Shanghai')); hm2=n.strftime('%H:%M')
+  print(f'[DBG] r{rounds} {hm2} loop',file=sys.stderr,flush=True)
   if a.daemon and not(('09:30'<=hm2<='11:30')or('13:00'<=hm2<='15:05')):
    if hm2>'15:05':break
    time.sleep(60);continue
   st=load(); live={'date':day,'time':n.strftime('%H:%M:%S'),'positions':[]}
+  print(f'[DBG] r{rounds} loaded {len(st["account"]["positions"])} pos',file=sys.stderr,flush=True)
   for sym,pos in list(st['account']['positions'].items()):
    pc=prev_close(sym,day)
    if not pc:continue
+   print(f'[DBG] r{rounds} {sym} pc={pc} fetching bars',file=sys.stderr,flush=True)
    try:
     bars=api.get_security_bars(0,market_of(sym),sym,0,300); tx=api.get_transaction_data(market_of(sym),sym,0,30)
    except Exception:bars=tx=None
@@ -130,7 +141,13 @@ def main():
       return execute_tick_risk_sell(s,sym,day,ev['time'],epx,qty,trig)
      try:st,res=transact(mut);print('[RISK-EXEC] '+json.dumps(res,ensure_ascii=False),flush=True)
      except Exception as e:ev['action']='failed';ev['blocked_reason']=str(e);append_event(ev);print('[RISK-FAIL] '+str(e),file=sys.stderr);return 4
-  atomic_json(OUT/'pos_live.json',live);time.sleep(interval)
+   # 2026-09-03 修复: pos_live 单轮写失败(锁冲突耗尽等)不得打死 daemon —— 守护进程死 = 持仓裸奔,
+   # 失败方向应安全(pos_live 陈旧 -> scan 禁新仓), 打警告后下一轮重写。
+   # 注意: 本块必须在 while 循环体内(2 空格缩进) —— 首版修复误写成 1 空格导致语句被挪出循环,
+   # daemon 空转不写 pos_live 不 sleep(9/3 14:00-14:05 全部"挂死"假象即此)。
+   try:atomic_json(OUT/'pos_live.json',live)
+   except Exception as e:print(f'[WARN] pos_live 写入失败(下轮重试): {e}',file=sys.stderr,flush=True)
+   time.sleep(interval)
  try:api.disconnect()
  except Exception:pass
  return 0
