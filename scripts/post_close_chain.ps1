@@ -13,6 +13,8 @@ param([Parameter(Mandatory=$true)][string]$Py, [Parameter(Mandatory=$true)][stri
 #   skipped_due_to(上游:exit_N), 不以上游失败码冒充本步结果(修复 E11); 同日重跑只追加 attempt_no
 #   递增的新行不覆盖, 机械选择规则=取该 stage attempt_no 最大行; 9/2 不追溯补造 manifest(仅用于9/3起)。
 $ErrorActionPreference = "Continue"
+# 2026-09-03: stage python 均 -X utf8 输出, 统一按 UTF-8 解码避免 Out-Host 转发乱码(无控制台时忽略)
+try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
 
 $Manifest = Join-Path $Base ("outputs\acceptance\chain_manifest_" + $Day + ".jsonl")
 $RunId = "pc_" + $Day.Replace("-","") + "_" + (Get-Date -Format "HHmmss")
@@ -42,7 +44,10 @@ function Invoke-ChainStage([string]$Stage,[bool]$Run,[scriptblock]$Body,[string]
   $attempt=Get-NextAttempt $Stage
   $t0=(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
   if ($Run) {
-    & $Body
+    # 2026-09-03 修复(晚, 例行): & $Body 必须经管道送 Out-Host——否则 stage 的 stdout 会混入函数返回值,
+    # $c 变 Object[], $gate=($c -eq 0) 成数组过滤而非布尔, 绑不进 [bool]$Run -> r5p/r6p/next_plan 全部未执行(9/3 16:30 事故)。
+    # Out-Host 把 stage 输出送到宿主 stdout(launch.ps1 重定向的 task_logs stdout.log), 不进返回值管道。
+    & $Body | Out-Host
     $code=$LASTEXITCODE
     if ($null -eq $code) { $code=0 }
     $t1=(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
