@@ -1,5 +1,5 @@
 {
- "_revision": 15,
+ "_revision": 17,
  "start_cash": 100000.0,
  "start_date": "2026-08-31",
  "benchmark": "000852.SH",
@@ -97,6 +97,12 @@
     "equity": 97884.6,
     "cash": 53910.6,
     "mv": 43974.0
+   },
+   {
+    "date": "2026-09-03",
+    "equity": 97372.58,
+    "cash": 11437.58,
+    "mv": 85935.0
    }
   ]
  },
@@ -373,6 +379,97 @@
     }
    ],
    "published_at": "2026-09-02 17:48:06"
+  },
+  "2026-09-04": {
+   "date": "2026-09-04",
+   "mode": "候选观察(输入≤2026-09-03收盘)",
+   "emotion": {
+    "zt": 49,
+    "dt": 17,
+    "zhaban_rate": 42.4,
+    "max_h": 5,
+    "lianban_rate": 17.3,
+    "temp": 46.7,
+    "stage": "发酵"
+   },
+   "mainline": [
+    [
+     "280200",
+     4
+    ],
+    [
+     "640100",
+     4
+    ],
+    [
+     "450300",
+     3
+    ],
+    [
+     "360200",
+     3
+    ],
+    [
+     "410100",
+     2
+    ]
+   ],
+   "global": {
+    "usDJI": {
+     "name": "道琼斯",
+     "price": 53061.95,
+     "chg_pct": 0.56
+    },
+    "usIXIC": {
+     "name": "纳斯达克",
+     "price": 26217.83,
+     "chg_pct": 0.45
+    },
+    "usINX": {
+     "name": "标普500",
+     "price": 7666.6,
+     "chg_pct": 0.46
+    }
+   },
+   "picks": [
+    {
+     "sym": "002190",
+     "name": "成飞集成",
+     "sig_date": "2026-09-02",
+     "l2": "280200",
+     "heat": 4,
+     "brk5": true,
+     "yang": true
+    },
+    {
+     "sym": "002328",
+     "name": "新朋股份",
+     "sig_date": "2026-08-31",
+     "l2": "280200",
+     "heat": 4,
+     "brk5": true,
+     "yang": true
+    },
+    {
+     "sym": "002760",
+     "name": "凤形股份",
+     "sig_date": "2026-08-31",
+     "l2": "640100",
+     "heat": 4,
+     "brk5": true,
+     "yang": true
+    },
+    {
+     "sym": "300420",
+     "name": "五洋自控",
+     "sig_date": "2026-09-03",
+     "l2": "640100",
+     "heat": 4,
+     "brk5": true,
+     "yang": true
+    }
+   ],
+   "published_at": "2026-09-03 23:37:00"
   }
  },
  "reviews": {
@@ -418,6 +515,33 @@
    },
    "equity": 97884.6,
    "circuit_break": null
+  },
+  "2026-09-03": {
+   "buys": [
+    {
+     "sym": "300670",
+     "ts": "09:55",
+     "px": 7.44,
+     "kind": "P",
+     "seg": "AM"
+    }
+   ],
+   "sells": [
+    {
+     "sym": "603538",
+     "ts": "15:00",
+     "reason": "止损",
+     "px": 28.49,
+     "qty": 1500
+    }
+   ],
+   "notes": [],
+   "close": {
+    "300468": 24.0,
+    "603538": 28.49
+   },
+   "equity": 97372.58,
+   "circuit_break": null
   }
  },
  "rules_log": [
@@ -447,10 +571,10 @@
   "paused": false,
   "terminated": false,
   "peak_equity": 100000.0,
-  "drawdown_pct": -2.12
+  "drawdown_pct": -2.63
  },
  "date": "2026-09-03",
- "updated_at": "2026-09-03 10:34:07",
+ "updated_at": "2026-09-03 23:37:00",
  "autonomous_decisions": {
   "dec-auto-20260903103407-918bddbc": {
    "sym": "603538",
