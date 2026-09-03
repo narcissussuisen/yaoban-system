@@ -1,3 +1,4 @@
+﻿# NOTE(2026-09-03): this file MUST keep the UTF-8 BOM. PS5.1 reads BOM-less files as ANSI/GBK; a Chinese comment ending in a GBK lead byte (e.g. 。=E3 80 82) silently swallows the following newline (DBCS pair) and comments out the next line - this broke all stages on 9/3 night (bodies never ran but manifest said success).
 param([Parameter(Mandatory=$true)][string]$Py, [Parameter(Mandatory=$true)][string]$Base, [Parameter(Mandatory=$true)][string]$Day, [Parameter(Mandatory=$true)][string]$Notify)
 # P0时间表重构(2026-09-01, 用户评审): 盘后链 16:30 单任务一次跑完
 # 2026-09-02 修复(gate 阻塞根因): 顺序调换——rebuild 最先!
