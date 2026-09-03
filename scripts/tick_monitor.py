@@ -97,19 +97,15 @@ def main():
    time.sleep(3)
   return False
  fired=set(); rounds=0; interval=a.interval; err=0
- print(f'[DBG] main loop starting daemon={a.daemon}',file=sys.stderr,flush=True)
  while a.rounds==0 or rounds<a.rounds:
   rounds+=1; n=datetime.now(ZoneInfo('Asia/Shanghai')); hm2=n.strftime('%H:%M')
-  print(f'[DBG] r{rounds} {hm2} loop',file=sys.stderr,flush=True)
   if a.daemon and not(('09:30'<=hm2<='11:30')or('13:00'<=hm2<='15:05')):
    if hm2>'15:05':break
    time.sleep(60);continue
   st=load(); live={'date':day,'time':n.strftime('%H:%M:%S'),'positions':[]}
-  print(f'[DBG] r{rounds} loaded {len(st["account"]["positions"])} pos',file=sys.stderr,flush=True)
   for sym,pos in list(st['account']['positions'].items()):
    pc=prev_close(sym,day)
    if not pc:continue
-   print(f'[DBG] r{rounds} {sym} pc={pc} fetching bars',file=sys.stderr,flush=True)
    try:
     bars=api.get_security_bars(0,market_of(sym),sym,0,300); tx=api.get_transaction_data(market_of(sym),sym,0,30)
    except Exception:bars=tx=None

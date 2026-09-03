@@ -71,6 +71,21 @@ for pat in ('*tick_monitor*--daemon*', '*_tick_watch.py*'):
     except Exception:
         pass
 
+# P0 加固(2026-09-04): 被杀 watcher 的残留锁会让新 watcher 白等 beat 120s 超时;
+# 仅当确认已无存活 watcher 时清锁(若 kill 失败则保留锁, 由 beat 接管逻辑兜底防双守)。
+time.sleep(1)
+try:
+    _w = subprocess.run(['powershell', '-NoProfile', '-Command',
+                         "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
+                         "Where-Object {$_.CommandLine -like '*_tick_watch.py*'} | "
+                         'Select-Object -ExpandProperty ProcessId'],
+                        capture_output=True, text=True, timeout=20)
+    _alive = [int(x) for x in (_w.stdout or '').split()]
+except Exception:
+    _alive = [1]  # 查询失败: 保守认为还有存活者, 不动锁
+if not _alive:
+    (BASE / 'outputs' / 'intraday' / '_tick_watch.lock').unlink(missing_ok=True)
+
 tr = f'"{PY}" -X utf8 "{pathlib.Path(__file__).resolve()}" --spawn'
 subprocess.run(['schtasks', '/Create', '/TN', TASK, '/SC', 'ONCE', '/ST', '23:59', '/F', '/TR', tr],
                check=True, capture_output=True)

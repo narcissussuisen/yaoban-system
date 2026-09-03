@@ -43,7 +43,10 @@ switch($Mode){
  'plan-gate' {Gate 'infra';Run-Stage 'plan-gate' {& $Py -X utf8 ($Base+'\scripts\preflight.py') --post-plan --push}}
  'morning-check' {Run-Stage 'morning-check' {& $Py -X utf8 ($Base+'\scripts\check_morning.py')}}
  'auction' {Gate 'post_plan';Run-Stage 'auction' {& $Py -X utf8 ($Base+'\scripts\auction_monitor.py')}}
- 'tick' {Gate 'post_plan';Run-Stage 'tick' {& $Py -X utf8 ($Base+'\scripts\tick_monitor.py') --daemon --interval 5 --execute-risk}}
+ # P0 加固(2026-09-04 凌晨, 9/3 复盘): tick 模式由裸 daemon 改为看门狗守护链
+ # (v1 裸 daemon 9/3 11:16 WinError5 一死即持仓裸奔 2h25m; _tick_watch.py 负责拉起+监护
+ #  +自动重启+午休/收盘窗口感知+耗尽升级, daemon 参数由 watcher 内部统一注入)
+ 'tick' {Gate 'post_plan';Run-Stage 'tick' {& $Py -X utf8 ($Base+'\scripts\_tick_watch.py')}}
  'scan' {Gate 'post_plan';Run-Stage 'scan' {& $Py -X utf8 ($Base+'\scripts\scan_and_confirm.py') --min-amt 10 --e4-support --temp-ladder --execute}}
  'monitor' {Gate 'post_plan';Run-Stage 'monitor' {& $Py -X utf8 ($Base+'\scripts\monitor_intraday.py')}}
  'notify' {Gate 'post_plan';Run-Stage 'notify' {& $Py -X utf8 $NotifyEvents --date $Day}}

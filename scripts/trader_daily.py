@@ -38,6 +38,19 @@ def main():
     if not args.date:
         args.date = curve[-1]['date'] if curve else ''
     day_fills = [f for f in fills if f['date'] == args.date]
+    # ---- 1.1 灰度审计动作（close_pipeline 决策, 仅审计未执行, 不入账本不计入统计）----
+    # P1 修复(2026-09-04, 9/3 复盘): 日报必须区分"实际成交(账本 fills)"与
+    # "收盘灰度审计建议(close_decision, 未执行)" —— 9/3 的 603538 审计止损卖出
+    # 曾与"卖出触发: 无"并存造成误读。
+    close_decision_path = BASE / 'outputs' / 'intraday' / f'close_decision_{args.date}.json'
+    close_decision = {}
+    if close_decision_path.exists():
+        try:
+            close_decision = json.loads(close_decision_path.read_text(encoding='utf-8-sig'))
+        except Exception:
+            close_decision = {}
+    audit_only_buys = close_decision.get('buys', []) or []
+    audit_only_sells = close_decision.get('sells', []) or []
     # ---- 2.1 操作流水（按时间排序）
     day_fills.sort(key=lambda f: f['ts'])
     # ---- 配对盈亏（全历史）
@@ -90,6 +103,9 @@ def main():
             audit.append({'sym': f['sym'], 'verdict': '部分符合', 'note': '计划内标的, 非计划流程触发'})
         else:
             audit.append({'sym': f['sym'], 'verdict': '偏离', 'note': '计划外标的（盘中捕捉）'})
+    offplan_syms = {a['sym'] for a in audit if a['verdict'] == '偏离'}
+    # ---- 当日闭环（实际成交, 当日卖出的 round-trip）----
+    trades_today = [t for t in trades if str(t.get('sell_ts', '')).startswith(args.date)]
     # ---- 汇总
     wins = [t for t in trades if t['pnl_pct'] > 0]
     losses = [t for t in trades if t['pnl_pct'] <= 0]
@@ -109,6 +125,9 @@ def main():
         't_avg_diff': round(sum(t['diff_pct'] for t in t_rounds) / len(t_rounds), 2) if t_rounds else None,
         'buy_kinds': dict(buy_kinds), 'sell_reasons': dict(sell_reasons),
         'audit': audit,
+        'trades_today': len(trades_today),
+        'offplan_buys': sorted(offplan_syms),
+        'audit_only_actions': {'buys': audit_only_buys, 'sells': audit_only_sells, 'executed': False},
     }
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / f'trader_daily_{args.date}.json').write_text(
@@ -117,14 +136,14 @@ def main():
     lines = [f'# 交易员日报 · {args.date}', '']
     # P0-2 修复(2026-08-31): day_pnl/avg_win/avg_loss 为 None 时不再抛 TypeError(首日无前日净值、无盈利样本等场景)
     day_pnl_txt = f'{summary["day_pnl"]:+.2f}%' if summary['day_pnl'] is not None else 'N/A'
-    lines.append(f'- 当日盈亏: {day_pnl_txt} | 成交 {summary["fills"]} 笔 | 累计交易 {summary["trades_total"]} 笔')
+    lines.append(f'- 当日盈亏: {day_pnl_txt} | 当日实际成交 {summary["fills"]} 笔 | 当日闭环 {summary["trades_today"]} 笔 | 累计闭环 {summary["trades_total"]} 笔')
     if summary['win_rate'] is not None:
         avg_win_txt = f'{summary["avg_win"]:+.2f}%' if summary['avg_win'] is not None else 'N/A'
         avg_loss_txt = f'{summary["avg_loss"]:+.2f}%' if summary['avg_loss'] is not None else 'N/A'
         pl_ratio = (summary['avg_win'] / abs(summary['avg_loss'])
                     if (summary['avg_win'] is not None and summary['avg_loss']) else None)
         pl_txt = f'{pl_ratio:.2f}' if pl_ratio is not None else 'N/A'
-        lines.append(f'- 胜率 {summary["win_rate"]}% | 平均盈利 {avg_win_txt} | 平均亏损 {avg_loss_txt} | 盈亏比 {pl_txt}')
+        lines.append(f'- 累计闭环胜率 {summary["win_rate"]}% | 平均盈利 {avg_win_txt} | 平均亏损 {avg_loss_txt} | 盈亏比 {pl_txt}（仅计实际成交闭环）')
     if summary['t_rounds']:
         lines.append(f'- 做T {summary["t_rounds"]} 次, 平均差价 {summary["t_avg_diff"]:+.2f}%')
     lines.append('')
@@ -133,11 +152,23 @@ def main():
     lines.append('|---|---|---|---|---|---|---|')
     for f in day_fills:
         side = '买' if f['side'] == 'buy' else '卖'
-        lines.append(f"| {f['ts'][11:16]} | {f['sym']} | {side} | {f['qty']} | {f['px']} | {SELL_CN.get(f['reason'], BUY_CN.get(f['reason'], f['reason']))} | {f.get('plan_ref', '')} |")
+        reason = SELL_CN.get(f['reason'], BUY_CN.get(f['reason'], f['reason']))
+        if f['side'] == 'buy' and f['sym'] in offplan_syms:
+            reason = f'[计划外] {reason}'
+        lines.append(f"| {f['ts'][11:16]} | {f['sym']} | {side} | {f['qty']} | {f['px']} | {reason} | {f.get('plan_ref', '')} |")
     lines.append('')
-    lines.append('## 模式绩效（当日）')
+    lines.append('## 模式绩效（当日·实际成交）')
     lines.append(f"- 买点分布: {summary['buy_kinds'] or '无'}")
     lines.append(f"- 卖出触发: {summary['sell_reasons'] or '无'}")
+    lines.append('')
+    lines.append('## 灰度审计动作（收盘流水线 · 未执行，不计入交易统计）')
+    if audit_only_sells or audit_only_buys:
+        for sd in audit_only_sells:
+            lines.append(f"- 卖出建议: {sd['sym']} {sd['reason']} {sd['qty']}股 @{sd['px']} —— 仅审计未执行（账本仍持仓）")
+        for bd in audit_only_buys:
+            lines.append(f"- 买入建议: {bd['sym']} @{bd['px']} ({bd.get('seg', '')}{bd.get('kind', '')}) —— 仅审计未执行")
+    else:
+        lines.append('- 当日无灰度审计动作')
     lines.append('')
     lines.append('## 符合度审计')
     for a in audit:
@@ -157,6 +188,7 @@ def main():
     lines += [f'- {s}' for s in suggests] or ['- 无显著偏离，维持现有规则']
     lines.append('')
     lines.append('> 自动生成 · 数据源 ledger + 盘中扫描记录')
+    lines.append('> 统计口径: 盈亏/胜率/做T 仅统计账本实际成交; 灰度审计动作未执行, 不计入交易结果。')
     # 阶段四: 迭代提案落盘（人工确认后生效）
     if suggests:
         prop_dir = BASE / 'outputs' / 'iteration_proposals'

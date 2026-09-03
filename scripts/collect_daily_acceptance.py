@@ -8,6 +8,13 @@ P0.5 重构（2026-09-01，蓝图 B0-P0-5 修复）:
   - F7 修复: required 任务移除已禁用的 YaobanDailyRebuild; rebuild 完成性改查
     daily_rebuilt 产物 mtime 证据
   - exit code: 0=pass / 2=fail / 3=incomplete或降级 / 4=拒绝覆盖
+
+P0 硬性验收项加固（2026-09-04 凌晨, 9/3 复盘裁定）:
+  - tick_snapshot: 升级为"收盘新鲜度"—— pos_live.time >= 14:55, daemon 盘中死亡留下的
+    陈旧快照(9/3 实录 11:15:57)不再蒙混过关(进程存在≠数据持续更新)
+  - tick_watchdog: 当日 risk_events 无 watch_limit(看门狗重启额度耗尽)与
+    data_failure halt(守护自弃)事件
+  - offplan_fills: 当日买入全部计划内(plan_match.in_plan / plan_ref), 计划外成交即 fail
 """
 from __future__ import annotations
 import argparse,json,os,pathlib,subprocess,sys
@@ -108,6 +115,25 @@ def main(argv=None,now=None):
  live=read_json(BASE.parent/'Vibe-Research'/'validation'/'live-ticks'/'latest.json');next_plans=sorted((BASE/'outputs'/'plans').glob('*_plan.json'))
  fills=[x for x in ledger.get('account',{}).get('fills',[]) if x.get('date')==day]
  auction_latest=read_json(BASE/'outputs'/'auction'/'latest.json');auction_freeze=read_json(BASE/'outputs'/'auction'/f'auction_freeze_{day}.json');tick_snapshot=read_json(BASE/'outputs'/'intraday'/'pos_live.json')
+ # ---- P0 硬性项输入: 看门狗/守护事件 + 计划外成交检测(2026-09-04) ----
+ risk_events_path=BASE/'outputs'/'intraday'/'risk_events.jsonl'
+ day_risk_events=[]
+ if risk_events_path.exists():
+  for _ln in risk_events_path.read_text(encoding='utf-8').splitlines():
+   try:
+    _ev=json.loads(_ln)
+    if _ev.get('date')==day:day_risk_events.append(_ev)
+   except Exception:pass
+ guard_fail=[e for e in day_risk_events if e.get('trigger')=='watch_limit' or (e.get('trigger')=='data_failure' and e.get('action')=='halt')]
+ guard_restarts=sum(1 for e in day_risk_events if e.get('trigger')=='watch_restart')
+ plan_syms={p.get('sym') for p in (ledger.get('plans',{}).get(day,{}).get('picks') or []) if isinstance(p,dict)}
+ offplan_today=[]
+ for f in fills:
+  if f.get('side')!='buy':continue
+  pm=f.get('plan_match') or {}
+  _in=pm.get('in_plan')
+  if _in is None:_in=f.get('sym') in plan_syms
+  if _in is False or str(f.get('plan_ref','')).startswith('offplan'):offplan_today.append(f.get('sym'))
  delivery=BASE/'outputs'/'notifications'/f'delivery_{day.replace("-","")}.jsonl';deliveries=[]
  if delivery.exists():
   for line in delivery.read_text(encoding='utf-8').splitlines():
@@ -124,6 +150,7 @@ def main(argv=None,now=None):
   'auction_latest':'ok' if auction_latest else 'missing',
   'auction_freeze':'ok' if auction_freeze else 'missing',
   'tick_snapshot':'ok' if tick_snapshot else 'missing',
+  'risk_events':'ok' if risk_events_path.exists() else 'missing',
   'delivery_log':'ok' if delivery.exists() else 'missing',
   'next_plan':'ok' if next_plan_ok else 'missing',
   'ledger':'ok' if ledger.get('account') else 'missing',
@@ -139,7 +166,10 @@ def main(argv=None,now=None):
   'premarket_delivery':any(x.get('kind')=='premarket' and x.get('ok') for x in deliveries),
   'close_delivery':any(x.get('kind')=='close' and x.get('ok') for x in deliveries),
   'live_tick':bool(live and live.get('pass') is True and live.get('expected_date')==day),
-  'tick_snapshot':bool(tick_snapshot and tick_snapshot.get('date')==day and tick_snapshot.get('time')),
+  # P0 硬性项(2026-09-04): 收盘新鲜度(进程存在≠数据更新) + 看门狗未耗尽 + 无计划外成交
+  'tick_snapshot':bool(tick_snapshot and tick_snapshot.get('date')==day and str(tick_snapshot.get('time',''))>='14:55'),
+  'tick_watchdog':not guard_fail,
+  'offplan_fills':not offplan_today,
   'ledger_mode':ledger.get('policy',{}).get('account_mode')=='autonomous_paper',
   'ledger_start':ledger.get('start_date')=='2026-08-31',
   'next_plan':next_plan_ok,
@@ -160,7 +190,8 @@ def main(argv=None,now=None):
   'checks':checks,'task_checks':task_checks,'required_tasks':REQUIRED_TASKS,'tasks':tasks,
   'ledger':{'revision':ledger.get('_revision'),'cash':ledger.get('account',{}).get('cash'),'positions':len(ledger.get('account',{}).get('positions',{})),'fills_today':len(fills),'risk_state':ledger.get('risk_state',{})},
   'deliveries':[{'kind':x.get('kind'),'event_key':x.get('event_key'),'ok':x.get('ok'),'message_sha256':x.get('message_sha256')} for x in deliveries],
-  'continuity_checks':continuity_checks,'continuity_stats':continuity_stats,'auction_latest':auction_latest,'auction_freeze':auction_freeze,'tick_snapshot':tick_snapshot,'live_tick':live,'next_plan':next_plans[-1].name if next_plans else None}
+  'continuity_checks':continuity_checks,'continuity_stats':continuity_stats,'auction_latest':auction_latest,'auction_freeze':auction_freeze,'tick_snapshot':tick_snapshot,'live_tick':live,'next_plan':next_plans[-1].name if next_plans else None,
+  'tick_watchdog':{'restart_events':guard_restarts,'fail_events':guard_fail},'offplan_fills_today':offplan_today}
  atomic(path,report)
  print(json.dumps({'status':status,'final':is_final,'probe_reason':probe_reason,'missing_inputs':missing_inputs,'path':str(path)},ensure_ascii=False))
  if probe_reason:return 3
