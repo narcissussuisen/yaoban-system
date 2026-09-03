@@ -1,16 +1,23 @@
 {
- "_revision": 14,
+ "_revision": 15,
  "start_cash": 100000.0,
  "start_date": "2026-08-31",
  "benchmark": "000852.SH",
  "account": {
-  "cash": 53910.60325,
+  "cash": 11437.578249999999,
   "positions": {
    "300468": {
     "qty": 1800,
     "cost": 24.610725,
     "entry_ts": "2026-09-01 10:05",
     "stop_px": 23.350999999999996,
+    "days": 0
+   },
+   "603538": {
+    "qty": 1500,
+    "cost": 28.315350000000002,
+    "entry_ts": "2026-09-03 10:35",
+    "stop_px": 26.866,
     "days": 0
    }
   },
@@ -52,6 +59,30 @@
     "recorded_at": "2026-09-02 09:40:04",
     "signal_ts": "2026-09-02 09:40:04",
     "decision_ts": "2026-09-02 09:40:04"
+   },
+   {
+    "date": "2026-09-03",
+    "ts": "2026-09-03 10:35",
+    "sym": "603538",
+    "side": "buy",
+    "qty": 1500,
+    "px": 28.28,
+    "reason": "e4_support",
+    "plan_ref": "offplan-2026-09-03:603538",
+    "decision_id": "dec-auto-20260903103407-918bddbc",
+    "recorded_at": "2026-09-03 10:34:07",
+    "signal_ts": "2026-09-03 10:35",
+    "decision_ts": "2026-09-03 10:34:03",
+    "candidates_ref": "29e98b8e6243174443ec32b47cdde55c221ada939affa485035da9e25541026e",
+    "plan_match": {
+     "in_plan": false,
+     "pick_id": null,
+     "plan_sha256": "193588fff5e0d045c37f68acbdbed348181ecff099a94cbbcc00771eb87fd11f",
+     "off_plan_reason": {
+      "code": "intraday_scan_capture",
+      "detail": "engine=e4_support;chg=+9.2%;pool_rank=1"
+     }
+    }
    }
   ],
   "equity_curve": [
@@ -418,7 +449,25 @@
   "peak_equity": 100000.0,
   "drawdown_pct": -2.12
  },
- "date": "2026-09-02",
- "updated_at": "2026-09-02 17:48:06",
- "autonomous_decisions": {}
+ "date": "2026-09-03",
+ "updated_at": "2026-09-03 10:34:07",
+ "autonomous_decisions": {
+  "dec-auto-20260903103407-918bddbc": {
+   "sym": "603538",
+   "name": "美诺华",
+   "signal_ts": "2026-09-03 10:35",
+   "signal_px": 28.28,
+   "rule": "e4_support",
+   "candidates_ref": "29e98b8e6243174443ec32b47cdde55c221ada939affa485035da9e25541026e",
+   "plan_pick_ref": null,
+   "off_plan_reason": {
+    "code": "intraday_scan_capture",
+    "detail": "engine=e4_support;chg=+9.2%;pool_rank=1"
+   },
+   "risk_gates": "ledger._validate_buy_policy",
+   "decision_id": "dec-auto-20260903103407-918bddbc",
+   "mode": "autonomous_paper",
+   "decided_at": "2026-09-03 10:34:07"
+  }
+ }
 }
