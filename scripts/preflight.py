@@ -151,7 +151,7 @@ SUGGESTIONS={
  '净值守恒':'equity_curve 与现金+市值计算不一致。检查 ledger.json 记账是否正确（禁止人工改账），查看 _revision 与当日成交记录。',
  '情绪表':'sentiment_full_2026.csv 最新日期落后于上一交易日。运行 scripts/r5p_sentiment_build.py 重建情绪表。',
  '候选表':'r6p_candidates_2026.csv 最新日期落后。运行 scripts/r6p_candidates_build.py 重建候选表。',
- '任务Action':'计划任务 Action 校验失败（XML 指向 launcher/模式/runner 参数不符）。运行 scripts/update_tasks_ps1.ps1 重新注册；检查 yaoban_tasks/root.txt 与 launch.ps1。',
+ '任务Action':'计划任务 Action 校验失败（XML 指向 launcher/模式/runner 参数不符）。运行 scripts/update_tasks_ps1.ps1 重新注册；检查 yaoban_tasks/root.txt 与 launch.ps1；runner 风险参数扫描=run_trading_task.ps1+_tick_watch.py（tick 链 9/4 起移驻 watcher）。',
  '任务历史':'部分任务尚无成功运行记录（unproven）。若为盘前未到触发时间的任务属预期；收盘后仍无记录需检查任务注册。',
  '看板':'Vibe 看板 http://127.0.0.1:5930/api/health 不可用。检查 Vibe 编排器进程（8766）与前端（5930）。',
  '残留进程':'检测到残留 tick_monitor/scan_and_confirm 进程。手动结束残留进程，避免与计划任务实例并发写账。',
@@ -375,14 +375,15 @@ def main():
  runner=(BASE/'scripts'/'run_trading_task.ps1').read_text(encoding='utf-8') if (BASE/'scripts'/'run_trading_task.ps1').exists() else ''
  launch=LAUNCHER.read_text(encoding='utf-8') if LAUNCHER.exists() else ''
  root=ROOT_FILE.read_text(encoding='utf-8-sig').strip() if ROOT_FILE.exists() else ''  # P0-3修复: utf-8-sig 剥离BOM, 否则Path比较恒False导致任务Action全FAIL
- runner_ok=all(x in runner for x in ('--execute-risk','--e4-support','--temp-ladder','--min-amt','10','--execute','feishu_notify.py','generate_next_plan.py'))
+ watch=(BASE/'scripts'/'_tick_watch.py').read_text(encoding='utf-8') if (BASE/'scripts'/'_tick_watch.py').exists() else ''  # 9/7修复: 9/4起tick链风险参数移驻_tick_watch.py prod_cfg(daemon_argv), 文本签名并入扫描, 否则runner_ok=False→任务Action全bad→全天gate连锁
+ runner_ok=all(x in (runner+watch) for x in ('--execute-risk','--e4-support','--temp-ladder','--min-amt','10','--execute','feishu_notify.py','generate_next_plan.py'))
  launch_ok='run_trading_task.ps1' in launch and pathlib.Path(root)==BASE
  for name,mode in EXPECTED.items():
   rc,x=task_xml(name)
   if rc!=0 or str(LAUNCHER) not in x or f'-Mode {mode}' not in x or not runner_ok or not launch_ok:bad.append(name)
   rc2,o=run_capture(['schtasks','/Query','/TN',chr(92)+name,'/FO','LIST','/V'])
   if '267011' in o or '1999/11/30' in o:unproven.append(name)
- ck('任务Action',not bad,f'bad={bad}',category='计划任务')
+ ck('任务Action',not bad,f'bad={bad} runner_ok={runner_ok} launch_ok={launch_ok}',category='计划任务')
  ck('任务历史',not unproven,f'unproven={unproven}',critical=False,category='计划任务')
  # dashboard freshness
  try:
