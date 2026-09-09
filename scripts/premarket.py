@@ -1,4 +1,4 @@
-"""逐妖08:50盘前快任务：刷新外盘，确认盘后预生成计划存在；不做全市场重算。"""
+"""EvoAlpha 08:50盘前快任务：刷新外盘，确认盘后预生成计划存在；不做全市场重算。"""
 from __future__ import annotations
 import argparse,hashlib,json,pathlib,subprocess,sys
 from datetime import datetime

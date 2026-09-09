@@ -20,7 +20,7 @@ class LedgerRiskTests(unittest.TestCase):
   s=ledger._default_state(); s['policy']['require_human_decision']=True; return s
  def approve(self,s,sym='000001',lo=9,hi=11):
   rid=ledger.record_signal_request(s,{'sym':sym,'kind':'test','signal_ts':'2026-08-31 09:39'})
-  return ledger.record_human_decision(s,rid,'approve','逐妖','test',lo,hi)
+  return ledger.record_human_decision(s,rid,'approve','EvoAlpha','test',lo,hi)
  def _hbuy(self,s,sym,ts,px,qty,reason,did):
   ledger.buy(s,sym,ts,px,qty,reason,decision_id=did,signal_ts='2026-08-31 09:39',
    decision_ts='2026-08-31 09:39:30',plan_match={'in_plan':False,'pick_id':None},

@@ -1,4 +1,4 @@
-"""逐妖两阶段开盘门禁 + tpoint 风格盘前自检。
+"""EvoAlpha 两阶段开盘门禁 + tpoint 风格盘前自检。
 08:45 基础设施：preflight.py
 08:55 计划验收：preflight.py --post-plan（可 --push 推送飞书状态卡片）
 输出 outputs/preflight_<date>_<stage>.json（门禁契约，fail-closed）+ outputs/selfcheck/ 下 Markdown 报告与异常日志
@@ -173,7 +173,7 @@ def _status_of(r):
 def build_report(report, stage_label):
  """生成 Markdown 自检报告（tpoint selfcheck 同构）。"""
  now=datetime.now()
- lines=["# 逐妖盘前自检报告", "",
+ lines=["# EvoAlpha盘前自检报告", "",
         f"- **检查时间**: {report['time']}",
         f"- **阶段**: {stage_label}",
         f"- **检查项**: {len(report['results'])} 项",
@@ -228,7 +228,7 @@ def _console_summary(report):
  now=datetime.now()
  print()
  print(_c('bold',f"{'='*60}"))
- print(_c('bold',f" 逐妖盘前自检（{report['stage']}） {now.strftime('%Y-%m-%d %H:%M:%S')}"))
+ print(_c('bold',f" EvoAlpha盘前自检（{report['stage']}） {now.strftime('%Y-%m-%d %H:%M:%S')}"))
  print(_c('bold',f"{'='*60}"))
  for r in report['results']:
   st=_status_of(r); color={'PASS':'green','FAIL':'red','WARN':'yellow'}[st]
@@ -292,10 +292,10 @@ def _build_status_card(report, stage_label):
    elements.append({"tag":"div","text":md(f"🔴 {r['name']}：{d}")})
    elements.append({"tag":"div","text":md(f"　↳ 建议：{s2}")})
  elements.append({"tag":"hr"})
- footer=f"完整报告 | outputs/selfcheck/  |  逐妖盘前自检 · 仅供参考"
+ footer=f"完整报告 | outputs/selfcheck/  |  EvoAlpha盘前自检 · 仅供参考"
  elements.append({"tag":"note","elements":[{"tag":"plain_text","content":footer}]})
  return {"msg_type":"interactive","card":{"header":{"template":tpl_map[overall],
-        "title":{"tag":"plain_text","content":f"逐妖盘前自检 · {emoji_map[overall]} {state_label}"}},
+        "title":{"tag":"plain_text","content":f"EvoAlpha盘前自检 · {emoji_map[overall]} {state_label}"}},
         "elements":elements}}
 
 def _push_card(card, event_key):
@@ -456,7 +456,7 @@ def main():
     ok=_push_card(card,f'selfcheck:{day}:{stage}')
     print(f"  📡 盘前自检卡片已推送: {'OK' if ok else 'FAIL'}")
    elif report['status']!='pass':
-    msg=(f"🔴 逐妖盘前自检告警（非交易日）\n时间: {report['time']}  阶段: {stage_label}\n"
+    msg=(f"🔴 EvoAlpha盘前自检告警（非交易日）\n时间: {report['time']}  阶段: {stage_label}\n"
          f"统计: ✅{report['summary']['pass']} ⚠️{report['summary']['warn']} ❌{report['summary']['fail']}\n"
          + '\n'.join(f"  • {r['name']}: {r['detail'][:80]}" for r in fails[:8]))
     body=json.dumps({'msg_type':'text','content':{'text':msg}},ensure_ascii=False).encode('utf-8')

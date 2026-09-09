@@ -133,7 +133,7 @@ class LedgerProvenanceTests(unittest.TestCase):
         s = ledger._default_state()  # require_human_decision=True
         rid = ledger.record_signal_request(s, {'sym': '000001', 'kind': 'P',
                                                 'signal_ts': '2026-08-31 09:40'})
-        did = ledger.record_human_decision(s, rid, 'approve', '逐妖', 'test', 9, 11)
+        did = ledger.record_human_decision(s, rid, 'approve', 'EvoAlpha', 'test', 9, 11)
         ledger.buy(s, '000001', '2026-08-31 09:41', 10.0, 100, 'P', decision_id=did,
                    signal_ts='2026-08-31 09:40', decision_ts='2026-08-31 09:40:30',
                    plan_match={'in_plan': False}, off_plan_reason={'code': 'human'})
@@ -144,7 +144,7 @@ class LedgerProvenanceTests(unittest.TestCase):
         s = ledger._default_state()
         rid = ledger.record_signal_request(s, {'sym': '000001', 'kind': 'P',
                                                 'signal_ts': '2026-08-31 09:40'})
-        did = ledger.record_human_decision(s, rid, 'approve', '逐妖', 'test', 9, 11)
+        did = ledger.record_human_decision(s, rid, 'approve', 'EvoAlpha', 'test', 9, 11)
         with self.assertRaisesRegex(ValueError, '时序契约违规'):
             ledger.buy(s, '000001', '2026-08-31 09:55', 10.0, 100, 'P', decision_id=did,
                        signal_ts='2026-08-31 09:40', decision_ts='2026-08-31 09:55:00',

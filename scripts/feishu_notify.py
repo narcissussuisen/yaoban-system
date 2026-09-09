@@ -86,7 +86,7 @@ def _plan_message(day: str) -> str:
     plan = json.loads(path.read_text(encoding="utf-8"))
     emotion = plan.get("emotion", {})
     picks = plan.get("picks", [])
-    lines = [f"逐妖交易团队｜盘前汇报 {day}",
+    lines = [f"EvoAlpha｜盘前汇报 {day}",
              f"模式：10万元A股全自主模拟盘（真实资金未接入）",
              f"数据口径：{plan.get('mode', '未标注')}",
              f"市场温度：{emotion.get('temp', '未获取')}，阶段：{emotion.get('stage', '未获取')}",
@@ -106,7 +106,7 @@ def _close_message(day: str) -> str:
     equity = row.get("equity") if row else None
     ret = ((float(equity) / float(ledger.get("start_cash", 100000)) - 1) * 100) if equity is not None else None
     return "\n".join([
-        f"逐妖交易团队｜盘后汇报 {day}",
+        f"EvoAlpha｜盘后汇报 {day}",
         f"账户净值：{equity if equity is not None else '未完成估值'}" + (f"，累计收益 {ret:+.2f}%" if ret is not None else ""),
         f"现金：{account.get('cash', '未获取')}，持仓：{len(account.get('positions', {}))}只，当日成交：{len(fills)}笔",
         f"当日盈亏：{review.get('day_pnl', '样本首日/未获取')}%，累计闭环交易：{review.get('trades_total', 0)}笔，做T：{review.get('t_rounds', 0)}次",

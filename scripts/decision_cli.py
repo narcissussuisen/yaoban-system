@@ -1,8 +1,8 @@
-"""逐妖人工确认 CLI。
+"""EvoAlpha 人工确认 CLI。
 
 list: 列出待确认请求
-approve REQUEST_ID --actor 逐妖 --reason ... [--px-min --px-max] [--execute-px]
-reject REQUEST_ID --actor 逐妖 --reason ...
+approve REQUEST_ID --actor EvoAlpha --reason ... [--px-min --px-max] [--execute-px]
+reject REQUEST_ID --actor EvoAlpha --reason ...
 
 批准可选立即执行模拟单；数量由账本按45%单票、90%敞口、现金和100股整数倍重算。
 """
@@ -29,7 +29,7 @@ def main():
     sub=ap.add_subparsers(dest='cmd',required=True)
     sub.add_parser('list')
     for name in ('approve','reject'):
-        p=sub.add_parser(name); p.add_argument('request_id'); p.add_argument('--actor',default='逐妖'); p.add_argument('--reason',required=True)
+        p=sub.add_parser(name); p.add_argument('request_id'); p.add_argument('--actor',default='EvoAlpha'); p.add_argument('--reason',required=True)
         p.add_argument('--px-min',type=float); p.add_argument('--px-max',type=float)
         if name=='approve': p.add_argument('--execute-px',type=float)
     a=ap.parse_args()

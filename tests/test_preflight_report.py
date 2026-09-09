@@ -25,7 +25,7 @@ class ReportContractTests(unittest.TestCase):
 
  def test_markdown_report_contains_sections(self):
   md=preflight.build_report(sample_report(),'计划验收')
-  for token in ('# 逐妖盘前自检报告','## 总体结果','## 行情','## 异常项与建议处理措施','TDX行情','建议'):
+  for token in ('# EvoAlpha盘前自检报告','## 总体结果','## 行情','## 异常项与建议处理措施','TDX行情','建议'):
    self.assertIn(token,md)
 
  def test_markdown_report_no_anomaly_section_when_clean(self):
@@ -44,7 +44,7 @@ class ReportContractTests(unittest.TestCase):
   card=preflight._build_status_card(sample_report(),'计划验收')
   self.assertEqual(card['msg_type'],'interactive')
   self.assertEqual(card['card']['header']['template'],'red')
-  self.assertIn('逐妖盘前自检',card['card']['header']['title']['content'])
+  self.assertIn('EvoAlpha盘前自检',card['card']['header']['title']['content'])
   texts=json.dumps(card,ensure_ascii=False)
   self.assertIn('关键组件健康检查',texts);self.assertIn('异常项及处理建议',texts)
   self.assertIn('TDX行情',texts);self.assertIn('建议',texts)
