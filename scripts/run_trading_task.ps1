@@ -57,6 +57,9 @@ switch($Mode){
  # 2026-09-10: TDX 恢复监测(工作日 09:00 起每 30 分钟; 恢复即飞书通知, 恒返回 0 不产生失败推送)
  'tdx-probe' {Run-Stage 'tdx-probe' {& $Py -X utf8 ($Base+'\scripts\tdx_recovery_probe.py')}}
  # 2026-09-10: TDX 候选池全量验活(周六 10:00; 节点会轮换失效, 定期刷新可用清单)
+ # 2026-09-10: 晚间核验(工作日 19:30; 只读合并核验, 取代 WorkBuddy 两个提示式定时任务;
+ # 恒返回 0, 状态由卡片结论承载, 避免与自身告警重复推送)
+ 'evening-check' {Run-Stage 'evening-check' {& $Py -X utf8 ($Base+'\scripts\evening_check.py')}}
  'tdx-verify' {Run-Stage 'tdx-verify' {& $Py -X utf8 ($Base+'\scripts\verify_tdx_servers.py')}}
  # 手动补跑入口(非生产链), 生产入口=post_close_chain.ps1 16:30 (计划批次C2/§2.5: 唯一正式 acceptance 生产入口为 16:30 链)
  'acceptance' {Run-Stage 'acceptance' {& $Py -X utf8 ($Base+'\scripts\collect_daily_acceptance.py') --date $Day --final;if($LASTEXITCODE -eq 0){$msg=('Yaoban daily acceptance passed '+$Day+[Environment]::NewLine+'Evidence: outputs/acceptance/acceptance_'+$Day+'.json');& $Py -X utf8 $Notify --kind alert --date $Day --event-key ('acceptance:'+$Day) --message $msg}}}
