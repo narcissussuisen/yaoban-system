@@ -73,10 +73,53 @@ def aggregate_tencent(sym: str) -> pd.DataFrame | None:
     return day[['symbol', 'date', 'open', 'high', 'low', 'close', 'volume', 'amount']]
 
 
+def _final_bar_state(day, probe='600000'):
+    """当日最后一根 m60 bar 的定稿状态: (bar_ts, bar_close, live_px)。"""
+    from core.tencent_minline import min_bars as _tx_bars, quote as _tx_quote
+    arr = _tx_bars(probe, 'm60', 12)
+    if not arr:
+        return None, None, None
+    raw = str(arr[-1][0])
+    ts = f'{raw[0:4]}-{raw[4:6]}-{raw[6:8]} {raw[8:10]}:{raw[10:12]}' if (len(raw) == 12 and raw.isdigit()) else raw
+    try:
+        close = float(arr[-1][2])
+    except Exception:
+        close = None
+    live = _tx_quote([probe]).get(probe)
+    return ts, close, live
+
+
+def wait_for_final_bar(day, max_wait_min=20, probe='600000'):
+    """数据最终化断言(盘后链提前到 15:35 的配套保险, 2026-09-10):
+    要求当日最后一根 m60 bar 时间戳 = day 15:00 且收盘价 == 实时报价(收盘价已固定)。
+    不满足则每分钟复检; 超时返回 (False, detail) 交由调用方决定(默认仍继续并显式告警)。"""
+    t0 = time.time()
+    last = 'no probe data'
+    while True:
+        try:
+            ts, close, live = _final_bar_state(day, probe)
+        except Exception as exc:
+            ts, close, live = None, None, None
+            last = type(exc).__name__ + ': ' + str(exc)[:120]
+        if ts:
+            ts_ok = str(ts).startswith(day) and str(ts).endswith('15:00')
+            px_ok = (live is not None) and (close is not None) and abs(float(close) - float(live)) < 0.005
+            last = f'bar_ts={ts} bar_close={close} live={live} ts_ok={ts_ok} px_ok={px_ok}'
+            if ts_ok and px_ok:
+                return True, last
+        waited = (time.time() - t0) / 60.0
+        if waited >= max_wait_min:
+            return False, ('等待 ' + str(int(waited)) + ' 分钟仍未定稿: ' + last)
+        print('数据最终化等待中: ' + last, flush=True)
+        time.sleep(60)
+
+
 def main():
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--no-final-wait', action='store_true', help='跳过数据最终化等待(深夜补跑用)')
+    ap.add_argument('--max-wait-min', type=int, default=20, help='最终化等待上限(分钟)')
     args = ap.parse_args()
     st = QFQStore('2026')
     syms = [s for s in st.symbols() if not s.startswith(('399', '899', '5', '15', '16'))]
@@ -112,6 +155,11 @@ def main():
         api.disconnect()
         print(f'DRY-RUN: latest={latest} probe_bars={len(probe) if probe else 0}')
         return 0 if probe else 4
+    # 2026-09-10: 盘后链 15:35 起跑配套 —— 先确认当日数据最终化(收盘价固定且末根 60m bar 落定),
+    # 不满足时在窗口内等待; 超时仍继续但显式告警(不静默使用可能未定稿的数据)。
+    if (not args.no_final_wait) and str(latest) == datetime.now().strftime('%Y-%m-%d'):
+        fin_ok, fin_detail = wait_for_final_bar(latest, max_wait_min=args.max_wait_min)
+        print(('数据最终化自检: ' + ('已定稿' if fin_ok else 'WARN 未定稿') + ' — ' + fin_detail), flush=True)
     n_ok = n_skip = 0
     empty_streak = 0
     for i, sym in enumerate(syms):

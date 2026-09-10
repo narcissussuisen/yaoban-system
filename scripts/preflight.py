@@ -27,6 +27,14 @@ ROOT_FILE=ASCII_TASKS/'root.txt'
 TDX_SERVERS=[('59.36.5.11',7709),('117.34.114.18',7709),('117.34.114.13',7709),('117.34.114.27',7709),
  ('117.34.114.16',7709),('117.34.114.20',7709),('117.34.114.17',7709),('117.34.114.14',7709),
  ('117.34.114.15',7709),('115.238.56.198',7709)]
+# 2026-09-10: 计划表即代码 —— 触发器时刻契约(与 scripts/register_schedule.ps1 的表一致);
+# 漂移属非致命告警(critical=False): 人为改点不应拦住整条开盘链, 但必须每天可见。
+TRIGGER_EXPECTED={'YaobanPreflight':['08:35'],'YaobanSelfHeal':['08:36'],'YaobanPremarket':['08:50'],
+ 'YaobanPlanGate':['08:55'],'YaobanMorningCheck':['08:58'],'YaobanTdxProbe':['09:00'],
+ 'YaobanAuctionMonitor':['09:15'],'YaobanEventNotify':['09:15'],'YaobanTickDaemon':['09:30'],
+ 'YaobanScanConfirm':['09:30'],'YaobanIntradayMonitor':['09:30'],'YaobanClosePipeline':['15:10'],
+ 'YaobanPostCloseChain':['15:35'],'YaobanEveningCheck':['17:30'],'YaobanTdxServerVerify':['10:00'],
+ 'YaobanBoardRefresh':['09:35','13:05']}
 TDX_CATEGORIES=[0,4,9,7]
 TDX_TCP_TIMEOUT=1.0  # P0-7: TCP预筛超时(秒), 快速排除死节点
 
@@ -410,6 +418,21 @@ def main():
   if '267011' in o or '1999/11/30' in o:unproven.append(name)
  ck('任务Action',not bad,f'bad={bad} runner_ok={runner_ok} launch_ok={launch_ok}',category='计划任务')
  ck('任务历史',not unproven,f'unproven={unproven}',critical=False,category='计划任务')
+ # 触发器时刻漂移(非致命): 与计划表契约比对, 只取 HH:mm。
+ try:
+  drift=[]
+  for tname,twant in TRIGGER_EXPECTED.items():
+   rc3,x3=task_xml(tname)
+   if rc3!=0:
+    drift.append(tname+':xml_rc='+str(rc3));continue
+   got=[]
+   for seg in x3.split('<StartBoundary>')[1:]:
+    v=seg.split('</StartBoundary>')[0]
+    if 'T' in v: got.append(v.split('T')[1][:5])
+   got=sorted(set(got))
+   if got!=sorted(twant):drift.append(tname+':got='+','.join(got)+' want='+','.join(sorted(twant)))
+  ck('任务触发器',not drift,f'drift={drift}',critical=False,category='计划任务')
+ except Exception as e:ck('任务触发器',False,e,critical=False,category='计划任务')
  # dashboard freshness
  try:
   response=urllib.request.urlopen('http://127.0.0.1:5930/api/health',timeout=5);body=response.read().decode('utf-8');bj=json.loads(body)

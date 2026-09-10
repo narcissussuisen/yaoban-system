@@ -1,10 +1,19 @@
-param([Parameter(Mandatory=$true)][string]$Mode)
+param([Parameter(Mandatory=$true)][string]$Mode,[switch]$Force)
 $ErrorActionPreference='Stop'
 $Base=(Get-Content 'C:\Users\YZP\WorkBuddy\yaoban_tasks\root.txt' -Raw -Encoding UTF8).Trim()
 $Py='C:\Users\YZP\.workbuddy\binaries\python\envs\default\Scripts\python.exe'
 $Day=(Get-Date).ToString('yyyy-MM-dd')
 $Notify=$Base+'\scripts\feishu_notify.py'
 $NotifyEvents=$Base+'\scripts\notify_trading_events.py'
+# 2026-09-10: 交易日守卫(用户裁定) —— 非交易日全线静默(零推送/零门禁), 维护类模式豁免;
+# 日历不可用(exit 4)按交易日继续执行并推一次告警(fail-open 于执行, 绝不静默跳过交易日)。
+$CalendarExempt=@('tdx-verify','calendar-refresh')
+if(-not $Force -and ($CalendarExempt -notcontains $Mode)){
+ $calRc=4
+ try{ & $Py -X utf8 ($Base+'\scripts\trading_calendar.py') check --date $Day | Out-Null; $calRc=$LASTEXITCODE }catch{ $calRc=4 }
+ if($calRc -eq 3){ Write-Output ($Day+' 非交易日, 全线静默退出 (mode='+$Mode+')'); exit 0 }
+ if($calRc -eq 4){ & $Py -X utf8 $Notify --kind alert --date $Day --event-key ('calendar-unknown:'+$Day) --message ('交易日历不可用 '+$Day+' —— 按交易日继续执行(mode='+$Mode+'); 请检查 baostock 与 outputs/calendar 缓存') }
+}
 function Send-Failure([string]$Stage,[int]$Code){
  $details=''
  $report=Join-Path $Base ('outputs\preflight_'+$Day+'_post_plan.json')
@@ -43,24 +52,29 @@ switch($Mode){
  # 2026-09-09: 双自检合并——PlanGate 不再推卡片(08:58 晨检卡为唯一盘前自检推送, 含 gate 报告与链检查)
  'plan-gate' {Gate 'infra';Run-Stage 'plan-gate' {& $Py -X utf8 ($Base+'\scripts\preflight.py') --post-plan}}
  'morning-check' {Run-Stage 'morning-check' {& $Py -X utf8 ($Base+'\scripts\check_morning.py')}}
+ # 2026-09-10: 盘前自愈(用户裁定) —— 只做重启类+数据类, 不改账本/门禁判定/生产代码; 恒返回 0
+ 'selfheal' {Run-Stage 'selfheal' {& $Py -X utf8 ($Base+'\scripts\selfheal.py')}}
  'auction' {Gate 'post_plan';Run-Stage 'auction' {& $Py -X utf8 ($Base+'\scripts\auction_monitor.py')}}
  # P0 加固(2026-09-04 凌晨, 9/3 复盘): tick 模式由裸 daemon 改为看门狗守护链
  # (v1 裸 daemon 9/3 11:16 WinError5 一死即持仓裸奔 2h25m; _tick_watch.py 负责拉起+监护
  #  +自动重启+午休/收盘窗口感知+耗尽升级, daemon 参数由 watcher 内部统一注入)
- 'tick' {Gate 'post_plan';Run-Stage 'tick' {& $Py -X utf8 ($Base+'\scripts\_tick_watch.py')}}
+ # 2026-09-10: tick 与 post_plan 门禁解耦(用户裁定) —— 门禁失败只停买入类, 不停秒级止损保护
+ 'tick' {Run-Stage 'tick' {& $Py -X utf8 ($Base+'\scripts\_tick_watch.py')}}
  'scan' {Gate 'post_plan';Run-Stage 'scan' {& $Py -X utf8 ($Base+'\scripts\scan_and_confirm.py') --min-amt 10 --e4-support --temp-ladder --execute}}
  'monitor' {Gate 'post_plan';Run-Stage 'monitor' {& $Py -X utf8 ($Base+'\scripts\monitor_intraday.py')}}
  'notify' {Gate 'post_plan';Run-Stage 'notify' {& $Py -X utf8 $NotifyEvents --date $Day}}
  'close' {Run-Stage 'close' {& $Py -X utf8 ($Base+'\scripts\close_pipeline.py');if($LASTEXITCODE -eq 0){& $Py -X utf8 $Notify --kind close --date $Day}}}
  'rebuild' {Run-Stage 'rebuild' {& $Py -X utf8 ($Base+'\scripts\fetch_daily_minute_rebuild.py');if($LASTEXITCODE -eq 0){& $Py -X utf8 ($Base+'\scripts\generate_next_plan.py')}}}
  'next-plan' {Run-Stage 'next-plan' {& $Py -X utf8 ($Base+'\scripts\generate_next_plan.py')}}
+ # 2026-09-10: 交易日历刷新(周任务批调用; 守卫豁免)
+ 'calendar-refresh' {Run-Stage 'calendar-refresh' {& $Py -X utf8 ($Base+'\scripts\trading_calendar.py') refresh}}
  # 2026-09-10: TDX 恢复监测(工作日 09:00 起每 30 分钟; 恢复即飞书通知, 恒返回 0 不产生失败推送)
  'tdx-probe' {Run-Stage 'tdx-probe' {& $Py -X utf8 ($Base+'\scripts\tdx_recovery_probe.py')}}
  # 2026-09-10: TDX 候选池全量验活(周六 10:00; 节点会轮换失效, 定期刷新可用清单)
  # 2026-09-10: 晚间核验(工作日 19:30; 只读合并核验, 取代 WorkBuddy 两个提示式定时任务;
  # 恒返回 0, 状态由卡片结论承载, 避免与自身告警重复推送)
  'evening-check' {Run-Stage 'evening-check' {& $Py -X utf8 ($Base+'\scripts\evening_check.py')}}
- 'tdx-verify' {Run-Stage 'tdx-verify' {& $Py -X utf8 ($Base+'\scripts\verify_tdx_servers.py')}}
+ 'tdx-verify' {Run-Stage 'tdx-verify' {& $Py -X utf8 ($Base+'\scripts\trading_calendar.py') refresh; & $Py -X utf8 ($Base+'\scripts\verify_tdx_servers.py')}}
  # 手动补跑入口(非生产链), 生产入口=post_close_chain.ps1 16:30 (计划批次C2/§2.5: 唯一正式 acceptance 生产入口为 16:30 链)
  'acceptance' {Run-Stage 'acceptance' {& $Py -X utf8 ($Base+'\scripts\collect_daily_acceptance.py') --date $Day --final;if($LASTEXITCODE -eq 0){$msg=('Yaoban daily acceptance passed '+$Day+[Environment]::NewLine+'Evidence: outputs/acceptance/acceptance_'+$Day+'.json');& $Py -X utf8 $Notify --kind alert --date $Day --event-key ('acceptance:'+$Day) --message $msg}}}
  'data-refresh' {Run-Stage 'data-refresh' {& $Py -X utf8 ($Base+'\scripts\r5p_sentiment_build.py') --workers 6;if($LASTEXITCODE -eq 0){& $Py -X utf8 ($Base+'\scripts\r6p_candidates_build.py') --workers 6}}}
