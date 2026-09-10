@@ -22,7 +22,7 @@ import pandas as pd  # noqa: E402
 from pytdx.hq import TdxHq_API  # noqa: E402
 
 from core.intraday import detect_b_point, detect_dibu_buy, detect_pullback_buy, vwap_series  # noqa: E402
-from core.tencent_minline import min_df as tencent_min_df  # noqa: E402
+from core.tencent_minline import min_df as tencent_min_df, quote as tencent_quote  # noqa: E402
 from core.sell import limit_price  # noqa: E402
 from ledger import load, save, equity, record_review  # noqa: E402
 
@@ -126,9 +126,18 @@ def main():
     if not ok:
         print('ERROR: TDX连接失败', file=sys.stderr); return 2
     # ---- 0) 非交易日守卫（周末/节假日无当日分钟 → 跳过, 避免空转与重复净值）
+    tdx_degraded = False
     try:
         probe = api.get_security_bars(0, 1, '600000', 0, 5)
         probe_day = [str(b['datetime'])[:10] for b in probe] if probe else []
+        if not probe_day:
+            # 2026-09-10: TDX 停供时用腾讯 mkline 判定当日数据就绪(a-stock-data 备用源速查);
+            # 9/10 收盘链 rc=3 即为本门拦截(探测为空被误判非交易日)
+            _fb = tencent_min_df('600000', day, 'm5')
+            if _fb is not None and len(_fb):
+                probe_day = [str(_fb['ts'].iloc[-1])[:10]]
+                tdx_degraded = True
+                print('WARN: TDX 探测为空, 腾讯备胎确认当日数据就绪', file=sys.stderr)
         if args.dry_run:
             print(f'DRY-RUN: TDX连接正常, 600000最新分钟日={probe_day[-1] if probe_day else "无"}')
             api.disconnect(); return 0
@@ -205,6 +214,12 @@ def main():
             df = pull_day_minutes(sym, day, api2)
             if df is not None and len(df) and str(df['ts'].iloc[-1]).startswith(day):
                 mark[sym] = float(df['close'].iloc[-1])
+        if tdx_degraded:
+            # 2026-09-10: TDX 降级时 mkline m5 末根可能是 14:55(滞后 1 根), 收盘估值改用实时报价
+            # (收盘后 qt 快照即当日收盘价); 否则 净值守恒 会与独立价源对不上(9/10 实测差 125 元)
+            _q = tencent_quote([sym])
+            if _q.get(sym):
+                mark[sym] = float(_q[sym])
         if mark.get(sym) is None:
             ddf = _ld(sym)
             if ddf is not None and len(ddf):

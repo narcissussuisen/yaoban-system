@@ -368,6 +368,11 @@ def main() -> int:
                        "detail": json.dumps(mc.get("summary"), ensure_ascii=False), "evidence": "",
                        "category": "晨检", "hint": "见 morning_check_<date>.json 与当日失败推送", "stderr_sample": ""})
 
+    # 7.5) TDX 源状态(2026-09-10 停供事故新增): 降级期间作警告提示, 恢复由 YaobanTdxProbe 推送
+    tdx = _json(OUT / 'validation' / 'tdx_state.json')
+    if tdx and tdx.get('state') == 'down':
+        warnings.append(f"TDX 行情源停供中（自 {tdx.get('since')}, 最近探测 {tdx.get('last_check')}）——生产运行在腾讯备胎; 恢复由 YaobanTdxProbe 通知")
+
     # 8) 看门狗隔离状态
     gs = _json(BASE / "portfolio" / "tick_guard_state.json")
     if gs and gs.get("state") == "restart_exhausted":
