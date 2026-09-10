@@ -22,6 +22,7 @@ import pandas as pd  # noqa: E402
 from pytdx.hq import TdxHq_API  # noqa: E402
 
 from core.intraday import detect_b_point, detect_dibu_buy, detect_pullback_buy, vwap_series  # noqa: E402
+from core.tencent_minline import min_df as tencent_min_df  # noqa: E402
 from core.sell import limit_price  # noqa: E402
 from ledger import load, save, equity, record_review  # noqa: E402
 
@@ -46,12 +47,15 @@ def prev_close(sym: str, day: str):
 
 
 def pull_day_minutes(sym: str, day: str, api) -> pd.DataFrame | None:
+    if api is None:
+        return tencent_min_df(sym, day)
     try:
         bars = api.get_security_bars(0, market_of(sym), sym, 0, 800)
     except Exception:
-        return None
+        bars = None
     if not bars:
-        return None
+        # 2026-09-10: TDX 挂时收盘估值降级腾讯 mkline m5 (a-stock-data 备用源速查)
+        return tencent_min_df(sym, day)
     rows = []
     for b in bars:
         ts = str(b['datetime'])

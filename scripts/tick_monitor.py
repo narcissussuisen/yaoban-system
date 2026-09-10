@@ -72,9 +72,31 @@ def execute_tick_risk_sell(s,sym,day,ev_time,epx,qty,trig):
  sell(s,sym,ts,epx,q,trig,plan_ref='tick-risk',signal_ts=ts,decision_ts=ts,decision_id=did)
  return {'sym':sym,'qty':q,'px':epx,'trigger':trig,'decision_id':did}
 
+def _acquire_daemon_lock(out):
+ """daemon 单实例锁(2026-09-10 加固): 环境层进程复制会造出双 daemon 交替写
+ pos_live(9/10 实录 count 1/2 每5秒跳变); 持锁者每轮刷新 mtime, 重复者 120s 内检测到活锁即退出。"""
+ lock = out / '_tick_daemon.lock'
+ for _ in range(2):
+  try:
+   fd=os.open(str(lock), os.O_CREAT|os.O_EXCL|os.O_WRONLY)
+   os.write(fd, str(os.getpid()).encode()); os.close(fd)
+   return True
+  except FileExistsError:
+   try:
+    if time.time()-lock.stat().st_mtime > 120:
+     lock.unlink(); continue
+   except OSError:
+    continue
+   return False
+ return False
+
+
 def main():
  ap=argparse.ArgumentParser();ap.add_argument('--interval',type=int,default=5);ap.add_argument('--rounds',type=int,default=0);ap.add_argument('--daemon',action='store_true');ap.add_argument('--execute-risk',action='store_true')
  a=ap.parse_args(); now=datetime.now(ZoneInfo('Asia/Shanghai')); day=now.strftime('%Y-%m-%d'); hm=now.strftime('%H:%M')
+ if a.daemon and not _acquire_daemon_lock(OUT):
+  print('[daemon] 已有活 daemon 持有单实例锁, 退出', file=sys.stderr)
+  return 0
  if now.weekday()>=5: print(f'[{hm}] 周末非交易日，退出'); return 0
  if not a.daemon and not (('09:30' <= hm <= '11:30') or ('13:00' <= hm <= '15:00')):
   print(f'[{hm}] 非交易时段，退出'); return 0
@@ -154,6 +176,9 @@ def main():
    # daemon 空转不写 pos_live 不 sleep(9/3 14:00-14:05 全部"挂死"假象即此)。
    try:atomic_json(OUT/'pos_live.json',live)
    except Exception as e:print(f'[WARN] pos_live 写入失败(下轮重试): {e}',file=sys.stderr,flush=True)
+   if a.daemon:
+    try:os.utime(str(OUT/'_tick_daemon.lock'), None)  # 刷新单实例锁 mtime(存活证明)
+    except OSError:pass
    time.sleep(interval)
  if api is not None:
   try:api.disconnect()

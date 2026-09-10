@@ -130,7 +130,11 @@ def try_lock(out):
             beat_age = time.time() - (out / '_tick_watch.beat').stat().st_mtime
         except FileNotFoundError:
             beat_age = 1e9
-        if beat_age > 120:
+        # 2026-09-10 修复(双守护竞态): 新 watcher 首查可能先于旧 watcher 首个 beat 写出,
+        # beat 缺失但锁文件新鲜(120s 内)时同样视为持有者存活——否则 scheduler 重启链会
+        # 抢锁双写 pos_live(9/10 实录: 双 watcher+双 daemon, pos_live 交替 1/2 持仓)。
+        lock_age = time.time() - lock.stat().st_mtime
+        if beat_age > 120 and lock_age > 120:
             try:
                 lock.unlink()
                 fd = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
