@@ -21,7 +21,9 @@ from data.qfq_store import QFQStore  # noqa: E402
 from core.tencent_minline import min_bars as _tx_min_bars  # noqa: E402
 
 OUT = pathlib.Path(r'F:/WorkBuddyItem/a股level2/daily_rebuilt')
-SERVERS = [('115.238.56.198', 7709), ('115.238.90.165', 7709)]
+SERVERS = [('117.34.114.13',7709),('117.34.114.14',7709),('117.34.114.15',7709),('117.34.114.16',7709),
+ ('117.34.114.17',7709),('117.34.114.18',7709),('117.34.114.20',7709),('117.34.114.27',7709),
+ ('115.238.56.198',7709),('115.238.90.165',7709)]
 
 
 def market_of(sym: str) -> int:
@@ -172,6 +174,20 @@ def main():
                                          volume=('volume', 'sum'), amount=('amount', 'sum')).reset_index()
             day['symbol'] = sym
             day = day[['symbol', 'date', 'open', 'high', 'low', 'close', 'volume', 'amount']]
+            # 2026-09-10 统一合并语义(TDX 主路径同样): TDX 每次只回 ~800 根 60m = ~200 交易日,
+            # 直接覆盖会把更早历史(如 3.3 年/800 行的存量)截断——与降级路径同一事故模式。
+            if fp.exists():
+                try:
+                    old = pd.read_parquet(fp)
+                    old['date'] = old['date'].astype(str).str[:10]
+                    if len(old):
+                        keep = old[~old['date'].isin(set(day['date']))]
+                        merged = pd.concat([keep, day], ignore_index=True).sort_values('date')
+                        day = merged[['symbol', 'date', 'open', 'high', 'low', 'close', 'volume', 'amount']]
+                except Exception as exc:
+                    print(f'  WARN {sym} 历史合并失败({type(exc).__name__}), 跳过写盘', file=sys.stderr, flush=True)
+                    n_skip += 1
+                    continue
         # P0-5加固(2026-09-01): 防数据回退——TDX 返回滞后(如服务器数据未就绪), 新聚合 max 可能小于旧文件 max;
         # 若倒退则不覆盖(保留旧数据), 避免次日 preflight 账本检查因数据缺失/回退失败
         try:

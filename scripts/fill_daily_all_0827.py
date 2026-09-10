@@ -19,7 +19,9 @@ from pytdx.hq import TdxHq_API  # noqa: E402
 from data.qfq_store import QFQStore  # noqa: E402
 
 OUT = pathlib.Path(r'F:/WorkBuddyItem/a股level2/daily')
-SERVERS = [('115.238.56.198', 7709), ('115.238.90.165', 7709)]
+SERVERS = [('117.34.114.13',7709),('117.34.114.14',7709),('117.34.114.15',7709),('117.34.114.16',7709),
+ ('117.34.114.17',7709),('117.34.114.18',7709),('117.34.114.20',7709),('117.34.114.27',7709),
+ ('115.238.56.198',7709),('115.238.90.165',7709)]
 FIELDS = ['symbol', 'date', 'open', 'high', 'low', 'close', 'volume', 'amount']
 
 

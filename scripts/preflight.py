@@ -24,9 +24,9 @@ ROOT_FILE=ASCII_TASKS/'root.txt'
 # P0-7修复(2026-09-01): 实测47节点仅115.238.56.198/115.238.90.165行情可用(连接+K线双重验证);
 # mootdx bestip 仅TCP探测(0.7s)不验证行情, "TCP可达"≠"行情可用"(如119.97.185.59 TCP通但K线全空)。
 # 清单保留多节点回退; 检测增加TCP预筛, 全挂时从~2min(10节点×5s×3轮)降至~10s。
-TDX_SERVERS=[('115.238.56.198',7709),('115.238.90.165',7709),('123.125.108.14',7709),
- ('119.147.212.81',7709),('124.71.187.122',7709),('221.231.141.60',7709),('101.227.73.20',7709),
- ('114.80.63.12',7709),('218.108.98.244',7709),('60.28.23.80',7709)]
+TDX_SERVERS=[('117.34.114.13',7709),('117.34.114.14',7709),('117.34.114.15',7709),('117.34.114.16',7709),
+ ('117.34.114.17',7709),('117.34.114.18',7709),('117.34.114.20',7709),('117.34.114.27',7709),
+ ('115.238.56.198',7709),('115.238.90.165',7709)]
 TDX_CATEGORIES=[0,4,9,7]
 TDX_TCP_TIMEOUT=1.0  # P0-7: TCP预筛超时(秒), 快速排除死节点
 
@@ -362,17 +362,32 @@ def main():
  # ledger + complete position data + invariants
  try:
   import pandas as pd
-  led=json.loads((BASE/'portfolio'/'ledger.json').read_text(encoding='utf-8'));acct=led['account'];pos=acct['positions'];missing=[];marks={}
+  led=json.loads((BASE/'portfolio'/'ledger.json').read_text(encoding='utf-8'));acct=led['account'];pos=acct['positions'];missing=[];marks={};mark_days={}
   for s in pos:
    f=pathlib.Path(f'F:/WorkBuddyItem/a股level2/daily_rebuilt/{s}.parquet')
    if not f.exists():missing.append(s);continue
-   d=pd.read_parquet(f);last=str(d['date'].iloc[-1])[:10];marks[s]=float(d['close'].iloc[-1])
+   d=pd.read_parquet(f);last=str(d['date'].iloc[-1])[:10];marks[s]=float(d['close'].iloc[-1]);mark_days[s]=last
    # P0-3修复(2026-08-31): 收盘后窗口期数据已含当日(rebuild完成), last==day 合法; 仅数据落后于上一交易日才算缺失
    if last not in (pday, day):missing.append(s+'@'+last)
   eq=round(float(acct['cash'])+sum(int(pos[s]['qty'])*marks[s] for s in marks),2)
   curve=acct.get('equity_curve',[]);days=[x['date'] for x in curve]
   ck('账本/持仓',not missing and len(days)==len(set(days)),f'rev={led.get("_revision")} pos={len(pos)} transition={led.get("policy",{}).get("transition_reduce_only")} equity={eq} missing={missing}',category='账本')
-  ck('净值守恒',bool(curve) and abs(float(curve[-1]['equity'])-eq)<0.02,f'curve={curve[-1]["equity"] if curve else None} calc={eq}',category='账本')
+  # 2026-09-10 修复(净值守恒假阳性): 账本 equity_curve 与独立价源(daily_rebuilt)经常不在同一"数据世代"。
+  #   收盘 15:00 之后到 rebuild 完成(16:30-17:40)之间, 账本已写入当日点而 parquet 仍停在上一交易日,
+  #   直接比对必然不等 —— 9/10 实测差 125.00, 恰等于 300468/300394 两持仓 9/9->9/10 的浮动盈亏,
+  #   属假 FAIL; 它会连带产生假的 failure:infra / gate-infra 推送并污染 selfcheck 与 anomalies.log,
+  #   把"门禁误报"训练成常态。凡 15:00-16:56 窗口内手工跑 infra 必现。
+  #   修复=按世代比较并区分方向:
+  #     账本落后于价源 => 真问题(保持 critical, 如 9/2 曲线缺 9/1 点);
+  #     价源落后于账本 => 数据未就绪(benign, 降为 WARN 且不置 status=fail)。
+  cday=curve[-1].get('date') if curve else None
+  sday=min(mark_days.values()) if mark_days else None
+  if not curve or missing:
+   ck('净值守恒',False,f'curve={curve[-1]["equity"] if curve else None} calc={eq} missing={missing}',category='账本')
+  elif cday and sday and str(cday)>str(sday):
+   ck('净值守恒',False,f'独立价源尚未含当日(价源世代={sday} < 账本世代={cday})，跳过守恒比对; curve={curve[-1]["equity"]} calc={eq}',critical=False,category='账本')
+  else:
+   ck('净值守恒',abs(float(curve[-1]['equity'])-eq)<0.02,f'curve={curve[-1]["equity"]} calc={eq} 世代={cday}/{sday}',category='账本')
  except Exception as e:ck('账本/持仓',False,e,category='账本')
  # data freshness
  try:

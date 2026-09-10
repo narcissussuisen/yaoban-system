@@ -10,7 +10,9 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / 'src'))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 from pytdx.hq import TdxHq_API
-SERVERS = [('115.238.56.198', 7709), ('115.238.90.165', 7709)]
+SERVERS = [('117.34.114.13',7709),('117.34.114.14',7709),('117.34.114.15',7709),('117.34.114.16',7709),
+ ('117.34.114.17',7709),('117.34.114.18',7709),('117.34.114.20',7709),('117.34.114.27',7709),
+ ('115.238.56.198',7709),('115.238.90.165',7709)]
 OUT = pathlib.Path(__file__).resolve().parent.parent / 'outputs' / 'intraday'
 
 def market_of(sym: str) -> int:

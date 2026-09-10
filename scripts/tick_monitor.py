@@ -18,7 +18,9 @@ from core.sell import limit_price,limit_pct_of
 from ledger import load,transact,sell,sellable_qty,record_autonomous_decision
 BASE=pathlib.Path(__file__).resolve().parent.parent
 OUT=BASE/'outputs'/'intraday'; OUT.mkdir(parents=True,exist_ok=True)
-SERVERS=[('115.238.56.198',7709),('115.238.90.165',7709)]
+SERVERS=[('117.34.114.13',7709),('117.34.114.14',7709),('117.34.114.15',7709),('117.34.114.16',7709),
+ ('117.34.114.17',7709),('117.34.114.18',7709),('117.34.114.20',7709),('117.34.114.27',7709),
+ ('115.238.56.198',7709),('115.238.90.165',7709)]
 
 def market_of(s):
  if s.startswith('900'): return 1
