@@ -40,7 +40,8 @@ function Gate([string]$Stage){
 switch($Mode){
  'infra' {Run-Stage 'infra' {& $Py -X utf8 ($Base+'\scripts\preflight.py')}}
  'premarket' {Gate 'infra';Run-Stage 'premarket' {& $Py -X utf8 ($Base+'\scripts\premarket.py');if($LASTEXITCODE -eq 0){& $Py -X utf8 $Notify --kind premarket --date $Day}}}
- 'plan-gate' {Gate 'infra';Run-Stage 'plan-gate' {& $Py -X utf8 ($Base+'\scripts\preflight.py') --post-plan --push}}
+ # 2026-09-09: 双自检合并——PlanGate 不再推卡片(08:58 晨检卡为唯一盘前自检推送, 含 gate 报告与链检查)
+ 'plan-gate' {Gate 'infra';Run-Stage 'plan-gate' {& $Py -X utf8 ($Base+'\scripts\preflight.py') --post-plan}}
  'morning-check' {Run-Stage 'morning-check' {& $Py -X utf8 ($Base+'\scripts\check_morning.py')}}
  'auction' {Gate 'post_plan';Run-Stage 'auction' {& $Py -X utf8 ($Base+'\scripts\auction_monitor.py')}}
  # P0 加固(2026-09-04 凌晨, 9/3 复盘): tick 模式由裸 daemon 改为看门狗守护链

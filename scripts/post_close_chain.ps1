@@ -88,6 +88,11 @@ if ($null -eq $c) { [void]$skipped.Add('next_plan') } else { [void]$codes.Add($c
 $c = Invoke-ChainStage 'acceptance' $true { & $Py -X utf8 ($Base + "\scripts\collect_daily_acceptance.py") --date $Day --final } ($Py + ' -X utf8 ' + $Base + '\scripts\collect_daily_acceptance.py --date ' + $Day + ' --final') @(('outputs/acceptance/acceptance_' + $Day + '.json'))
 [void]$codes.Add($c)
 
+# 2026-09-09 日志复盘 v1: 每日聚合错误信号(任务日志/验收/盘后链/失败推送/风控/门禁/晨检/看门狗)
+# -> log_review_<date>.md + iteration_proposals 合并 + 飞书推送(kind=review, 审计)。复盘不再漏消费报错。
+$c = Invoke-ChainStage 'log-review' $true { & $Py -X utf8 ($Base + "\scripts\log_error_digest.py") --date $Day --push } ($Py + ' -X utf8 ' + $Base + '\scripts\log_error_digest.py --date ' + $Day + ' --push') @(('outputs/reviews/log_review_' + $Day + '.md'), ('outputs/iteration_proposals/' + $Day + '.json'))
+[void]$codes.Add($c)
+
 $bad = @($codes | Where-Object { $_ -ne 0 })
 $skipNote = ''
 if ($skipped.Count -gt 0) { $skipNote = '; skipped=' + ($skipped -join ',') + '(manifest skipped_due_to)' }

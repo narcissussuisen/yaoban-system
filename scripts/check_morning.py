@@ -2,6 +2,8 @@
 检查 08:45-08:55 盘前任务链、preflight 报告和失败推送，输出 PASS/FAIL 报告。
 2026-09-02 修复: 推送 tpoint 式交互卡片到 EvoAlpha webhook(此前仅 stdout/落盘,
 用户无任何可见通知——9/2 gate 全灭事件暴露的报告盲区)。
+2026-09-09: 双自检合并——本卡为唯一盘前自检推送(PlanGate 08:55 不再推 preflight
+卡片); push_card 同步写 delivery 审计(此前晨检推送无审计, 失败不可见)。
 用法: python scripts/check_morning.py [--date 2026-09-01] [--no-push]
 """
 from __future__ import annotations
@@ -126,8 +128,14 @@ def build_card(report: dict) -> dict:
         'elements': elements}}
 
 
-def push_card(card: dict) -> str:
-    """优先 requests(继承系统代理, tpoint 2026-08-12 同款修复); 不可用回退 urllib。"""
+def push_card(card: dict, day: str) -> str:
+    """优先 requests(继承系统代理, tpoint 2026-08-12 同款修复); 不可用回退 urllib。
+    2026-09-09: 写 delivery 审计(与 preflight._push_card 同格式), 失败可见。"""
+    import hashlib
+    event_key = f'selfcheck:{day}:morning'
+    status = code = None
+    err = None
+    ok = False
     try:
         hook = WEBHOOK_FILE.read_text(encoding='utf-8').strip()
         if not hook.startswith('https://open.feishu.cn/open-apis/bot/v2/hook/'):
@@ -136,13 +144,40 @@ def push_card(card: dict) -> str:
         try:
             import requests
             resp = requests.post(hook, data=body, headers={'Content-Type': 'application/json'}, timeout=15)
+            status = resp.status_code
+            try:
+                code = resp.json().get('code')
+            except Exception:
+                code = None
+            ok = (status == 200 and code == 0)
             return resp.text[:60]
         except ImportError:
             req = urllib.request.Request(hook, data=body, headers={'Content-Type': 'application/json'})
             resp = urllib.request.urlopen(req, timeout=15)
-            return resp.read().decode('utf-8')[:60]
+            status = resp.status
+            raw = resp.read()
+            try:
+                code = json.loads(raw.decode('utf-8')).get('code')
+            except Exception:
+                code = None
+            ok = (status == 200 and code == 0)
+            return raw.decode('utf-8')[:60]
     except Exception as e:
+        err = type(e).__name__
+        ok = False
         return f'PUSH_FAIL: {e}'
+    finally:
+        try:
+            digest = hashlib.sha256(json.dumps(card, ensure_ascii=False).encode('utf-8')).hexdigest()
+            audit = OUT / 'notifications' / f'delivery_{day.replace(chr(45), "")}.jsonl'
+            audit.parent.mkdir(parents=True, exist_ok=True)
+            row = {'time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'kind': 'selfcheck',
+                   'event_key': event_key, 'message_sha256': digest, 'http_status': status,
+                   'business_code': code, 'ok': ok, 'error_type': err}
+            with audit.open('a', encoding='utf-8') as f:
+                f.write(json.dumps(row, ensure_ascii=False) + '\n')
+        except Exception:
+            pass
 
 
 def today_shanghai() -> str:
@@ -210,7 +245,7 @@ def main():
     print(json.dumps(report, ensure_ascii=False, indent=1))
     # 2026-09-02: 推送 tpoint 式卡片(此前仅落盘+stdout, 用户零可见通知)
     if not args.no_push:
-        print('card_push:', push_card(build_card(report)))
+        print('card_push:', push_card(build_card(report), day))
     return 0 if report['summary']['pass'] else 2
 
 
