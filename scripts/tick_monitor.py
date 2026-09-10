@@ -13,6 +13,7 @@ sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent.parent/'portfolio'
 import pandas as pd
 from pytdx.hq import TdxHq_API
 from core.intraday import vwap_series
+from core.tencent_minline import min_df as tencent_min_df, quote as tencent_quote
 from core.sell import limit_price,limit_pct_of
 from ledger import load,transact,sell,sellable_qty,record_autonomous_decision
 BASE=pathlib.Path(__file__).resolve().parent.parent
@@ -83,7 +84,9 @@ def main():
   try:
    if api.connect(h,p,time_out=8):connected=True;break
   except Exception:pass
- if not connected: print('连接失败',file=sys.stderr); return 2
+ if not connected:
+  print('[WARN] TDX连接失败, 启用腾讯备胎(min5+quote)',file=sys.stderr)
+  api=None
  def reconnect():
   nonlocal api
   for _ in range(3):
@@ -106,20 +109,28 @@ def main():
   for sym,pos in list(st['account']['positions'].items()):
    pc=prev_close(sym,day)
    if not pc:continue
-   try:
-    bars=api.get_security_bars(0,market_of(sym),sym,0,300); tx=api.get_transaction_data(market_of(sym),sym,0,30)
-   except Exception:bars=tx=None
+   bars=tx=None
+   if api is not None:
+    try:
+     bars=api.get_security_bars(0,market_of(sym),sym,0,300); tx=api.get_transaction_data(market_of(sym),sym,0,30)
+    except Exception:bars=tx=None
    if bars is None:
-    err+=1
-    if err>=3:interval=min(interval*2,30)
-    if err>=6 and not reconnect():
-     append_event({'date':day,'time':n.strftime('%H:%M:%S'),'sym':sym,'trigger':'data_failure','action':'halt','detail':'TDX重连失败'})
-     print('TDX重连失败',file=sys.stderr);return 3
-    continue
-   err=0; interval=a.interval
-   rows=[[str(b['datetime']),float(b['open']),float(b['high']),float(b['low']),float(b['close']),float(b['vol']),float(b['amount'])] for b in bars if str(b['datetime']).startswith(day)]
-   if len(rows)<3:continue
-   df=pd.DataFrame(rows,columns=['ts','open','high','low','close','volume','amount']);vw=vwap_series(df);last=float(df['close'].iloc[-1]);hi=float(df['high'].max());lo=float(df['low'].min());px=float(tx[-1]['price']) if tx else last
+    # 2026-09-10: TDX 不可用时降级腾讯 mkline m5 + qt 报价 (a-stock-data 备用源速查)
+    fb=tencent_min_df(sym,day)
+    if fb is None:
+     err+=1
+     if err>=3:interval=min(interval*2,30)
+     if err>=6 and not reconnect():
+      append_event({'date':day,'time':n.strftime('%H:%M:%S'),'sym':sym,'trigger':'data_failure','action':'halt','detail':'TDX/腾讯双源失败'})
+      print('TDX/腾讯双源失败',file=sys.stderr);return 3
+     continue
+    df=fb;vw=vwap_series(df);last=float(df['close'].iloc[-1]);hi=float(df['high'].max());lo=float(df['low'].min())
+    px=float(tencent_quote([sym]).get(sym) or last)
+   else:
+    err=0; interval=a.interval
+    rows=[[str(b['datetime']),float(b['open']),float(b['high']),float(b['low']),float(b['close']),float(b['vol']),float(b['amount'])] for b in bars if str(b['datetime']).startswith(day)]
+    if len(rows)<3:continue
+    df=pd.DataFrame(rows,columns=['ts','open','high','low','close','volume','amount']);vw=vwap_series(df);last=float(df['close'].iloc[-1]);hi=float(df['high'].max());lo=float(df['low'].min());px=float(tx[-1]['price']) if tx else last
    t1=sellable_qty(st,sym,day); live['positions'].append({'sym':sym,'px':px,'chg':(px/pc-1)*100,'t1_locked':t1<=0})
    lup=limit_price(pc,sym); ldn=round(pc*(1-limit_pct_of(sym)),2); trig=None;qty=0;epx=px
    exec_window=('09:30'<=hm2<='11:30')or('13:00'<=hm2<='15:00')
@@ -144,7 +155,8 @@ def main():
    try:atomic_json(OUT/'pos_live.json',live)
    except Exception as e:print(f'[WARN] pos_live 写入失败(下轮重试): {e}',file=sys.stderr,flush=True)
    time.sleep(interval)
- try:api.disconnect()
- except Exception:pass
+ if api is not None:
+  try:api.disconnect()
+  except Exception:pass
  return 0
 if __name__=='__main__':sys.exit(main())

@@ -22,6 +22,7 @@ from pytdx.hq import TdxHq_API  # noqa: E402
 from market_scan import load_universe, fetch_batch, tencent_symbol  # noqa: E402
 from core.combo_sell import industry_of  # noqa: E402
 from core.intraday import detect_b_point, detect_dibu_buy, detect_pullback_buy, vwap_series  # noqa: E402
+from core.tencent_minline import min_df as tencent_min_df  # noqa: E402
 from core.sell import limit_price  # noqa: E402
 from ledger import buy, buy_net, load, transact, record_signal_request, record_autonomous_decision  # noqa: E402
 from timing_contract import FRESHNESS_SECONDS  # noqa: E402
@@ -57,12 +58,15 @@ def is_authorized_symbol(sym: str) -> bool:
 
 
 def pull_minutes(api, sym: str, day: str):
+    if api is None:
+        return tencent_min_df(sym, day)
     try:
         bars = api.get_security_bars(0, market_of(sym), sym, 0, 300)
     except Exception:
-        return None
+        bars = None
     if not bars:
-        return None
+        # 2026-09-10: TDX 不可用时降级腾讯 mkline m5 (a-stock-data 备用源速查)
+        return tencent_min_df(sym, day)
     rows = []
     for b in bars:
         ts = str(b['datetime'])
@@ -239,8 +243,8 @@ def main():
             ok = True
             break
     if not ok:
-        print('TDX连接失败', file=sys.stderr)
-        return 5
+        print('[WARN] TDX连接失败, 分时确认降级腾讯 mkline m5', file=sys.stderr)
+        api = None
     triggered = []
     if args.temp_ladder and temp_now is not None and temp_now < 50:
         print(f'[温度联动] 温度{temp_now:.0f}<50 弱市降档: 本轮不触发买点(仅扫描)', flush=True)
@@ -333,7 +337,8 @@ def main():
                           'chg': c['chg'], 'px_signal': px,
                           'exec_bar_volume': int(float(df.iloc[exec_index].get('volume', 0)))})
         print(f"[{now:%H:%M}] ★买点 {c['sym']} {c['name']} {t}@{px_exec:.2f} ({kind}) 涨幅{c['chg']:+.1f}%")
-    api.disconnect()
+    if api is not None:
+        api.disconnect()
     # 3.5) P0.2/P0.4: 候选快照（内容寻址）——执行裁决链的可复核输入
     candidates_snapshot = {
         'date': day, 'time': now.strftime('%H:%M:%S'),

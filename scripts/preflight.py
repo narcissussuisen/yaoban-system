@@ -145,7 +145,7 @@ def _system_resources():
 
 SUGGESTIONS={
  '交易日历':'交易日历证据缺失或非交易日判定失败。检查网络与 Vibe-Research/.agents/skills/data-access/scripts/fetch_trade_calendar.py；非交易日 preflight 失败属预期，不得作为交易日门禁证据。',
- 'TDX行情':'全部通达信服务器连接或K线验证失败。检查网络/防火墙；或按 P0-7 口径更新 TDX_SERVERS（当前实测可用 115.238.56.198 / 115.238.90.165）。开盘前(<09:15)无数据降级 WARN，不影响门禁。',
+ 'TDX行情':'通达信服务器连接或K线验证失败。2026-09-10 起: TDX 全挂时自动验腾讯备胎(mkline m1)，备胎可用则降级 WARN 不阻断(tick/scan/monitor 已接入同源备胎)。备胎也不可用时盘中/盘后仍 FAIL。',
  '腾讯快照':'腾讯实时接口 qt.gtimg.cn 请求失败。检查外网连通性；主源 TDX 可用时仅影响兜底数据源。',
  '账本/持仓':'持仓 parquet 缺失或数据落后于上一交易日。检查 F:/WorkBuddyItem/a股level2/daily_rebuilt/ 与 YaobanDailyRebuild 任务是否完成；缺失标的需补重建。',
  '净值守恒':'equity_curve 与现金+市值计算不一致。检查 ledger.json 记账是否正确（禁止人工改账），查看 _revision 与当日成交记录。',
@@ -343,7 +343,17 @@ def main():
   # P0-3: 开盘前(<09:15)TDX无数据降级为WARN, 避免08:55类连锁阻塞(auction/scan被gate挡死);
   #       盘中/盘后仍为FAIL(critical) —— 盘中scan/tick依赖实时行情, fail-closed合理
   preopen=now.time() < datetime.strptime('09:15','%H:%M').time()
-  ck('TDX行情',health['ok'],detail,critical=(health['ok'] or not preopen),category='行情')
+  # 2026-09-10: TDX 全挂时验腾讯备胎(mkline m1, a-stock-data 备用源速查)——备胎可用则降级 WARN,
+  # 生产消费方(tick/scan/monitor)已接入同源备胎, 行情链路仍成立, 不再 fail-closed 拦全天
+  fb_ok=False
+  if not health['ok']:
+   try:
+    sys.path.insert(0,str(BASE/'src'))
+    from core.tencent_minline import health_probe
+    fb_ok=health_probe()
+    if fb_ok: detail+=f'; TDX不可用, 腾讯备胎可用(mkline m1 OK)'
+   except Exception as _fbe:fb_ok=False
+  ck('TDX行情',health['ok'] or fb_ok,detail,critical=(health['ok'] or (not preopen and not fb_ok)),category='行情')
  except Exception as e:ck('TDX行情',False,e,category='行情')
  try:
   raw=urllib.request.urlopen(urllib.request.Request('https://qt.gtimg.cn/q=sh600000',headers={'User-Agent':'Mozilla/5.0'}),timeout=8).read().decode('gbk','ignore')

@@ -20,6 +20,7 @@ import pandas as pd  # noqa: E402
 from pytdx.hq import TdxHq_API  # noqa: E402
 
 from core.intraday import detect_b_point, detect_dibu_buy, detect_pullback_buy, vwap_series  # noqa: E402
+from core.tencent_minline import min_df as tencent_min_df  # noqa: E402
 from core.sell import limit_price  # noqa: E402
 from ledger import load as load_ledger  # noqa: E402
 
@@ -96,27 +97,37 @@ def main():
             ok = True
             break
     if not ok:
-        print('TDX连接失败', file=sys.stderr)
-        return 3
+        print('[WARN] TDX连接失败, 监控降级腾讯 mkline m5', file=sys.stderr)
+        api = None
     alerts = []
     unavailable = []
     for sym in syms:
-        try:
-            bars = api.get_security_bars(0, market_of(sym), sym, 0, 300)
-        except Exception:
-            unavailable.append(sym)
-            continue
-        if not bars:
-            unavailable.append(sym)
-            continue
+        bars = None
+        if api is not None:
+            try:
+                bars = api.get_security_bars(0, market_of(sym), sym, 0, 300)
+            except Exception:
+                bars = None
         rows = []
-        for b in bars:
-            ts = str(b['datetime'])
-            if not ts.startswith(day):
+        if bars:
+            for b in bars:
+                ts = str(b['datetime'])
+                if not ts.startswith(day):
+                    continue
+                rows.append([ts, float(b['open']), float(b['high']), float(b['low']),
+                             float(b['close']), float(b['vol']), float(b['amount'])])
+        if not rows:
+            # 2026-09-10: TDX 不可用时降级腾讯 mkline m5 (a-stock-data 备用源速查)
+            fb = tencent_min_df(sym, day)
+            if fb is None:
+                unavailable.append(sym)
                 continue
-            rows.append([ts, float(b['open']), float(b['high']), float(b['low']),
-                         float(b['close']), float(b['vol']), float(b['amount'])])
-        if len(rows) < 5:
+            df = fb
+            rows_len = len(df)
+        else:
+            df = pd.DataFrame(rows, columns=['ts', 'open', 'high', 'low', 'close', 'volume', 'amount'])
+            rows_len = len(df)
+        if rows_len < 5:
             # 开盘首根 5m K 线 09:35 生成, 凑齐 5 根需到 09:55; 此前属累积期, 不算数据缺失
             # (2026-09-01 修复: 原豁免仅到 09:35, 导致 09:35-09:55 误报 unavailable
             #  → scan companion_health 判 monitor stale → 禁止新仓的连锁误伤)
@@ -124,7 +135,6 @@ def main():
                 continue  # intraday bars are still accumulating
             unavailable.append(sym)
             continue
-        df = pd.DataFrame(rows, columns=['ts', 'open', 'high', 'low', 'close', 'volume', 'amount'])
         pc = prev_close(sym, day)
         if not pc:
             unavailable.append(sym)
@@ -169,7 +179,8 @@ def main():
                 elif broke:
                     alerts.append({'sym': sym, 'name': name_of(sym), 'ts': t, 'event_kind': 'candidate',
                                    'event_label': '候选信号规则事件', 'rule_id': 'candidate_invalidated', 'px': px})
-    api.disconnect()
+    if api is not None:
+        api.disconnect()
     if unavailable:
         print(f'监控数据不完整: unavailable={sorted(set(unavailable))}', file=sys.stderr)
         return 4
