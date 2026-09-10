@@ -134,12 +134,22 @@ def main():
                 n_skip += 1
                 continue
             empty_streak = 0
+            # 🔴 2026-09-10 数据事故修复: 腾讯分支必须与既有历史"合并", 不能只写新日期行!
+            # 早期实现把 day 过滤成 > old_max 的新行后直接 to_parquet 覆盖 ->
+            # 5291 只标的的 3.3 年历史被截成 1 行(daily_rebuilt), 并污染当日情绪表(zt=1654)。
+            # 详见 docs/P0_CHANGELOG.md「9/10 数据事故」。
             if fp.exists():
                 try:
-                    old_max = str(pd.read_parquet(fp, columns=['date'])['date'].iloc[-1])
-                    day = day[day['date'] > old_max]
-                except Exception:
-                    pass
+                    old = pd.read_parquet(fp)
+                    old['date'] = old['date'].astype(str).str[:10]
+                    if len(old):
+                        keep = old[~old['date'].isin(set(day['date']))]
+                        merged = pd.concat([keep, day], ignore_index=True).sort_values('date')
+                        day = merged[['symbol', 'date', 'open', 'high', 'low', 'close', 'volume', 'amount']]
+                except Exception as exc:
+                    print(f'  WARN {sym} 历史合并失败({type(exc).__name__}), 跳过写盘', file=sys.stderr, flush=True)
+                    n_skip += 1
+                    continue
             if day.empty:
                 n_skip += 1
                 continue
