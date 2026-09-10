@@ -93,12 +93,32 @@ $c = Invoke-ChainStage 'acceptance' $true { & $Py -X utf8 ($Base + "\scripts\col
 $c = Invoke-ChainStage 'log-review' $true { & $Py -X utf8 ($Base + "\scripts\log_error_digest.py") --date $Day --push } ($Py + ' -X utf8 ' + $Base + '\scripts\log_error_digest.py --date ' + $Day + ' --push') @(('outputs/reviews/log_review_' + $Day + '.md'), ('outputs/iteration_proposals/' + $Day + '.json'))
 [void]$codes.Add($c)
 
-$bad = @($codes | Where-Object { $_ -ne 0 })
+# 2026-09-10: 区分「数据链故障」与「日终验收评级」。
+#   acceptance 的 exit 2/3 是"当日评级"(fail/incomplete, 如输入缺失/检查未过), 不是链故障;
+#   原实现把两者并入同一个 failure 推送 -> "盘后链部分失败 codes=0,0,0,0,3,0" 会让读者误判链崩
+#   (9/4 变更日志已记录该混淆, 今日 9/10 再次触发)。
+#   新语义: 数据链五段(rebuild/r5p/r6p/next_plan/log-review)非零 => 链故障(failure + exit 1);
+#          仅 acceptance 非零 => 链完成、验收按评级单独推送(alert, 保留 exit 1 以维持"可见的未达标")。
+# 从 manifest 读各 stage 结果(位置索引在"stage 被跳过"时会错位, 故按 stage 名取)。
+$rows = @()
+if (Test-Path $Manifest) {
+  $rows = @(Get-Content $Manifest -Encoding UTF8 | ForEach-Object { try { $_ | ConvertFrom-Json } catch { } })
+}
+$accRow = $rows | Where-Object { $_.stage -eq 'acceptance' } | Select-Object -Last 1
+$accCode = if ($accRow) { $accRow.exit_code } else { 0 }
+$dataFailed = @($rows | Where-Object { $_.stage -ne 'acceptance' -and $_.status -eq 'failed' })
+$dataCodes = @($rows | Where-Object { $_.stage -ne 'acceptance' } | ForEach-Object { $_.exit_code })
+$badData = $dataFailed
 $skipNote = ''
 if ($skipped.Count -gt 0) { $skipNote = '; skipped=' + ($skipped -join ',') + '(manifest skipped_due_to)' }
-if ($bad.Count -eq 0) {
-  & $Py -X utf8 $Notify --kind close --date $Day --event-key ("postclose:" + $Day) --message ("盘后链全部通过 " + $Day + $skipNote)
+$accStatus = ''
+try { $accStatus = (Get-Content (Join-Path $Base ('outputs\acceptance\acceptance_' + $Day + '.json')) -Raw -Encoding UTF8 | ConvertFrom-Json).status } catch { }
+if ($badData.Count -gt 0) {
+  & $Py -X utf8 $Notify --kind failure --date $Day --event-key ("failure:" + $Day + ":post-close") --message ("盘后链数据段失败 " + $Day + " data_codes=" + ($dataCodes -join ",") + " acceptance=" + $accCode + $skipNote)
+} elseif ($accCode -ne 0) {
+  & $Py -X utf8 $Notify --kind alert --date $Day --event-key ("postclose-verdict:" + $Day) --message ("盘后链数据段全部通过 " + $Day + " (rebuild/r5p/r6p/next_plan/log-review=0)" + [Environment]::NewLine + "日终验收未达标: status=" + $accStatus + " exit=" + $accCode + " —— 属当日评级(输入缺口/检查未过), 非链故障; 详见 outputs/acceptance/acceptance_" + $Day + ".json" + $skipNote)
 } else {
-  & $Py -X utf8 $Notify --kind failure --date $Day --event-key ("failure:" + $Day + ":post-close") --message ("盘后链部分失败 " + $Day + " codes=" + ($codes -join ",") + $skipNote)
+  & $Py -X utf8 $Notify --kind close --date $Day --event-key ("postclose:" + $Day) --message ("盘后链全部通过 + 日终验收通过 " + $Day + $skipNote)
 }
+$bad = @($codes | Where-Object { $_ -ne 0 })
 if ($bad.Count -gt 0) { exit 1 } else { exit 0 }
