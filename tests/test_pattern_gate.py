@@ -359,5 +359,53 @@ class QueueSortOrderTests(unittest.TestCase):
         self.assertTrue(found, 'confirm_queue 排序键被改回按涨幅（缺 bars_since_sig / 共振）')
 
 
+class StrongMainlineTests(unittest.TestCase):
+    """⭐ 强主线豁免层（T-1，选手口径 M1/M2/M3）—— 当日热度榜会漏掉「题材型主线」。"""
+
+    def test_missing_artifact_is_soft_fail(self):
+        """`outputs/` 下没有早于 day 的 sector_strength 产物 ⇒ 返回空集 + available=False（不抛、不静默）。"""
+        with tempfile.TemporaryDirectory() as td:
+            with mock.patch.object(scan, 'PATTERN_DIR', pathlib.Path(td) / 'patterns'):
+                s, meta = scan.load_strong_mainline(DAY)
+        self.assertEqual(s, set())
+        self.assertFalse(meta['available'])
+
+    def test_not_yet_built_date_ignored(self):
+        """只接受 **严格早于 day** 的产物（防前视）。
+
+        ⚠️ 注意口径是「严格早于」：产物日期 == day 时**必须拒绝**（用当日产物＝前视）。
+        """
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            (root / 'patterns').mkdir()
+            (root / 'sector_strength_2026-08-28.json').write_text(
+                json.dumps({'sectors': [{'l2': 'X', 'm2': {'pass_': True}}]}), encoding='utf-8')
+            with mock.patch.object(scan, 'PATTERN_DIR', root / 'patterns'):
+                s, meta = scan.load_strong_mainline(DAY)          # DAY = 2026-09-01
+                self.assertTrue(meta['available'], '早于 day 的产物应被接受')
+                self.assertEqual(s, {'X'})
+                self.assertEqual(meta['date'], '2026-08-28')
+                # 产物日期 == day ⇒ 拒绝（否则即为前视）
+                s2, meta2 = scan.load_strong_mainline('2026-08-28')
+                self.assertFalse(meta2['available'], '产物日期不早于 day 时应拒绝（防前视）')
+
+    def test_strong_mainline_only_enters_queue(self):
+        """当日冷板块、但属 T-1 强主线 ⇒ 仍在候选（豁免剔除），且标记 strong_mainline_only。"""
+        with mock.patch.object(scan, 'HOT_L2_TOP', 1), \
+                mock.patch.object(scan, 'industry_of',
+                                  side_effect=lambda s, d: 'A' if s in ('300468', '300469') else 'COLD'), \
+                mock.patch.object(scan, 'load_strong_mainline',
+                                  return_value=({'COLD'}, {'available': True, 'n_strong': 1})):
+            rc, doc, _, _ = _run(syms=SYMS,
+                                 chg_by_sym={'300468': 5.0, '300469': 4.0, '300470': 1.0},
+                                 pool_file=('write', SYMS), pattern_gate=True)
+        self.assertEqual(rc, 0)
+        syms = [x['sym'] for x in doc['confirm_queue']]
+        self.assertIn('300470', syms, '强主线豁免未生效')
+        self.assertEqual(doc['pattern_meta']['funnel']['n_strong_mainline_only'], 1)
+        # 且排序上排在热度内之后
+        self.assertEqual(syms[-1], '300470', '强主线豁免的票应排在当日热度内之后')
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

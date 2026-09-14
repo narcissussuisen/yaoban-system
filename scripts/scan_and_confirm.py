@@ -68,6 +68,42 @@ PATTERN_DIR = BASE / 'outputs' / 'patterns'
 HOT_L2_TOP = 12
 
 
+def load_strong_mainline(day: str):
+    """读取 **T-1** 的「强主线」板块集合（选手口径的三标准 M1/M2/M3）。
+
+    来源：`outputs/sector_strength_<date>.json`（`scripts/build_sector_strength.py` 产物，
+    判据来自 `data/sector_themes.json::strong_mainline_criteria` = v65@03:34「强主线判定三标准」）。
+    取「M2（趋势股率先创阶段新高并带动跟风）或 M3（与指数共振）」任一 pass 的板块。
+
+    ⚠️ 为什么需要它（2026-09-14 实证）：`HOT_L2_TOP` 用「申万 L2 **当日涨幅**排名」代理热点板块，
+    会**系统性漏掉「题材型主线」** —— 当日电力(410100) 申万涨幅排 #64（不热），但它是 T-1 的
+    **强主线**（m1/m2 均 pass），且选手 9/14 候选池里就有 2 只电力、`config/concepts.json`
+    也留有「电力主线2026」映射。⇒ 只用当日涨幅榜会误杀题材主线。
+
+    ⚠️ 角色分工（关键）：**当日热度前 N = 收窄器；强主线 = 召回器**。
+    强主线集合实测有 56/124 个板块（45%），若直接并集会让收窄失效 ⇒ 本函数产出的集合
+    **只做「豁免剔除」**，在排序上排在「当日热度内」之后（见 confirm_queue 排序键）。
+
+    返回 (strong_set, meta)；`outputs/` 下没有早于 `day` 的产物时返回 (set(), {...available:False})。
+    """
+    cands = []
+    for fp in PATTERN_DIR.parent.glob('sector_strength_*.json'):
+        d = fp.stem.split('_')[-1]
+        if len(d) == 10 and d < day:
+            cands.append((d, fp))
+    if not cands:
+        return set(), {'available': False, 'reason': 'no sector_strength artifact < day'}
+    d, fp = max(cands)
+    try:
+        doc = json.loads(fp.read_text(encoding='utf-8'))
+    except Exception:
+        return set(), {'available': False, 'reason': f'parse failed {fp.name}'}
+    strong = {s['l2'] for s in (doc.get('sectors') or [])
+              if (s.get('m2') or {}).get('pass_') or (s.get('m3') or {}).get('pass_')}
+    return strong, {'available': True, 'date': d, 'file': fp.name, 'n_sectors': len(doc.get('sectors') or []),
+                    'n_strong': len(strong), 'calibrated': doc.get('_meta', {}).get('calibrated')}
+
+
 def load_pattern_pool(day: str):
     """读取当日战法池（形态筛选层产物，见 `core/pattern_pool.py` / `build_pattern_pool.py`）。
 
@@ -319,6 +355,11 @@ def main():
     hot_l2 = {m['l2'] for m in momentum[:HOT_L2_TOP]}
     hot_l2_detail = [{k: m[k] for k in ('l2', 'name', 'avg_chg', 'zt', 'n')}
                      for m in momentum[:HOT_L2_TOP]]
+    # 1.7) ⭐ 强主线豁免层（T-1，选手口径 M2/M3）—— 详见 load_strong_mainline 的 docstring
+    strong_l2, strong_meta = load_strong_mainline(day)
+    if not strong_meta.get('available'):
+        print(f'[WARN] 强主线层不可用（{strong_meta.get("reason")}）—— 本轮板块层退化为'
+              f'「仅当日热度前 {HOT_L2_TOP}」，会漏掉题材型主线', file=sys.stderr, flush=True)
     # 2) ⭐ 异动池（movers）—— **降级为「发现层」，不再等同确认队列**
     #    ⚠️ 历史缺陷（2026-09-14 定位）：原代码 `pool.sort(key=lambda x: -x['chg'])` 后直接取
     #    `pool[:8]` 当候选池 ⇒ 「候选池」= 全市场**涨幅前 8**，与选手的「上升回档战法池」
@@ -350,15 +391,18 @@ def main():
                 continue   # 形态合格但今日买不进/不活跃 → 不进队列（非丢弃，下轮再来）
             n_pat_active += 1
             _l2 = industry_of(sym, day) or 'NA'
-            if _l2 not in hot_l2:
+            _in_hot = _l2 in hot_l2
+            _in_strong = (not _in_hot) and (_l2 in strong_l2)
+            if not _in_hot and not _in_strong:
                 n_hot_only += 1
-                continue   # ⭐ 板块不热 → 不进队列（选手：只选热点板块，冷门概念不玩）
+                continue   # 既非当日热点、也非 T-1 强主线 → 不进队列（选手：只选热点板块，冷门概念不玩）
             _p = _pmap[sym]
             _plan_hit = plan_picks.get(sym) is not None
             confirm_queue.append({'sym': sym, 'name': v['name'], 'chg': v['chg'],
                                   'turn': v['turn'], 'amt': v['amt'],
                                   'l2': _l2, 'l2_rank': _l2_rank.get(_l2),
                                   'l2_name': _SW_NAMES.get(_l2, ''),
+                                  'in_hot': _in_hot, 'strong_mainline_only': _in_strong,
                                   'pattern': _p.get('pattern'), 'pattern_cn': _p.get('pattern_cn'),
                                   'patterns': _p.get('patterns'), 'sig_date': _p.get('sig_date'),
                                   'bars_since_sig': _p.get('bars_since_sig'),
@@ -367,32 +411,40 @@ def main():
         #   ⚠️ 原为 `(not in_plan, -chg)` —— 在**宽池**下等价于「形态合格票里涨幅最高的优先」，
         #      仍然偏追高，与选手「回踩低吸」相反。改为按**形态质量**排序：
         #      ① in-plan 优先（与 off-plan 争同一额度时计划内先试）
-        #      ② **信号新鲜度**（bars_since_sig 小者优先）——⚠️ 只作排序权重、**绝不作过滤门槛**：
+        #      ② **当日热点板块内优先**（`in_hot`）—— 强主线豁免进来的票排在后面，
+        #         只在队列有余量时占用槽位（当日热度是收窄器、强主线是召回器）
+        #      ③ **信号新鲜度**（bars_since_sig 小者优先）——⚠️ 只作排序权重、**绝不作过滤门槛**：
         #         实测「只留信号在 T-1 当日」会把选手 4 只全部筛掉（其信号日是 T-2/T-3）
-        #      ③ 多战法**共振**数多者优先（同样只作权重：实测「≥2 共振」会让选手只剩 1/4）
-        #      ④ 最后才用涨幅（仅作 tiebreak；真正防追高靠 e4 的 ≤3% 进场上界）
+        #      ④ 多战法**共振**数多者优先（同样只作权重：实测「≥2 共振」会让选手只剩 1/4）
+        #      ⑤ 最后才用涨幅（仅作 tiebreak；真正防追高靠 e4 的 ≤3% 进场上界）
         confirm_queue.sort(key=lambda x: (
             not x['in_plan'],
+            not x['in_hot'],
             x['bars_since_sig'] if x['bars_since_sig'] is not None else 99,
             -len(x['patterns'] or []),
             -x['chg'],
         ))
         n_queue_before_cap = len(confirm_queue)
+        n_strong_only = sum(1 for x in confirm_queue if x['strong_mainline_only'])
         confirm_queue = confirm_queue[:PATTERN_QUEUE_MAX]
         pat_meta = {'asof': _pat.get('asof'), 'lookback': _pat.get('lookback'),
                     'patterns': _pat.get('patterns'), 'n_pool': len(_pat['pool']),
                     'stats': _pat.get('stats'),
                     'hot_l2_top': HOT_L2_TOP, 'hot_l2': hot_l2_detail,
+                    'strong_mainline': strong_meta,
                     'funnel': {'n_pool': len(_pat['pool']), 'n_pat_active': n_pat_active,
                                'n_dropped_cold_l2': n_hot_only,
-                               'n_hot_active': n_queue_before_cap, 'n_queue_capped': len(confirm_queue)}}
+                               'n_hot_active': n_queue_before_cap,
+                               'n_strong_mainline_only': n_strong_only,
+                               'n_queue_capped': len(confirm_queue)}}
         print(f'[{now:%H:%M}] 战法池 {len(_pat["pool"])} (asof={_pat.get("asof")}) '
-              f'→ 形态∩活跃 {n_pat_active} → 剔冷门板块 {n_hot_only} → 热点内 {n_queue_before_cap} '
-              f'→ 队列 {len(confirm_queue)}（计划内 {sum(1 for x in confirm_queue if x["in_plan"])} 只）',
-              flush=True)
+              f'→ 形态∩活跃 {n_pat_active} → 剔冷门 {n_hot_only} → 候选 {n_queue_before_cap}'
+              f'（其中强主线豁免 {n_strong_only}）→ 队列 {len(confirm_queue)}'
+              f'（计划内 {sum(1 for x in confirm_queue if x["in_plan"])} 只）', flush=True)
         for x in confirm_queue[:8]:
+            _tag = '强主线豁免' if x['strong_mainline_only'] else f'L2#{x["l2_rank"]}'
             print(f'          {x["sym"]} {x["name"]} {x["pattern_cn"]} 信号日{x["sig_date"]}(T-{x["bars_since_sig"]}) '
-                  f'{x["l2_name"]}(L2#{x["l2_rank"]}) 涨幅{x["chg"]:+.1f}%'
+                  f'{x["l2_name"]}({_tag}) 涨幅{x["chg"]:+.1f}%'
                   f'{" [计划内]" if x["in_plan"] else ""}', flush=True)
     else:
         # ⚠️ 未启用形态门（--pattern-gate）时退回旧行为并**显式告警**，不静默。
