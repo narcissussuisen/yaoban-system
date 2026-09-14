@@ -53,6 +53,30 @@ PCT_EPS = 1e-9
 # 1 分钟 bar 的收尾标注最多超前 60s，故取 60；午餐时段被标成 13:00 的 bar 会被此上界挡掉。
 FUTURE_BAR_TOL_SECONDS = 60
 
+# ⭐ 确认队列容量上限 —— `docs/TRADER_ROADMAP_v2.md §1.2`「确认队列（约5-15只）」。
+# 用于把「战法池 ∩ 今日活跃」裁到可监控规模（每分钟对每只拉 1m 分时，不能无限大）。
+PATTERN_QUEUE_MAX = 15
+PATTERN_DIR = BASE / 'outputs' / 'patterns'
+
+
+def load_pattern_pool(day: str):
+    """读取当日战法池（形态筛选层产物，见 `core/pattern_pool.py` / `build_pattern_pool.py`）。
+
+    ⚠️ 口径硬校验（防前视）：产物里的 `asof` 必须 **严格早于** `day`。
+        T-1 日线确定的形态池才能用于 T 日建仓；`asof >= day` 一律视为口径违规。
+    返回 dict 或 None（None = 不可用；调用方按 fail-closed 处理，**不得静默退回"涨幅榜当池子"**）。
+    """
+    fp = PATTERN_DIR / f'{day}_pattern_pool.json'
+    try:
+        doc = json.loads(fp.read_text(encoding='utf-8'))
+    except Exception:
+        return None
+    if doc.get('day') != day or not doc.get('asof') or str(doc['asof']) >= day:
+        return None
+    if not isinstance(doc.get('pool'), list):
+        return None
+    return doc
+
 
 def _load_day_plan(day: str):
     """P0.4: 读取当日计划（fail-closed——计划缺失属基础设施异常，不允许'视为全部计划外'继续买）。"""
@@ -173,6 +197,10 @@ def main():
     ap.add_argument('--min-amt', type=float, default=1.0, help='成交额门槛(亿), 默认1.0; 选手实证中位18.9亿')
     ap.add_argument('--e4-support', action='store_true', help='E4支撑位低吸确认(基板规格): 回踩MA5/MA10(±3%%)+盘中涨幅≥2%%站VWAP, 替代三引擎')
     ap.add_argument('--temp-ladder', action='store_true', help='温度联动: 读前日温度并标记弱市(2026-09-13 起仅记录, 不再阻断买点)')
+    ap.add_argument('--pattern-gate', action='store_true',
+                    help='⭐ 启用形态门（ROADMAP §1.2 第三层）：确认队列 = 战法池(T-1日线形态) ∩ 今日活跃。'
+                         '启用后**不再**用"涨幅前8"当选股层；战法池缺失则 fail-closed rc=8。'
+                         '战法池由 scripts/build_pattern_pool.py 生成到 outputs/patterns/<day>_pattern_pool.json')
     args = ap.parse_args()
     now = datetime.now()
     day = now.strftime('%Y-%m-%d')
@@ -277,10 +305,79 @@ def main():
     (OUT / 'board_momentum.json').write_text(
         json.dumps({'time': now.strftime('%H:%M:%S'), 'sectors': momentum[:12]},
                    ensure_ascii=False), encoding='utf-8')
-    # 2) 异动池（Top 20 以内）
-    pool = pool[:20]
-    if not pool:
-        print(f'[{now:%H:%M}] 无候选（扫描 {len(allq)} 只）')
+    # 2) ⭐ 异动池（movers）—— **降级为「发现层」，不再等同确认队列**
+    #    ⚠️ 历史缺陷（2026-09-14 定位）：原代码 `pool.sort(key=lambda x: -x['chg'])` 后直接取
+    #    `pool[:8]` 当候选池 ⇒ 「候选池」= 全市场**涨幅前 8**，与选手的「上升回档战法池」
+    #    **构造互斥**（追高 vs 低吸），两边候选池交集恒为空。详见 docs/dashboard/status.json。
+    #    现在它只用于：① 板块轮动统计 ② 留痕（confirm_*.json 的 `movers`）③ 决策链特征。
+    movers = pool[:20]
+    # 3) ⭐ 确认队列（confirm_queue）—— **ROADMAP §1.2 缺失的第三层：形态筛选**
+    #    构成 = 战法池（T-1 日线形态，全日不变）∩ 今日活跃（能过 rough_screen 且可交易）。
+    #    ⇒ 「能不能买」由**战法池**决定（准入）；「今天是否值得看」由活跃度决定（过滤）。
+    if args.pattern_gate:
+        _pat = load_pattern_pool(day)
+        if _pat is None:
+            print(f'战法池缺失或口径违规, fail-closed 禁止新仓: '
+                  f'{PATTERN_DIR / f"{day}_pattern_pool.json"}（需先跑 scripts/build_pattern_pool.py）',
+                  file=sys.stderr, flush=True)
+            return 8
+        _pmap = {r['sym']: r for r in _pat['pool'] if r.get('sym')}
+        confirm_queue = []
+        for sym, v in allq.items():
+            if sym not in _pmap or v['chg'] is None:
+                continue
+            if not is_authorized_symbol(sym) or sym in held:
+                continue
+            if 'ST' in v['name'] or v['name'].startswith('*'):
+                continue
+            if rough_screen(sym, v['chg'], v['turn'], v['amt'] / 10000, min_amt=args.min_amt) is None:
+                continue   # 形态合格但今日买不进/不活跃 → 不进队列（非丢弃，下轮再来）
+            _p = _pmap[sym]
+            _plan_hit = plan_picks.get(sym) is not None
+            confirm_queue.append({'sym': sym, 'name': v['name'], 'chg': v['chg'],
+                                  'turn': v['turn'], 'amt': v['amt'],
+                                  'pattern': _p.get('pattern'), 'pattern_cn': _p.get('pattern_cn'),
+                                  'patterns': _p.get('patterns'), 'sig_date': _p.get('sig_date'),
+                                  'bars_since_sig': _p.get('bars_since_sig'),
+                                  'in_plan': _plan_hit})
+        # ⭐ in-plan 优先（用户 2026-09-14 裁定）：与 off-plan 争同一额度时，计划内标的排前面。
+        #    额度本身仍由账本 policy（max_new_buys_per_day）独立强制，此处只决定**尝试顺序**。
+        confirm_queue.sort(key=lambda x: (not x['in_plan'], -x['chg']))
+        confirm_queue = confirm_queue[:PATTERN_QUEUE_MAX]
+        pat_meta = {'asof': _pat.get('asof'), 'lookback': _pat.get('lookback'),
+                    'patterns': _pat.get('patterns'), 'n_pool': len(_pat['pool']),
+                    'stats': _pat.get('stats')}
+        print(f'[{now:%H:%M}] 战法池 {len(_pat["pool"])} 只 (asof={_pat.get("asof")}) '
+              f'→ 今日活跃交集 {len(confirm_queue)} 只进入确认队列'
+              f'（其中计划内 {sum(1 for x in confirm_queue if x["in_plan"])} 只）', flush=True)
+        for x in confirm_queue[:8]:
+            print(f'          {x["sym"]} {x["name"]} {x["pattern_cn"]} 信号日{x["sig_date"]} '
+                  f'涨幅{x["chg"]:+.1f}%{" [计划内]" if x["in_plan"] else ""}', flush=True)
+    else:
+        # ⚠️ 未启用形态门（--pattern-gate）时退回旧行为并**显式告警**，不静默。
+        confirm_queue = [dict(p, pattern=None, pattern_cn=None, patterns=None,
+                              sig_date=None, bars_since_sig=None,
+                              in_plan=plan_picks.get(p['sym']) is not None) for p in movers[:8]]
+        confirm_queue.sort(key=lambda x: (not x['in_plan'], -x['chg']))
+        pat_meta = {'asof': None, 'enabled': False}
+        print(f'[{now:%H:%M}] ⚠️ 形态门未启用（--pattern-gate），确认队列 = 异动池前 8 '
+              f'⇒ 选股层仍是涨幅榜，与选手战法池构造不一致', file=sys.stderr, flush=True)
+    if not confirm_queue:
+        # ⚠️ 2026-09-14：原代码此处**直接 return 0**，导致"没有可买标的"的轮次**不留任何产物** ——
+        #    与「不得静默」的纪律相反（复盘时无法区分"队列为空"与"scan 没跑"）。
+        #    现改为**仍写一份 confirm 快照**再退出。
+        fp = OUT / f'confirm_{now.strftime("%Y%m%d_%H%M")}.json'
+        fp.write_text(json.dumps({
+            'date': day, 'time': now.strftime('%H:%M:%S'),
+            'movers': movers, 'confirm_queue': [], 'pattern_meta': pat_meta,
+            'triggered': [], 'request_ids': [], 'fill_ids': [], 'rejected': [],
+            'n_triggered': 0, 'n_no_outcome': 0,
+            'empty_reason': 'pattern_queue_empty',
+            'candidates_ref': None, 'candidates_snapshot': None,
+        }, ensure_ascii=False), encoding='utf-8')
+        print(f'[{now:%H:%M}] 确认队列为空（异动池 {len(movers)} 只 / 战法池 '
+              f'{pat_meta.get("n_pool", "-")} 只）—— 无可买标的属正常结果，不是故障；'
+              f'已落 confirm 快照留痕')
         return 0
     # 3) 分时三引擎确认（并发拉取全部候选 1m——先限 8 只优先）
     api = TdxHq_API(heartbeat=False)
@@ -312,7 +409,9 @@ def main():
               flush=True)
     elif temp_now is not None:
         print(f'[温度联动] 前日温度{temp_now:.0f}>=50 → 常规档', flush=True)
-    for c in pool[:8]:
+    # ⚠️ 2026-09-14：原为 `for c in pool[:8]`（涨幅前 8 = 选股层错误）。现遍历**确认队列**
+    #    （战法池 ∩ 今日活跃，in-plan 优先）。队列为空即"今天没有符合模式的标的"，属正常结果。
+    for c in confirm_queue:
         df = pull_minutes(api, c['sym'], day)
         if df is None:
             continue
@@ -408,11 +507,15 @@ def main():
     if api is not None:
         api.disconnect()
     # 3.5) P0.2/P0.4: 候选快照（内容寻址）——执行裁决链的可复核输入
+    #   ⚠️ 2026-09-14：原字段名为 `pool`（= 涨幅前 8），语义与「战法确认队列」混淆。现拆为三段：
+    #      `movers`（异动池，发现层） / `confirm_queue`（战法池∩活跃，**准入层**） / `pattern_meta`（战法池口径）。
     candidates_snapshot = {
         'date': day, 'time': now.strftime('%H:%M:%S'),
-        'pool': pool[:8], 'triggered': [dict(tg) for tg in triggered],
+        'movers': movers, 'confirm_queue': confirm_queue, 'pattern_meta': pat_meta,
+        'triggered': [dict(tg) for tg in triggered],
         'mode_flags': {'e4_support': bool(args.e4_support), 'temp_ladder': bool(args.temp_ladder),
-                       'min_amt_yi': args.min_amt, 'execute': bool(args.execute)},
+                       'min_amt_yi': args.min_amt, 'execute': bool(args.execute),
+                       'pattern_gate': bool(args.pattern_gate)},
         'day_plan_ref': {'file': f'outputs/plans/{day}_plan.json', 'sha256': plan_sha256,
                          'picks': [p.get('sym') for p in (day_plan.get('picks') or [])]},
     }
@@ -472,10 +575,17 @@ def main():
                           'off_plan_reason': None}
             plan_ref_value = _pick_id
         else:
-            _rank = next((i + 1 for i, p in enumerate(pool[:8]) if p['sym'] == tg['sym']), None)
+            # 2026-09-14：原始 `pool_rank` 原取自「涨幅前 8」，语义已变（涨幅榜降级为异动池）。
+            #   现同时给出三个可复核的位置：异动池内排名 / 确认队列内排名 / 形态与信号日。
+            _rank = next((i + 1 for i, p in enumerate(movers) if p['sym'] == tg['sym']), None)
+            _crank = next((i + 1 for i, p in enumerate(confirm_queue) if p['sym'] == tg['sym']), None)
+            _pt = next((p for p in confirm_queue if p['sym'] == tg['sym']), {})
             plan_match = {'in_plan': False, 'pick_id': None, 'plan_sha256': plan_sha256,
                           'off_plan_reason': {'code': 'intraday_scan_capture',
-                                              'detail': f"engine={tg['kind']};chg={tg['chg']:+.1f}%;pool_rank={_rank}"}}
+                                              'detail': (f"engine={tg['kind']};chg={tg['chg']:+.1f}%;"
+                                                         f"mover_rank={_rank};queue_rank={_crank};"
+                                                         f"pattern={_pt.get('pattern')};"
+                                                         f"sig_date={_pt.get('sig_date')}")}}
             plan_ref_value = f'offplan-{day}:{tg["sym"]}'
 
         def _mutate(state):
@@ -553,12 +663,15 @@ def main():
         print(f'  ⚠️ 轮内未产生结局的候选 {len(_no_outcome)} 条: {_no_outcome} '
               f'(若出现即说明执行段又发生静默丢弃)', flush=True)
     fp = OUT / f'confirm_{now.strftime("%Y%m%d_%H%M")}.json'
-    fp.write_text(json.dumps({'date': day, 'time': now.strftime('%H:%M:%S'), 'pool': pool[:8],
-                              'triggered': triggered, 'request_ids': request_ids, 'fill_ids': fill_ids,
-                              'rejected': rejected, 'n_triggered': len(triggered),
-                              'n_no_outcome': len(_no_outcome),
-                              'candidates_ref': candidates_ref,
-                              'candidates_snapshot': candidates_snapshot}, ensure_ascii=False), encoding='utf-8')
+    fp.write_text(json.dumps({
+        'date': day, 'time': now.strftime('%H:%M:%S'),
+        # 2026-09-14：`pool` 拆为三段（异动池 / 确认队列 / 战法池口径），避免"涨幅榜=候选池"的语义混淆
+        'movers': movers, 'confirm_queue': confirm_queue, 'pattern_meta': pat_meta,
+        'triggered': triggered, 'request_ids': request_ids, 'fill_ids': fill_ids,
+        'rejected': rejected, 'n_triggered': len(triggered),
+        'n_no_outcome': len(_no_outcome),
+        'candidates_ref': candidates_ref,
+        'candidates_snapshot': candidates_snapshot}, ensure_ascii=False), encoding='utf-8')
     return 0
 
 
