@@ -69,18 +69,21 @@ def prev_close_of(sym: str, day: str):
         sub = df[df['date'] < day]
         if len(sub):
             return float(sub['close'].iloc[-1])
-    # 分钟兜底：TDX 1m 含多日（800根≈3.3天），取前一交易日最后一根收盘（分钟数据已验证可靠）
+    # 分钟兜底：TDX **1 分钟**含多日（800 根≈3.3 个交易日），取前一交易日最后一根收盘
+    # ⚠️ 2026-09-14：原注释自称「1m」但代码取 `get_security_bars(0,…)` = **5 分钟**（注释/代码不一致）。
+    #    已改走单一事实源 KLINE_1MIN。取值本身两种粒度都对（当日最后一根 close = 当日收盘），
+    #    但口径必须与 scan/monitor/close/回测一致，否则又会埋下「以为在跑 1m」的坑。
     try:
         from pytdx.hq import TdxHq_API
+        from core.intraday import KLINE_1MIN
         api = TdxHq_API(heartbeat=False)
         for host, port in [('115.238.56.198', 7709), ('123.125.108.14', 7709)]:
             if api.connect(host, port, time_out=8):
                 break
         else:
             return None
-        from data.qfq_minute import market_suffix as _ms
         m = 1 if sym.startswith(('6', '9', '5')) else (2 if sym[0] in ('4', '8') or sym.startswith('92') else 0)
-        bars = api.get_security_bars(0, m, sym, 0, 800)
+        bars = api.get_security_bars(KLINE_1MIN, m, sym, 0, 800)
         api.disconnect()
         if not bars:
             return None

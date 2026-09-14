@@ -15,6 +15,27 @@ from __future__ import annotations
 
 import pandas as pd
 
+# ⭐ TDX 分钟线类别常量 —— **单一事实源**（2026-09-14 收敛）
+#   `pytdx.TdxHq_API.get_security_bars(category, …)` 的 category 取值：
+#     0 = **5 分钟**   1 = 15 分钟   2 = 30 分钟   3 = 1 小时   4 = 日线
+#     7 = **1 分钟**   8 = **1 分钟**   9 = 日线
+#   ⚠️ **category=0 是 5 分钟，不是 1 分钟** —— 本仓已因此踩过两次同类事故：
+#     ① 2026-09-11 `tick_monitor` 取 cat=0 但下游按 1 分钟口径过滤当日 bar ⇒ 开盘 9 分钟只有
+#        2 根 ⇒ 撞 `len(rows)<3` ⇒ 止损/VWAP 判定与 pos_live 写在同一个被 continue 跳过的循环体内
+#        ⇒ **tick 作为唯一盘中卖出执行器对全部持仓失明**（300468 压在止损线上仍未执行）。
+#        当时引入 `KLINE_1MIN=8` 修掉了，但**没有推广到其它脚本**。
+#     ② 2026-09-14 `scan_and_confirm.pull_minutes` 同样取 cat=0 ⇒ 生产跑 5 分钟、回测
+#        （`QFQStore.get_minute` freq 硬编码 `1m`）跑 1 分钟 = **生产/回测不同源**；
+#        而 `docs/TRADER_ROADMAP_v2.md §1.2` 的约定本就是「确认队列标的拉 **1m** 分时」，
+#        且 `participation_cap = bar_volume // 20` 的注释写明是「5% of next-**minute** volume」。
+#   ⇒ 凡取盘中分钟线，一律用本常量，勿再写字面量 0。
+KLINE_1MIN = 8      # pytdx KLINE_TYPE_1MIN
+KLINE_5MIN = 0      # 仅在明确需要 5 分钟聚合时使用（需在调用处写明理由）
+
+# 腾讯 mkline 对应的周期串（备胎源口径，与 KLINE_1MIN 语义对齐）
+TX_PERIOD_1MIN = "m1"
+
+
 # ---------- 工具 ----------
 
 

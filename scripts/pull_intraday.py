@@ -10,6 +10,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / 'src'))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 from pytdx.hq import TdxHq_API
+from core.intraday import KLINE_1MIN
 SERVERS = [('59.36.5.11',7709),('117.34.114.18',7709),('117.34.114.13',7709),('117.34.114.27',7709),
  ('117.34.114.16',7709),('117.34.114.20',7709),('117.34.114.17',7709),('117.34.114.14',7709),
  ('117.34.114.15',7709),('115.238.56.198',7709)]
@@ -40,7 +41,10 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for sym in syms:
         try:
-            bars = api.get_security_bars(0, market_of(sym), sym, 0, 800)
+            # ⚠️ 2026-09-14：本脚本 docstring 自称「TDX 1m」，但原取 `get_security_bars(0,…)`
+            #    = **5 分钟** ⇒ 输出物与声称口径不符（决策重建会拿到 5 分钟 bar）。
+            #    改走单一事实源 KLINE_1MIN。
+            bars = api.get_security_bars(KLINE_1MIN, market_of(sym), sym, 0, 800)
         except Exception:
             print(f'  {sym}: ERR'); continue
         if not bars:

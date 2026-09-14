@@ -19,7 +19,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / 'portfol
 import pandas as pd  # noqa: E402
 from pytdx.hq import TdxHq_API  # noqa: E402
 
-from core.intraday import detect_b_point, detect_dibu_buy, detect_pullback_buy, vwap_series  # noqa: E402
+from core.intraday import (detect_b_point, detect_dibu_buy, detect_pullback_buy, vwap_series,  # noqa: E402
+                           KLINE_1MIN, TX_PERIOD_1MIN)
 from core.tencent_minline import min_df as tencent_min_df  # noqa: E402
 from core.sell import limit_price  # noqa: E402
 from ledger import load as load_ledger  # noqa: E402
@@ -36,7 +37,9 @@ def name_of(sym: str) -> str:
     global _NAMES
     if _NAMES is None:
         try:
-            _NAMES = json.loads((BASE / 'data' / 'stock_names_full.json').read_text(encoding='utf-8'))
+            # R2.8: 切到只含个股的新表（旧表 83% 是债/基金/指数）
+            _doc = json.loads((BASE / 'data' / 'stock_names_stocks.json').read_text(encoding='utf-8'))
+            _NAMES = _doc.get('names', _doc)
         except Exception:
             _NAMES = {}
     return _NAMES.get(sym, '')
@@ -107,7 +110,9 @@ def main():
         bars = None
         if api is not None:
             try:
-                bars = api.get_security_bars(0, market_of(sym), sym, 0, 300)
+                # ⚠️ 2026-09-14：原为 `get_security_bars(0, …)` = **5 分钟**类别 ⇒ 与回测（1m）
+                #    及 ROADMAP §1.2「确认队列标的拉 1m 分时」不同源。改走单一事实源 KLINE_1MIN。
+                bars = api.get_security_bars(KLINE_1MIN, market_of(sym), sym, 0, 300)
             except Exception:
                 bars = None
         rows = []
@@ -119,8 +124,9 @@ def main():
                 rows.append([ts, float(b['open']), float(b['high']), float(b['low']),
                              float(b['close']), float(b['vol']), float(b['amount'])])
         if not rows:
-            # 2026-09-10: TDX 不可用时降级腾讯 mkline m5 (a-stock-data 备用源速查)
-            fb = tencent_min_df(sym, day)
+            # 2026-09-10: TDX 不可用时降级腾讯 mkline (a-stock-data 备用源速查)
+            # 2026-09-14: 周期显式 m1（原先走默认 m5，备胎源也是 5 分钟）
+            fb = tencent_min_df(sym, day, TX_PERIOD_1MIN)
             if fb is None:
                 unavailable.append(sym)
                 continue

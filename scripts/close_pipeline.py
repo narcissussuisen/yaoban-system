@@ -21,7 +21,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / 'portfol
 import pandas as pd  # noqa: E402
 from pytdx.hq import TdxHq_API  # noqa: E402
 
-from core.intraday import detect_b_point, detect_dibu_buy, detect_pullback_buy, vwap_series  # noqa: E402
+from core.intraday import (detect_b_point, detect_dibu_buy, detect_pullback_buy, vwap_series,  # noqa: E402
+                           KLINE_1MIN, TX_PERIOD_1MIN)
 from core.tencent_minline import min_df as tencent_min_df, quote as tencent_quote  # noqa: E402
 from core.sell import limit_price  # noqa: E402
 from ledger import load, save, equity, record_review  # noqa: E402
@@ -49,15 +50,17 @@ def prev_close(sym: str, day: str):
 
 
 def pull_day_minutes(sym: str, day: str, api) -> pd.DataFrame | None:
+    # ⚠️ 2026-09-14：原为 `get_security_bars(0, …)` = **5 分钟**类别 ⇒ 与回测（1m）不同源。
+    #    改走单一事实源 KLINE_1MIN；腾讯备胎同步显式 m1。
     if api is None:
-        return tencent_min_df(sym, day)
+        return tencent_min_df(sym, day, TX_PERIOD_1MIN)
     try:
-        bars = api.get_security_bars(0, market_of(sym), sym, 0, 800)
+        bars = api.get_security_bars(KLINE_1MIN, market_of(sym), sym, 0, 800)
     except Exception:
         bars = None
     if not bars:
-        # 2026-09-10: TDX 挂时收盘估值降级腾讯 mkline m5 (a-stock-data 备用源速查)
-        return tencent_min_df(sym, day)
+        # 2026-09-10: TDX 挂时收盘估值降级腾讯 mkline (a-stock-data 备用源速查)
+        return tencent_min_df(sym, day, TX_PERIOD_1MIN)
     rows = []
     for b in bars:
         ts = str(b['datetime'])
@@ -130,12 +133,14 @@ def main():
     # ---- 0) 非交易日守卫（周末/节假日无当日分钟 → 跳过, 避免空转与重复净值）
     tdx_degraded = False
     try:
-        probe = api.get_security_bars(0, 1, '600000', 0, 5)
+        # ⚠️ 2026-09-14：探测类别改为 KLINE_1MIN —— 本守卫要验的是「我们实际依赖的粒度可用」。
+        #    原用 cat=0（5 分钟）时，即使 TDX 的 1 分钟不可用也会放行 ⇒ 实际取数静默降级到备胎源。
+        probe = api.get_security_bars(KLINE_1MIN, 1, '600000', 0, 5)
         probe_day = [str(b['datetime'])[:10] for b in probe] if probe else []
         if not probe_day:
             # 2026-09-10: TDX 停供时用腾讯 mkline 判定当日数据就绪(a-stock-data 备用源速查);
             # 9/10 收盘链 rc=3 即为本门拦截(探测为空被误判非交易日)
-            _fb = tencent_min_df('600000', day, 'm5')
+            _fb = tencent_min_df('600000', day, TX_PERIOD_1MIN)
             if _fb is not None and len(_fb):
                 probe_day = [str(_fb['ts'].iloc[-1])[:10]]
                 tdx_degraded = True
@@ -150,6 +155,13 @@ def main():
         print(f'ERROR: {day} 交易日探测失败: {e}', file=sys.stderr); return 4
     # ---- 1) 全天决策重建（分上午/下午两段，严格防前视）
     decisions = {'date': day, 'buys': [], 'sells': [], 't': [], 'notes': []}
+    # 2026-09-11: 显式标注本次重建为"审计、未执行"。本流水线只记录不执行(见下方 "仅审计" 打印与
+    # --execute 的 return 5 守卫), 但 buys/sells 的字段结构与真实成交同名(同含 kind='P/D/B'、
+    # reason='止损'), 后来者或未来代码据以推断持仓/已实现盈亏会双重计算(INC-2026-09-11-01 附带发现:
+    # 08-31/09-03/09-04 均有 reviews.sells 而无对应成交, 属设计如此)。放在 decisions 上可随
+    # build_close_decision 的 dict(decisions) 一并进入 close_decision_{day}.json;
+    # ledger.record_review 也会用 setdefault 为 reviews[day] 补齐同样三键。
+    decisions.update({'kind': 'audit_counterfactual', 'executed': False, 'authority': 'account.fills'})
     for sym in syms:
         df = pull_day_minutes(sym, day, api)
         if df is None:
@@ -194,6 +206,8 @@ def main():
                 fired = True
     api.disconnect()
     # ---- 2) 盘后仅审计，不执行订单；盘中新仓=decision_cli，盘中风险: tick_monitor
+    # 守卫锚点: 测试 tests/test_review_audit_marker.py 依赖下方这句错误文案与 return 5 ——
+    # 若有人放开 --execute, "审计不含执行"这一前提即不成立, 审计标记也随之失真。
     if args.execute:
         print('ERROR: close_pipeline --execute 已禁用，收盘流水线不得重复执行订单', file=sys.stderr)
         return 5

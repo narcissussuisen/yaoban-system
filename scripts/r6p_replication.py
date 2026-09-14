@@ -65,7 +65,8 @@ def main():
     ap.add_argument('--ride-strong', action='store_true', help='强化骑乘: 前一日涨停收盘的持仓, 当日禁用破线减半/次高点/冲高止盈/做T (仅止损+炸板)')
     ap.add_argument('--time-stop-profit', type=float, default=0.0, help='盈利感知时间止损: 5日后仅当浮盈 < X%% 才时间止损清仓 (X=10 → 浮盈≥10%%的赢家继续骑乘; 0=原逻辑全部清)')
     ap.add_argument('--no-lowopen', action='store_true', help='禁用 dibu_lowopen 买入(证据: 回放7笔均亏-2.3%%/中位-5%%, 圣阳4/2即死于此)')
-    ap.add_argument('--e4-support', action='store_true', help='E4支撑位低吸: 当日低点回踩MA5(<=1.01x) + 盘中涨幅>=2%%且站上VWAP才入场 (选手证据: 锚股买入日收MA5上方+7.3%%放量长阳)')
+    ap.add_argument('--e4-support', action='store_true', help='E4支撑位低吸: 当日低点回踩MA5/MA10(容差3%%) + 触发时刻涨幅∈[2%%,3%%] 且站上VWAP才入场 (上界=选手 rule#8「买点-当日涨幅上限≤3%%」实锤; 选手实盘 +2.71%%/+2.61%%)')
+    ap.add_argument('--e4-max-pct', type=float, default=0.03, help='E4 买入涨幅上界(小数). 默认 0.03 = 选手 rule#8 实锤口径; 传 0.098 可复现 2026-09-14 之前的旧口径(无上界→退化为池窗 9.8%%) 用于 A/B')
     ap.add_argument('--take-profit', type=float, default=0.0, help='分批兑现止盈: 日内高点>=成本x(1+pct)且未涨停收盘 -> 卖1/3 (选手: 每笔中位+6%%快速兑现)')
     ap.add_argument('--max-buys-per-day', type=int, default=0, help='每日新仓上限 (0=不限; 选手节奏: 每周3.8笔, 4月8笔/21日)')
     ap.add_argument('--min-temp', type=float, default=0.0, help='情绪门控: 前日温度低于该值不建新仓 (0=不限; 选手6月强势期最活跃21笔)')
@@ -186,10 +187,16 @@ def main():
             if float(day['low'].min()) > min(ma5, ma10) * 1.03:
                 return None  # 未回踩MA5/MA10支撑(选手: 73%买入日低点在此±3%内)
             vw = vwap_series(day)
+            # ⚠️ 2026-09-14 修复同族缺陷：原写作 `(px / pc - 1) >= 0.02`，**只有下界无上界**，
+            #    上界实际退化为池窗 9.8% —— 与生产 `scan_and_confirm.py` 的 e4_support 完全同源。
+            #    上界依据 = 选手 rule#8「买点-当日涨幅上限 ≤3%」(实锤)，实盘反证 +2.71% / +2.61%。
+            #    ⚠️ 该修复使 2026-09-14 之前产出的 R6' 结果**口径失效**，需以 --e4-max-pct 重跑 A/B。
+            #    容差 1e-9：`10.3/10.0-1` = 0.030000000000000027 > 0.03，闭区间须放容差（同生产 PCT_EPS）。
             for i in range(5, len(day)):
                 ts = str(day['ts'].iloc[i])[11:16]
                 px = float(day['close'].iloc[i])
-                if (px / pc - 1) >= 0.02 and px >= float(vw.iloc[i]):
+                _c = px / pc - 1
+                if 0.02 - 1e-9 <= _c <= args.e4_max_pct + 1e-9 and px >= float(vw.iloc[i]):
                     return (px, 'e4_support', ts)
             return None
         cands = []
