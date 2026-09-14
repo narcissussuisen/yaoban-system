@@ -1,3 +1,18 @@
+"""【已废弃 · 2026-09-14 归档至 scripts/_legacy/】
+
+这是一份 **2026-08-31 一次性「静态就绪核验」脚本**的存档，不是可复用工具：
+- 产物路径写死为 outputs/acceptance/static_readiness_2026-08-31.json（那一天的快照）；
+- `EXPECTED_TIMES` 已**全面过期**：YaobanPreflight 期望 08:45（实际 08:35）、
+  YaobanClosePipeline 期望 15:40（实际 15:10）、Vibe 期望 09:32（实际 09:35）、
+  YaobanDailyRebuild 17:00 与 YaobanDailyAcceptance 19:10 两条任务已于 2026-09-14 删除；
+- **零生产调用**：不在任何计划任务 / preflight / 盘后链中。
+
+⇒ 现在跑必然 fail，而 fail 不代表任何真实问题。
+**需要「就绪核验」请用 scripts/preflight.py**（每日 08:35 真跑，断言 17 条任务）。
+
+保留原因：它记录了 2026-08-31 自主启动当天的静态就绪状态，作为历史证据。
+"""
+
 from __future__ import annotations
 import hashlib,json,os,pathlib,subprocess
 from datetime import datetime
