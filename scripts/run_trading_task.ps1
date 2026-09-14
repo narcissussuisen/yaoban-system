@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$Mode,[switch]$Force)
+﻿param([Parameter(Mandatory=$true)][string]$Mode,[switch]$Force)
 $ErrorActionPreference='Stop'
 $Base=(Get-Content 'C:\Users\YZP\WorkBuddy\yaoban_tasks\root.txt' -Raw -Encoding UTF8).Trim()
 $Py='C:\Users\YZP\.workbuddy\binaries\python\envs\default\Scripts\python.exe'
@@ -21,11 +21,13 @@ function Send-Failure([string]$Stage,[int]$Code){
   try{
    $j=Get-Content $report -Raw -Encoding UTF8|ConvertFrom-Json
    $failed=@($j.results|Where-Object {-not $_.ok -and $_.critical})
-   if($failed.Count -gt 0){$details=[Environment]::NewLine+'Failed checks: '+(($failed|ForEach-Object {$_.name+': '+$_.detail}) -join ' | ')}
-   $details+=[Environment]::NewLine+'Report: '+$report
-  }catch{$details=[Environment]::NewLine+'Report read failed: '+$_.Exception.Message}
+   if($failed.Count -gt 0){$details=[Environment]::NewLine+'未通过检查：'+(($failed|ForEach-Object {$_.name+': '+$_.detail}) -join ' | ')}
+   $details+=[Environment]::NewLine+'报告：'+$report
+  }catch{$details=[Environment]::NewLine+'报告读取失败：'+$_.Exception.Message}
  }
- $msg=('Yaoban task failed '+$Day+[Environment]::NewLine+'Stage: '+$Stage+[Environment]::NewLine+'Exit code: '+$Code+$details+[Environment]::NewLine+'Action: fail closed; no new positions when the critical intraday path fails.')
+ # 2026-09-11 口径统一(用户裁定): 品牌统一为 EvoAlpha, 字段标签改用与其它卡片一致的「|」+「字段：值」中文风格。
+ # 语义提醒: exit 6 = 当日已降级(tick_guard restart_exhausted)的终态信号, 属"当日事故收尾", 不是新发生的故障。
+ $msg=('EvoAlpha｜任务失败 '+$Day+[Environment]::NewLine+'阶段：'+$Stage+[Environment]::NewLine+'退出码：'+$Code+$details+[Environment]::NewLine+'处置：fail-closed，关键盘中链路失败时不产生新仓。')
  & $Py -X utf8 $Notify --kind failure --date $Day --event-key ('failure:'+$Day+':'+$Stage) --message $msg
 }
 function Run-Stage([string]$Stage,[scriptblock]$Body){
@@ -60,7 +62,11 @@ switch($Mode){
  #  +自动重启+午休/收盘窗口感知+耗尽升级, daemon 参数由 watcher 内部统一注入)
  # 2026-09-10: tick 与 post_plan 门禁解耦(用户裁定) —— 门禁失败只停买入类, 不停秒级止损保护
  'tick' {Run-Stage 'tick' {& $Py -X utf8 ($Base+'\scripts\_tick_watch.py')}}
- 'scan' {Gate 'post_plan';Run-Stage 'scan' {& $Py -X utf8 ($Base+'\scripts\scan_and_confirm.py') --min-amt 10 --e4-support --temp-ladder --execute}}
+ # 2026-09-14 盘后接线（用户裁定）: 启用形态门 —— 确认队列 = 战法池 ∩ 今日活跃, 不再用「全市场涨幅前 8」。
+ # 前置硬验收已过: outputs/patterns/2026-09-15_pattern_pool.json 存在, day=2026-09-15 / asof=2026-09-14
+ # （严格早于 day）/ len(pool)=1546>0; 且生产读取函数 scan_and_confirm.load_pattern_pool('2026-09-15') 返回非 None。
+ # ⚠️ 池缺失或口径违规时 scan 是 fail-closed rc=8（全天禁新仓 ⇒ 拿不到任何队列样本）—— 回退 = 去掉本开关。
+ 'scan' {Gate 'post_plan';Run-Stage 'scan' {& $Py -X utf8 ($Base+'\scripts\scan_and_confirm.py') --min-amt 10 --e4-support --temp-ladder --pattern-gate --execute}}
  'monitor' {Gate 'post_plan';Run-Stage 'monitor' {& $Py -X utf8 ($Base+'\scripts\monitor_intraday.py')}}
  'notify' {Gate 'post_plan';Run-Stage 'notify' {& $Py -X utf8 $NotifyEvents --date $Day}}
  'close' {Run-Stage 'close' {& $Py -X utf8 ($Base+'\scripts\close_pipeline.py');if($LASTEXITCODE -eq 0){& $Py -X utf8 $Notify --kind close --date $Day}}}
@@ -71,14 +77,14 @@ switch($Mode){
  # 2026-09-10: TDX 恢复监测(工作日 09:00 起每 30 分钟; 恢复即飞书通知, 恒返回 0 不产生失败推送)
  'tdx-probe' {Run-Stage 'tdx-probe' {& $Py -X utf8 ($Base+'\scripts\tdx_recovery_probe.py')}}
  # 2026-09-10: TDX 候选池全量验活(周六 10:00; 节点会轮换失效, 定期刷新可用清单)
- # 2026-09-10: 晚间核验(工作日 19:30; 只读合并核验, 取代 WorkBuddy 两个提示式定时任务;
+ # 2026-09-10: 晚间核验(工作日 17:30; 只读合并核验, 取代 WorkBuddy 两个提示式定时任务;
  # 恒返回 0, 状态由卡片结论承载, 避免与自身告警重复推送)
  'evening-check' {Run-Stage 'evening-check' {& $Py -X utf8 ($Base+'\scripts\evening_check.py')}}
  'tdx-verify' {Run-Stage 'tdx-verify' {& $Py -X utf8 ($Base+'\scripts\trading_calendar.py') refresh; & $Py -X utf8 ($Base+'\scripts\verify_tdx_servers.py')}}
- # 手动补跑入口(非生产链), 生产入口=post_close_chain.ps1 16:30 (计划批次C2/§2.5: 唯一正式 acceptance 生产入口为 16:30 链)
- 'acceptance' {Run-Stage 'acceptance' {& $Py -X utf8 ($Base+'\scripts\collect_daily_acceptance.py') --date $Day --final;if($LASTEXITCODE -eq 0){$msg=('Yaoban daily acceptance passed '+$Day+[Environment]::NewLine+'Evidence: outputs/acceptance/acceptance_'+$Day+'.json');& $Py -X utf8 $Notify --kind alert --date $Day --event-key ('acceptance:'+$Day) --message $msg}}}
+ # 手动补跑入口(非生产链), 生产入口=post_close_chain.ps1 15:35 (计划批次C2/§2.5: 唯一正式 acceptance 生产入口为盘后链)
+ 'acceptance' {Run-Stage 'acceptance' {& $Py -X utf8 ($Base+'\scripts\collect_daily_acceptance.py') --date $Day --final;if($LASTEXITCODE -eq 0){$msg=('EvoAlpha｜日终验收通过 '+$Day+[Environment]::NewLine+'证据：outputs/acceptance/acceptance_'+$Day+'.json');& $Py -X utf8 $Notify --kind alert --date $Day --event-key ('acceptance:'+$Day) --message $msg}}}
  'data-refresh' {Run-Stage 'data-refresh' {& $Py -X utf8 ($Base+'\scripts\r5p_sentiment_build.py') --workers 6;if($LASTEXITCODE -eq 0){& $Py -X utf8 ($Base+'\scripts\r6p_candidates_build.py') --workers 6}}}
- # P0时间表重构(2026-09-01, 用户评审): 盘后链合并为单任务 16:30 (逻辑见 scripts/post_close_chain.ps1)
+ # P0时间表重构(2026-09-01, 用户评审 → 2026-09-10 提前至 15:35): 盘后链合并为单任务 (逻辑见 scripts/post_close_chain.ps1)
  'post-close' {& powershell.exe -NoProfile -ExecutionPolicy Bypass -File ($Base+'\scripts\post_close_chain.ps1') -Py $Py -Base $Base -Day $Day -Notify $Notify; exit $LASTEXITCODE}
  default {[Console]::Error.WriteLine('unknown mode '+$Mode);exit 22}
 }
