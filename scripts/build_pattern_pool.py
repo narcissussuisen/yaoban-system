@@ -38,6 +38,8 @@ def main():
     ap.add_argument('--lookback', type=int, default=4, help='信号日回溯窗口（默认 4，与 plan_daily 一致）')
     ap.add_argument('--patterns', default='huigui,zt_huicai,xianren,qu_shi_fanbao',
                     help='启用战法（逗号分隔；单战法用于消融）')
+    ap.add_argument('--keep-fanbao-only', action='store_true',
+                    help='保留「仅反包命中」的标的（**仅用于修 ST/反包前后对照**；生产默认剔除）')
     ap.add_argument('--out', default='', help='输出路径（缺省 outputs/patterns/<day>_pattern_pool.json）')
     args = ap.parse_args()
 
@@ -48,7 +50,8 @@ def main():
     pats = tuple(p.strip() for p in args.patterns.split(',') if p.strip())
 
     import plan_daily
-    from core.pattern_pool import build_pattern_pool, DETECTORS
+    from core.pattern_pool import (build_pattern_pool, write_pattern_pool,
+                                   load_stock_names, DETECTORS)
 
     unknown = [p for p in pats if p not in DETECTORS]
     if unknown:
@@ -61,30 +64,26 @@ def main():
     print(f'      载入 {len(dmap)} 只，用时 {time.time() - t0:.1f}s', flush=True)
 
     print(f'[2/3] 构建战法池 asof={asof} lookback={args.lookback} patterns={pats} ...', flush=True)
-    pool, stats = build_pattern_pool(dmap, asof=asof, lookback=args.lookback, patterns=pats)
+    names = load_stock_names()
+    pool, stats = build_pattern_pool(dmap, asof=asof, lookback=args.lookback, patterns=pats,
+                                     names=names,
+                                     exclude_fanbao_only=not args.keep_fanbao_only)
 
     # 名称映射（只用现成表，不臆造）
-    name_map = {}
-    try:
-        doc = json.loads((BASE / 'data' / 'stock_names_stocks.json').read_text(encoding='utf-8'))
-        nm = doc.get('names', doc)
-        name_map = {r['sym']: nm.get(r['sym'], '') for r in pool}
-    except Exception as exc:
-        print(f'      WARN 名称表不可用: {type(exc).__name__}', file=sys.stderr)
+    name_map = {r['sym']: names.get(r['sym'], '') for r in pool}
 
-    OUTDIR.mkdir(parents=True, exist_ok=True)
-    fp = pathlib.Path(args.out) if args.out else (OUTDIR / f'{day}_pattern_pool.json')
-    doc = {
-        'day': day, 'asof': asof, 'lookback': args.lookback, 'patterns': list(pats),
-        'stats': stats, 'pool': pool, 'name_map': name_map,
-        'built_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'source': 'core.pattern_pool.build_pattern_pool ← core.strategies（参数: config/parameters.toml）',
-    }
-    fp.write_text(json.dumps(doc, ensure_ascii=False, indent=1), encoding='utf-8')
+    if args.out:
+        OUTDIR.mkdir(parents=True, exist_ok=True)
+        fp = write_pattern_pool(day, asof, args.lookback, pats, pool, stats, name_map,
+                                path=pathlib.Path(args.out))
+    else:
+        fp = write_pattern_pool(day, asof, args.lookback, pats, pool, stats, name_map)
 
     print(f'[3/3] 写入 {fp}')
     print(f'      战法池 {stats["n_pool"]} 只 / 扫描 {stats["n_syms_scanned"]} 只 '
-          f'(太短跳过 {stats["n_skipped_short"]})  用时 {time.time() - t0:.1f}s')
+          f'(太短跳过 {stats["n_skipped_short"]}, ST剔除 {stats["n_excluded_st"]}, '
+          f'仅反包剔除 {stats["n_excluded_fanbao_only"]}, 无名称 {stats["n_no_name"]})  '
+          f'用时 {time.time() - t0:.1f}s')
     print(f'      分战法: {stats["by_pattern"]}')
     for r in pool[:20]:
         print(f'        {r["sym"]} {name_map.get(r["sym"], ""):<8} {r["pattern_cn"]:<8} '

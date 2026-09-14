@@ -48,6 +48,44 @@ def append_event(ev):
  with (OUT/'risk_events.jsonl').open('a',encoding='utf-8') as f:
   f.write(json.dumps(ev,ensure_ascii=False)+chr(10)); f.flush(); os.fsync(f.fileno())
 
+# ===== 2026-09-14 修复：窗口外(午休)也必须刷新 pos_live =====
+# 根因（当日实录）：daemon 主循环在 `not in_exec_window(hm2)` 时 `time.sleep(60);continue`
+#   ⇒ **午休 11:30-13:00 不写 pos_live**；而 scan_and_confirm.companion_health() 对
+#   `pos_live.time` 有 **120s** 硬判据 ⇒ **每日 13:00 首轮 scan 恒定 rc=6「tick stale >2m」
+#   ⇒ 13:00 这一轮禁止新仓**（实测 13:00:03 rc=6 / 13:01 起 rc=0）。
+# 修法（与文件顶部 2026-09-11「心跳与状态解耦」同族）：窗口外**照写一份 pos_live**，
+#   内容 = 上一轮成交时段快照的**结转**（positions 原样带过，只把 time 刷新为当前），
+#   并显式打 `out_of_session: true` 标记，便于复盘区分「实时快照」与「结转快照」。
+#   ⚠️ 语义要点：午休/盘后无任何执行器（scan 自身也只在 09:30-11:30/13:00-15:00 跑），
+#      ⇒ 结转的 positions 与真实持仓**一致**（不是过期值），故刷新 time 不掩盖任何真实变化。
+#   ⚠️ 方向必须安全：daemon 真死 ⇒ 没人写 ⇒ pos_live 仍会陈旧 >120s ⇒ companion_health
+#     照旧判失效禁新仓（**不得**在 scan 侧开午休豁免，那会把「11:31 死掉的 daemon」
+#     一直放过到 13:01，等于持仓保护降级）。
+def write_idle_pos_live(day, n):
+ """窗口外结转写 pos_live（存活证明 + 持仓视图保持新鲜）。
+
+ 优先用本进程上一轮成交时段的 `live`；daemon 若在午休重启（进程内无上一轮），
+ 则从磁盘读回当日 pos_live 结转；两者都不可得时退化为空持仓（与既有语义一致：
+ scan 的重复买入保护读的是 **ledger**，不读 pos_live）。
+ """
+ carry = None
+ try:
+  prev = json.loads((OUT/'pos_live.json').read_text(encoding='utf-8-sig'))
+  if prev.get('date') == day and isinstance(prev.get('positions'), list):
+   carry = prev
+ except Exception:
+  carry = None
+ if carry is None:
+  carry = {'date': day, 'positions': []}
+ carry = dict(carry)
+ carry['date'] = day
+ carry['time'] = n.strftime('%H:%M:%S')
+ carry['out_of_session'] = True
+ try:
+  atomic_json(OUT/'pos_live.json', carry)
+ except Exception as e:
+  print(f'[WARN] 窗口外 pos_live 结转写失败(下轮重试): {e}', file=sys.stderr, flush=True)
+
 def prev_limit_close(sym,day):
  try:
   from core.daily_src import load_daily

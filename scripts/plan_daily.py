@@ -68,6 +68,42 @@ def latest_source_day(source_days, target: str) -> str:
     return max(eligible)
 
 
+def build_pattern_artifact(dmap, day: str, asof: str, lookback: int = 4,
+                           out_dir=None, patterns=None, exclude_fanbao_only: bool = True):
+    """用**同一次** `load_all_daily()` 的 dmap 生成战法池产物（与日计划共用一次全市场遍历）。
+
+    为什么并入本脚本（2026-09-14 用户裁定）：
+      原先战法池由 `scripts/build_pattern_pool.py` 单独跑 —— 它自己再 `load_all_daily()`
+      一次（实测日线载入 ~900s + 形态计算 ~1200s ≈ 35 分钟），而 `plan_daily.py` 盘后
+      已经为日计划付过同一笔全市场遍历。两者**读的完全是同一份数据**（`core.daily_src`
+      + `build_daily_map`），分开跑纯属把 IO 付两遍。
+      ⇒ 收敛成：一次载入 → 两份产物（`outputs/plans/<day>_plan.json` +
+         `outputs/patterns/<day>_pattern_pool.json`），schema 由
+         `core.pattern_pool.write_pattern_pool` 单点保证（scan 侧读取契约不变）。
+
+    口径（**防前视硬约束**）：`asof` 必须**严格早于** `day` —— 本函数自己再拦一次，
+    不依赖调用方（`build_pattern_pool.py` 也有同样的拒绝逻辑，两处互为兜底）。
+
+    返回 (path, stats)。
+    """
+    from core.pattern_pool import (build_pattern_pool, write_pattern_pool,
+                                   load_stock_names, DEFAULT_PATTERNS)
+    if not asof or str(asof) >= str(day):
+        raise RuntimeError(f'战法池口径违规: asof({asof}) 必须严格早于 day({day})（防前视）')
+    pats = tuple(patterns or DEFAULT_PATTERNS)
+    names = load_stock_names()
+    pool, stats = build_pattern_pool(dmap, asof=str(asof), lookback=lookback, patterns=pats,
+                                     names=names,
+                                     exclude_fanbao_only=exclude_fanbao_only)
+    name_map = {r['sym']: names.get(r['sym'], '') for r in pool}
+    fp = write_pattern_pool(day, str(asof), lookback, pats, pool, stats, name_map,
+                            out_dir=out_dir)
+    print(f'战法池 {len(pool)} 只 (asof={asof} lookback={lookback} day={day}) → {fp}', flush=True)
+    print(f'  分战法: {stats["by_pattern"]} | ST剔除 {stats["n_excluded_st"]} '
+          f'仅反包剔除 {stats["n_excluded_fanbao_only"]} 无名称 {stats["n_no_name"]}', flush=True)
+    return fp, stats
+
+
 def _global_snapshot():
     fp = pathlib.Path(__file__).resolve().parent.parent / 'outputs' / 'global_snapshot.json'
     if fp.exists():
@@ -96,9 +132,21 @@ def main():
     print(f'日线载入 {len(dmap)} 只', flush=True)
     source_days = [str(df["date"].max()) for df in dmap.values() if len(df)]
     pday = latest_source_day(source_days, d)
+    # ---- 战法池（形态筛选层）：与日计划共用**同一次** load_all_daily 遍历 ----
+    # 放在日计划计算之前：战法池是 scan 侧 fail-closed（缺产物 ⇒ rc=8 ⇒ **全天禁新仓**）
+    # 的硬依赖，先落盘可让「后续日计划步骤失败」不影响次日战法池的可用性。
+    # asof=pday ⇒ 严格早于 d 的真实交易日（T-1），lookback=4 与下面 win_days 同口径。
+    try:
+        _pat_fp, _pat_stats = build_pattern_artifact(dmap, d, pday, lookback=4)
+    except Exception as _pat_exc:
+        # ⚠️ 战法池失败**不得**打死日计划（日计划还挂在取数前序多步上，且盘前 gate 依赖它）；
+        #    但绝不允许静默 —— 打 stderr 让 post-close 的 log_review 能捞到。
+        print(f'[WARN] 战法池生成失败（日计划继续）: {type(_pat_exc).__name__}: {_pat_exc}',
+              file=sys.stderr, flush=True)
     # ---- 前一交易日情绪（全市场日线算 zt/dt/炸板/连板率/中位数）
     d26 = pday
     zt = dt_cnt = touch = zhaban = 0
+    dt7_cnt = 0          # R2.5: 跌幅>7% 家数（GEN-GATE-17 恐慌度量的跌侧）
     pcts = []; max_h = 0; prev_zt_set = set(); cur_zt_set = set()
     sector_zt = {}
     lianban_prev = 0

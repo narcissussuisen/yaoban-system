@@ -132,6 +132,18 @@ def detect_zt_huicai(df: pd.DataFrame) -> pd.Series:
     d_min = int(CFG_ZT.get("pullback_days_min", 2))
     d_max = int(CFG_ZT.get("pullback_days_max", 7))
     shrink = float(CFG_ZT.get("volume_shrink_ratio", 0.7))
+    # ⚠️⚠️ 2026-09-14 修复（本战法**全池 0 命中**的根因）：
+    #   `config/parameters.toml [strategy.zt_huicai]` 在 2026-09-11 的口径修复里把
+    #   `volume_shrink_ratio` 设为 **0.0**，语义明写为「0 = 不启用缩量过滤器
+    #   （保留键以便回归对比；设为 >0 才生效）」——因为「缩量回踩」字面口径已被
+    #   真实样本证伪（茶花股份 1.07 / 山东玻纤 1.19 / 金富科技 1.26，0/6 满足 ≤0.7）。
+    #   但本函数仍**无条件**套用 `vol_ratio[i] < shrink` ⇒ 判据退化成
+    #   `vol_ratio[i] < 0.0`，而 `vol_ratio` 恒 ≥ 0 ⇒ **该检测器 100% 返回全 False**
+    #   （实测量化印证：战法池 by_pattern 里 zt_huicai 命中 0）。
+    #   修法 = 尊重配置语义：`shrink <= 0` 视为**关闭过滤器**。
+    #   ❗不得改成"把阈值调大"——那是给一个已被证伪的过滤器续命；也不得删键，
+    #     回归对比（`--patterns zt_huicai` 消融）还要用它。
+    shrink_on = shrink > 0
     n = len(df)
     for i in range(25, n):
         for back in range(d_min, d_max + 1):
@@ -141,7 +153,7 @@ def detect_zt_huicai(df: pd.DataFrame) -> pd.Series:
             # 回踩期最低价不破涨停日最低价（不破涨停板支撑）
             if lo.iloc[j + 1:i + 1].min() < lo.iloc[j]:
                 continue
-            if c.iloc[i] >= ma5[i] and c.iloc[i] >= ma20[i] and vol_ratio[i] < shrink:
+            if c.iloc[i] >= ma5[i] and c.iloc[i] >= ma20[i] and (not shrink_on or vol_ratio[i] < shrink):
                 out.iloc[i] = True
                 break
     return out
