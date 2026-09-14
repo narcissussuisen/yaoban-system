@@ -117,15 +117,22 @@ def detect_huigui(df: pd.DataFrame, mode: str = "live",
     return out
 
 
-def detect_zt_huicai(df: pd.DataFrame) -> pd.Series:
+def detect_zt_huicai(df: pd.DataFrame, symbol: str | None = None) -> pd.Series:
     """涨停回踩低吸（简化 3 条件）：
-    近 2~7 天内出现过涨停，回踩不破涨停日最低价，价站 5 日线与 20 日线上方，量缩"""
+    近 `pullback_days_min ~ pullback_days_max` 天内出现过涨停（⚠️ 配置实为 **1~5 天**；
+    此处原写「2~7 天」，2026-09-14 按「注释与代码不符时以代码为准」修正），
+    回踩不破涨停日最低价，价站 5 日线与 20 日线上方，量缩
+    （`volume_shrink_ratio <= 0` = **关闭**缩量过滤器，见下方根因注释）。
+
+    `symbol` 给定 ⇒ 涨停判定按**板块**分档（`indicators.limit_up_mask(symbol=...)`，
+    20cm/30cm 不再把 +10% 误判为涨停）；为 `None` 则沿用旧 9.8% 单阈值（向后兼容）。
+    """
     out = pd.Series(False, index=df.index)
     if not _require(df, 30):
         return out
     c, lo = df["close"], df["low"]
     v = df["volume"]
-    zt = ind.limit_up_mask(df).to_numpy()
+    zt = ind.limit_up_mask(df, symbol=symbol).to_numpy()
     vol_ratio = ind.vol_shrink_ratio(df).to_numpy()
     ma5 = ind.ma(c, 5).to_numpy()
     ma20 = ind.ma(c, 20).to_numpy()

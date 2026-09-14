@@ -38,11 +38,15 @@ POOL_DIR = ROOT / 'outputs' / 'patterns'
 NAME_TABLE = ROOT / 'data' / 'stock_names_stocks.json'
 
 # 战法名 → 检测器（全部来自 core.strategies；参数在其内部从 parameters.toml 读取）
+# ⚠️ 2026-09-14：四个检测器**统一为双参 `(df, sym)`** —— `zt_huicai` 必须拿到 `sym`
+#    才能按板块判涨停（此前硬编码 9.8% ⇒ 20cm/30cm 股的 +10% 被误判为涨停 = 假阳性）。
+#    其余三个不吃 `sym`，签名统一只是为了让调用点（`:168`）不必分支。
+#    ❗漏改这里 ⇒ `symbol` 传不进去 ⇒ 改了等于没改。
 DETECTORS = {
-    "huigui": lambda df: S.detect_huigui(df, mode="live"),
-    "zt_huicai": S.detect_zt_huicai,
-    "xianren": lambda df: S.detect_xianren(df, with_confirm=True),
-    "qu_shi_fanbao": S.detect_fanbao,
+    "huigui": lambda df, sym=None: S.detect_huigui(df, mode="live"),
+    "zt_huicai": lambda df, sym=None: S.detect_zt_huicai(df, symbol=sym),
+    "xianren": lambda df, sym=None: S.detect_xianren(df, with_confirm=True),
+    "qu_shi_fanbao": lambda df, sym=None: S.detect_fanbao(df),
 }
 PATTERN_CN = S.STRATEGY_NAMES
 
@@ -165,7 +169,7 @@ def build_pattern_pool(dmap: dict, asof: str, lookback: int = 4,
             if fn is None:
                 continue
             try:
-                mask = fn(d)
+                mask = fn(d, sym)      # 双参：sym 供 zt_huicai 按板块判涨停（见 DETECTORS 注释）
             except Exception:
                 # 单只票的检测异常不得影响整池（本仓纪律：失败只降级自身，不打死链路）
                 continue

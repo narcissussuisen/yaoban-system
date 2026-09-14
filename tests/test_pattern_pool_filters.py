@@ -106,8 +106,14 @@ def _df_flat(n=90, start='2026-01-01'):
     })
 
 
-def _always_hit(df):
-    """所有票都在**信号窗口内最后一根**报信号（够进池即可，形态不做要求）。"""
+def _always_hit(df, sym=None):
+    """所有票都在**信号窗口内最后一根**报信号（够进池即可，形态不做要求）。
+
+    ⚠️ 2026-09-14：`DETECTORS` 的契约改为**双参 `(df, sym)`**（`zt_huicai` 需 sym 才能
+    按板块判涨停），故本替身同步加 `sym=None`。若替身仍为单参，`build_pattern_pool:168`
+    的双参调用会抛 TypeError，并被该函数的 `except Exception: continue` **静默吞掉**
+    ⇒ 池变空、且不报错（本文件这 4 个用例就是靠这个才暴露出来的）。
+    """
     s = pd.Series([False] * len(df), index=df.index)
     s.iloc[-1] = True
     return s
@@ -154,7 +160,7 @@ class PoolFilterTests(unittest.TestCase):
             df.loc[:, 'high'] = px[s] * 1.005
 
         def _mk(pname):
-            def _fn(df):
+            def _fn(df, sym=None):        # 双参契约，见 `_always_hit` 的注释
                 s = pd.Series([False] * len(df), index=df.index)
                 if pname in by_px.get(float(df['close'].iloc[0]), set()):
                     s.iloc[-1] = True

@@ -51,9 +51,29 @@ def is_bullish(df: pd.DataFrame) -> pd.Series:
     return df["close"] > df["open"]
 
 
-def limit_up_mask(df: pd.DataFrame, pct_threshold: float = 9.8) -> pd.Series:
-    """涨停判定（按涨跌幅阈值，默认 9.8% 兼容 10% 与 ST 5% 场景的宽松匹配）"""
+def limit_up_mask(df: pd.DataFrame, pct_threshold: float = 9.8,
+                  symbol: str | None = None) -> pd.Series:
+    """涨停判定。
+
+    ⚠️ 2026-09-14 修正（此前**注释与实现不符**：docstring 自称「兼容 10% 与 ST 5%」，
+       但实现只有一个 9.8% 阈值 ⇒ **20cm 股的 +10% 被误判为涨停**，污染 `zt_huicai`）。
+
+    口径：
+      - `symbol` 给定 ⇒ 按**板块**判定，阈值 = `core.sell.limit_pct_of(symbol) - 0.002`
+        （0.2pp 容差，与 `plan_daily.py:163` 同源）。依据 `core/sell.py:79-84`：
+        300/301/688/689 → 20%；4/8/92（北交所）→ 30%；其余 → 10%。
+        ⇒ 主板结果与旧 9.8% **完全等价**（0.10 − 0.002 = 0.098），
+          仅 20cm/30cm 抬高阈值 ⇒ 涨停标记**只减不增**（消假阳性，不影响真涨停）。
+      - `symbol` 为空 ⇒ 走旧 `pct_threshold`（默认 9.8%）分支，**向后兼容**
+        （7 个研究脚本与 `strategies.detect()` 统一入口仍按单参调用）。
+      - ⚠️ 已知限制：`limit_pct_of` **无 ST 5% 分支** ⇒ ST 涨停仍识别不出；
+        ST 已在池层被剔（`core/pattern_pool.py:149`），此处不为它引入新分支
+        （该限制已由 `tests/test_limit_up_mask.py` 的 `test_st_no_branch_documented_limitation` 钉住）。
+    """
     ret = df["close"].pct_change()
+    if symbol:
+        from core.sell import limit_pct_of   # 局部 import：避免模块级导入顺序耦合
+        return ret >= (limit_pct_of(symbol) - 0.002)
     return ret >= pct_threshold / 100.0
 
 def kdj(df: pd.DataFrame, n: int = 9, k_period: int = 3, d_period: int = 3) -> pd.DataFrame:
