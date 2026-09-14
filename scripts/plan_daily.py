@@ -135,9 +135,13 @@ def main():
     # ---- 战法池（形态筛选层）：与日计划共用**同一次** load_all_daily 遍历 ----
     # 放在日计划计算之前：战法池是 scan 侧 fail-closed（缺产物 ⇒ rc=8 ⇒ **全天禁新仓**）
     # 的硬依赖，先落盘可让「后续日计划步骤失败」不影响次日战法池的可用性。
-    # asof=pday ⇒ 严格早于 d 的真实交易日（T-1），lookback=4 与下面 win_days 同口径。
+    # asof=pday ⇒ 严格早于 d 的真实交易日（T-1）。
+    # ⭐ 2026-09-15：lookback 4 → 6（用户裁定「今天实盘前上线」）—— 8 天选手候选池矩阵
+    #   实测：南华期货(9/10) 的 zt_huicai 信号在 asof 前 5-6 个交易日，窗口=4 抓不到；
+    #   扩到 6 后 8 天召回 30/32→31/32（叠 zt_watch 后 32/32）。⚠️ 注意这与下方 win_days
+    #   （日计划 picks 的信号窗）**不是同一口径**——池的召回窗与 picks 窗解耦，勿再"对齐"回去。
     try:
-        _pat_fp, _pat_stats = build_pattern_artifact(dmap, d, pday, lookback=4)
+        _pat_fp, _pat_stats = build_pattern_artifact(dmap, d, pday, lookback=6)
     except Exception as _pat_exc:
         # ⚠️ 战法池失败**不得**打死日计划（日计划还挂在取数前序多步上，且盘前 gate 依赖它）；
         #    但绝不允许静默 —— 打 stderr 让 post-close 的 log_review 能捞到。
