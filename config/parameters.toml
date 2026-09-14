@@ -342,11 +342,27 @@ stop_rule = "break_ma20_or_3d_below_ma10"
 # 并非相对前 5 日均量。detect_huigui(mode="live") 使用以下参数，mode="screen" 用上方公式口径。
 [strategy.huigui.live]
 pullback_days_min = 1
-pullback_days_max = 7
+pullback_days_max = 5        # 2026-09-14 标定：7 → 5（与顶层 .pullback_days_max 对齐）
 pullback_pct_min = 1.0
 pullback_pct_max = 15.0
 volume_ratio_max = 0.9       # 回调期日均量 ≤ 拉升峰值日(±1天)量的 90%
-prior_gain_min_pct = 8.0     # 前期一波上涨：近10日高点较20日前收盘涨≥8%
+prior_gain_min_pct = 12.0    # 2026-09-14 标定：8.0 → 12.0（前期一波上涨下限）
+
+# ⭐ 2026-09-14 标定依据（用户裁定「今晚必须上生产」；用 8 天选手候选池召回矩阵做受控试验）
+#   尺子 = `learning/labels/player_pool/<date>.json`（8 天 / 32 只，人工转录**带 6 位代码**），
+#          逐日检查「选手名单里每一只是否被系统战法池捕获」。
+#   判据 = **8 天召回不下降**才可采纳（本仓已两次因凭直觉收窄筛掉真值）。
+#   证据 = `outputs/player_pool_recall/recall_*.json` 与 `pool_size_proxy.json`。
+#   实测（单变量；召回=8 天 32 只 / 保留率=250 只旧池样本）：
+#     baseline                30/32 (93.8%)   保留 99.6%
+#     pullback_days_max=5     30/32           保留 81.6%   ← 采纳（收窄 ~18%）
+#     prior_gain_min_pct=12   30/32           保留 72.4%   ← 采纳（收窄 ~28%）
+#     两键叠加（本表当前值）    30/32           ——
+#   ⚠️ **被拒绝**的收窄（伤真值，勿再提）：`pullback_days_min=2` → 26/32（丢掉的正是选手
+#      当天实际买入的 600644 乐山电力 / 603328 依顿电子）；`pullback_pct_max=10` → 28/32。
+#   ⚠️ 本表是 `mode="live"` 的**唯一生效处** —— 顶层 `[strategy.huigui]` 的
+#      `pullback_days_max` / `pullback_pct_*` 对 live **无效**（`strategies.py:80` 只读 `.live` 子表），
+#      改上层等于没改（历史已踩过一次）。
 
 [strategy.zt_huicai]
 # 涨停回踩低吸（v07 五口诀 → 参数化 3 条）
