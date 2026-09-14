@@ -196,6 +196,92 @@ class PoolFilterTests(unittest.TestCase):
         self.assertEqual(stats['n_excluded_fanbao_only'], 0)
 
 
+def _df_with_zt(zt_on_last: bool = True, total: int = 90, sym_close_from: float = 10.0) -> pd.DataFrame:
+    """构造「尾根涨停(+10%) / 不涨停」的日线（主板 10cm 口径）。"""
+    close = [sym_close_from] * total
+    open_ = [sym_close_from] * total
+    high = [sym_close_from * 1.005] * total
+    low = [sym_close_from * 0.995] * total
+    vol = [1e6] * total
+    if zt_on_last:
+        close[-1] = round(close[-2] * 1.10, 2)      # +10% 涨停
+        open_[-1] = sym_close_from
+        high[-1] = close[-1]
+        low[-1] = sym_close_from
+        vol[-1] = 2e6
+    return pd.DataFrame({
+        'date': pd.date_range('2026-01-01', periods=total, freq='D').strftime('%Y-%m-%d'),
+        'open': open_, 'high': high, 'low': low, 'close': close, 'volume': vol,
+    })
+
+
+class ZtWatchTests(unittest.TestCase):
+    """④ zt_watch「涨停次日观察」（2026-09-15 新增，用户裁定「今天实盘前上线」）。
+
+    机制依据：选手 32 只候选池样本中 14/32 在 asof 当日或前 1–2 日涨停（武汉凡谷
+    9/8 涨停 → 9/9 进候选池；博敏 9/11 涨停 → 9/14 被买入）⇒ T−1 涨停 → 次日晨间
+    列入观察。`zt_huicai` 抓不到这类票（它要求涨停在信号日之前）⇒ 池比选手晚一天。
+    """
+
+    NAMES = {'600000': '浦发银行'}
+
+    def test_asof_limit_up_enters_pool_as_zt_watch(self):
+        dmap = {'600000': _df_with_zt(zt_on_last=True)}
+        with mock.patch('core.pattern_pool.DETECTORS', {}):     # 关掉全部检测器，只测 zt_watch
+            pool, stats = build_pattern_pool(dmap, asof=ASOF, names=self.NAMES)
+        self.assertEqual(len(pool), 1)
+        r = pool[0]
+        self.assertEqual(r['pattern'], 'zt_watch')
+        self.assertEqual(r['pattern_cn'], '涨停次日观察')
+        # sig_date = 涨停日本身（数据末根），不是 asof 字符串（asof 可能晚于数据末根）
+        self.assertEqual(r['sig_date'], '2026-03-31')
+        self.assertEqual(r['bars_since_sig'], 0)          # 信号就在数据末根 = 涨停当日
+        self.assertEqual(r['patterns'], ['zt_watch'])
+        self.assertEqual(stats['n_zt_watch_added'], 1)
+        self.assertEqual(stats['by_pattern'].get('zt_watch'), 1)
+
+    def test_no_limit_up_no_entry(self):
+        dmap = {'600000': _df_with_zt(zt_on_last=False)}
+        with mock.patch('core.pattern_pool.DETECTORS', {}):
+            pool, stats = build_pattern_pool(dmap, asof=ASOF, names=self.NAMES)
+        self.assertEqual(pool, [])
+        self.assertEqual(stats['n_zt_watch_added'], 0)
+
+    def test_zt_watch_flag_off(self):
+        dmap = {'600000': _df_with_zt(zt_on_last=True)}
+        with mock.patch('core.pattern_pool.DETECTORS', {}):
+            pool, stats = build_pattern_pool(dmap, asof=ASOF, names=self.NAMES, zt_watch=False)
+        self.assertEqual(pool, [])
+        self.assertEqual(stats['n_zt_watch_added'], 0)
+
+    def test_no_duplicate_when_detector_already_hit(self):
+        """已被其他战法命中的票**不得**再加 zt_watch 条目（防双计/排序失真）。"""
+        dmap = {'600000': _df_with_zt(zt_on_last=True)}
+        with mock.patch('core.pattern_pool.DETECTORS', {'huigui': _always_hit}):
+            pool, stats = build_pattern_pool(dmap, asof=ASOF, names=self.NAMES)
+        self.assertEqual(len(pool), 1)                    # 只一条
+        self.assertEqual(pool[0]['pattern'], 'huigui')    # 原条目保持不变
+        self.assertEqual(stats['n_zt_watch_added'], 0)
+
+    def test_20cm_board_threshold(self):
+        """20cm 票 +10% **不是**涨停 ⇒ 不得进 zt_watch（板块分档必须生效）。"""
+        dmap = {'300124': _df_with_zt(zt_on_last=True)}   # +10%，但 300 前缀 = 20cm
+        with mock.patch('core.pattern_pool.DETECTORS', {}):
+            pool, stats = build_pattern_pool(dmap, asof=ASOF, names={'300124': '测试股'})
+        self.assertEqual(pool, [])
+        self.assertEqual(stats['n_zt_watch_added'], 0)
+
+    def test_20cm_board_real_limit_up(self):
+        """20cm 票 +20% **是**涨停 ⇒ 进 zt_watch。"""
+        df = _df_with_zt(zt_on_last=False)
+        df.loc[df.index[-1], 'close'] = round(float(df['close'].iloc[-2]) * 1.20, 2)
+        dmap = {'300124': df}
+        with mock.patch('core.pattern_pool.DETECTORS', {}):
+            pool, stats = build_pattern_pool(dmap, asof=ASOF, names={'300124': '测试股'})
+        self.assertEqual(len(pool), 1)
+        self.assertEqual(pool[0]['pattern'], 'zt_watch')
+
+
 class WriteEntryPointTests(unittest.TestCase):
     """schema 单点：两个生产入口共用 `write_pattern_pool`，扫描侧契约不漂移。"""
 

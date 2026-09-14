@@ -48,7 +48,8 @@ DETECTORS = {
     "xianren": lambda df, sym=None: S.detect_xianren(df, with_confirm=True),
     "qu_shi_fanbao": lambda df, sym=None: S.detect_fanbao(df),
 }
-PATTERN_CN = S.STRATEGY_NAMES
+PATTERN_CN = dict(S.STRATEGY_NAMES)
+PATTERN_CN["zt_watch"] = "涨停次日观察"      # 池层规则，非 strategies 检测器（见 build_pattern_pool）
 
 # 检测器要求的最少日线根数（`strategies._require(df, 70/30/…)` 里最大是 70）
 MIN_BARS = 76
@@ -106,6 +107,7 @@ def build_pattern_pool(dmap: dict, asof: str, lookback: int = 4,
                        patterns: tuple = DEFAULT_PATTERNS,
                        names: dict | None = None,
                        exclude_fanbao_only: bool = True,
+                       zt_watch: bool = True,
                        ) -> tuple[list[dict], dict]:
     """构建战法池。
 
@@ -115,11 +117,24 @@ def build_pattern_pool(dmap: dict, asof: str, lookback: int = 4,
     patterns  启用哪些战法（默认并集；单战法可传单元素元组做消融）
     names     {sym: 名称} 名称表（来自 `data/stock_names_stocks.json`）；用于**池层**剔除 ST/退市风险
     exclude_fanbao_only  剔除「仅反包命中」（`patterns == ['qu_shi_fanbao']`）的标的
+    zt_watch  ⭐ 2026-09-15 新增：「**涨停次日观察**」条目 —— **asof 当日（T−1）涨停**的票
+              直接进池（`pattern='zt_watch'` / `sig_date=asof` / `bars_since_sig=0`）。
+
+              依据（用户 2026-09-15 裁定「今天实盘前上线」；触发材料 = 雪球《N字型走势》
+              + 武汉凡谷实证）：
+              ① 选手 32 只候选池样本中 **14/32 = 44%** 在 asof 当日或前 1–2 日涨停
+                （武汉凡谷 9/8 涨停 → 9/9 09:46 进候选池；博敏 9/11 涨停 → 9/14 被买入）；
+              ② `zt_huicai` 抓不到这类票：它要求涨停在**信号日之前**（`for back in 1..5`），
+                而 T−1 涨停就是最后一根 ⇒ 回踩确认最早 T 收盘后才命中 ⇒ **池比选手晚一天**。
+              语义：zt_watch 是**观察候选**，不含回踩确认 —— 回踩/VWAP/≤3% 确认交给盘中
+              scan 的分时闸门（`scan_and_confirm.py` e4_support，已上线）。
+              ⚠️ 已被其他战法命中的票**不重复添加**（保持原条目不变，避免双计与排序失真）。
+              涨停判定按**板块分档**（`indicators.limit_up_mask(symbol=...)`，10/20/30cm）。
 
     返回 (pool, stats)：
       pool  [{'sym','pattern','pattern_cn','sig_date','bars_since_sig','close_asof','patterns'}]，按信号日降序
       stats {'n_syms_scanned','n_skipped_short','n_excluded_st','n_no_name',
-             'n_excluded_fanbao_only','n_pool','by_pattern','asof','lookback','window'}
+             'n_excluded_fanbao_only','n_pool','by_pattern','n_zt_watch_added','asof','lookback','window'}
 
     ⚠️ 两条**刻意不设**的池层过滤（2026-09-14 用户裁定，已实证会筛掉真值）：
       ① 「信号日必须在 asof 当日」⇒ 选手 4 只**全部落选**（其信号日是 T-2/T-3）；
@@ -132,7 +147,8 @@ def build_pattern_pool(dmap: dict, asof: str, lookback: int = 4,
     # 信号窗口 = asof 往前数 lookback 个**交易日**（下面按实际出现过的日期切片）
     stats = {"asof": asof, "lookback": lookback, "n_syms_scanned": 0,
              "n_skipped_short": 0, "n_excluded_st": 0, "n_no_name": 0,
-             "n_excluded_fanbao_only": 0, "n_pool": 0, "by_pattern": {}}
+             "n_excluded_fanbao_only": 0, "n_pool": 0, "by_pattern": {},
+             "n_zt_watch_added": 0}
     # 池层 ST 剔除（2026-09-14）：实测池里存在 `000078 ST海王`、`000909 *ST数源`。
     #   与 `plan_daily.py` 的既有纪律同源（「选手模式无 ST 证据」）——盘中 scan 侧虽也用
     #   实时名称过滤，但池层先剔可让 `by_pattern`/池规模的统计口径干净，且避免 ST 票
@@ -181,7 +197,23 @@ def build_pattern_pool(dmap: dict, asof: str, lookback: int = 4,
                     sig_dates.append(dates[i])
                     break
         if not hit_patterns:
-            continue
+            # ⭐ zt_watch（2026-09-15）：asof 当日（T−1）涨停 → 直接进池（「涨停次日观察」）。
+            #   只兜「其他战法都没命中」的票（命中的不重复加，见 docstring）；
+            #   涨停判定按板块分档（10/20/30cm），复用 symbol-aware limit_up_mask。
+            #   ⚠️ sig_date 取**数据最后一根的日期**（= 涨停日本身，dates[-1]），
+            #      不能用 asof 字符串 —— asof 可能晚于数据末根（停牌/数据缺口），
+            #      用 asof 会让下方 dates.index(sig_date) 抛 ValueError（测试已钉住）。
+            if zt_watch and len(d) >= 2:
+                try:
+                    from core import indicators as _ind
+                    _zt = _ind.limit_up_mask(d, symbol=sym)
+                    if bool(_zt.iloc[-1]):
+                        hit_patterns = ["zt_watch"]
+                        sig_dates = [dates[-1]]
+                except Exception:
+                    pass            # zt_watch 失败只降级自身（本仓纪律：观察层失败不得打死链路）
+            if not hit_patterns:
+                continue
         uniq = sorted(set(hit_patterns))
         # 仅反包命中 ⇒ 剔除（2026-09-14 用户裁定「零损失收窄」：2308→1720，
         #   选手 4 只仍存活 3/4）。依据：`qu_shi_fanbao` 单独命中在选手实买样本里
@@ -192,6 +224,8 @@ def build_pattern_pool(dmap: dict, asof: str, lookback: int = 4,
         sig_date = max(sig_dates)
         sig_pos = dates.index(sig_date)
         stats["by_pattern"][hit_patterns[0]] = stats["by_pattern"].get(hit_patterns[0], 0) + 1
+        if hit_patterns[0] == "zt_watch":
+            stats["n_zt_watch_added"] += 1
         out.append({
             "sym": sym,
             "pattern": hit_patterns[0],                       # 主要战法（首个命中）

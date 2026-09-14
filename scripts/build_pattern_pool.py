@@ -35,11 +35,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--asof', required=True, help='信号窗口最新交易日 = T-1（防前视，必填）')
     ap.add_argument('--day', required=True, help='要服务的交易日 T')
-    ap.add_argument('--lookback', type=int, default=4, help='信号日回溯窗口（默认 4，与 plan_daily 一致）')
+    ap.add_argument('--lookback', type=int, default=6,
+                    help='信号日回溯窗口（默认 6 —— 2026-09-15 标定 4→6：补回 8 天矩阵中南华期货类'
+                         '「信号在 5-6 日前」的漏检；8 天召回 30/32→31/32，与 plan_daily 保持一致）')
     ap.add_argument('--patterns', default='huigui,zt_huicai,xianren,qu_shi_fanbao',
                     help='启用战法（逗号分隔；单战法用于消融）')
     ap.add_argument('--keep-fanbao-only', action='store_true',
                     help='保留「仅反包命中」的标的（**仅用于修 ST/反包前后对照**；生产默认剔除）')
+    ap.add_argument('--no-zt-watch', dest='zt_watch', action='store_false',
+                    help='关闭「涨停次日观察」条目（2026-09-15 新增、默认开启；消融用）')
     ap.add_argument('--out', default='', help='输出路径（缺省 outputs/patterns/<day>_pattern_pool.json）')
     args = ap.parse_args()
 
@@ -67,7 +71,8 @@ def main():
     names = load_stock_names()
     pool, stats = build_pattern_pool(dmap, asof=asof, lookback=args.lookback, patterns=pats,
                                      names=names,
-                                     exclude_fanbao_only=not args.keep_fanbao_only)
+                                     exclude_fanbao_only=not args.keep_fanbao_only,
+                                     zt_watch=args.zt_watch)
 
     # 名称映射（只用现成表，不臆造）
     name_map = {r['sym']: names.get(r['sym'], '') for r in pool}
@@ -85,6 +90,8 @@ def main():
           f'仅反包剔除 {stats["n_excluded_fanbao_only"]}, 无名称 {stats["n_no_name"]})  '
           f'用时 {time.time() - t0:.1f}s')
     print(f'      分战法: {stats["by_pattern"]}')
+    print(f'      其中 zt_watch（涨停次日观察）新增 {stats.get("n_zt_watch_added", 0)} 只'
+          f'{"（已关闭）" if not args.zt_watch else ""}')
     for r in pool[:20]:
         print(f'        {r["sym"]} {name_map.get(r["sym"], ""):<8} {r["pattern_cn"]:<8} '
               f'信号日 {r["sig_date"]} (T-{r["bars_since_sig"]}日) 收 {r["close_asof"]}')
