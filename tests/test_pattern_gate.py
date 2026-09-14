@@ -79,7 +79,7 @@ def _pool_doc(pool_syms, asof=ASOF, day=DAY):
 
 
 def _run(*, syms=SYMS, chg_by_sym=None, plan_picks=(), pattern_gate=True,
-         pool_file=('write', SYMS), pattern_dir=None):
+         pool_file=('write', SYMS), pattern_dir=None, pool_doc=None):
     """跑一轮 scan。pool_file: ('write', syms) 写一份有效战法池 / ('skip', None) 不写。"""
     state = _base_state()
     calls = []
@@ -109,7 +109,8 @@ def _run(*, syms=SYMS, chg_by_sym=None, plan_picks=(), pattern_gate=True,
         pdir.mkdir(parents=True, exist_ok=True)
         if pool_file[0] == 'write':
             (pdir / f'{DAY}_pattern_pool.json').write_text(
-                json.dumps(_pool_doc(pool_file[1]), ensure_ascii=False), encoding='utf-8')
+                json.dumps(pool_doc if pool_doc is not None else _pool_doc(pool_file[1]),
+                           ensure_ascii=False), encoding='utf-8')
         plan = {'picks': [{'sym': s, 'name': f'计划{s[-3:]}'} for s in plan_picks]}
         argv = ['scan', '--force', '--e4-support', '--min-amt', '0', '--execute']
         if pattern_gate:
@@ -262,6 +263,100 @@ class PatternPoolCoreTests(unittest.TestCase):
         pool, stats = build_pattern_pool({'600000': df}, asof=ASOF, lookback=4)
         for r in pool:      # 若未来被误用为信号日，这里会暴露
             self.assertLessEqual(r['sig_date'], ASOF)
+
+
+class SectorHeatFilterTests(unittest.TestCase):
+    """⭐ 板块热度过滤（2026-09-14 用户裁定「现在做」）—— 单靠形态收不到 4-15 只，收窄必须发生在板块层。"""
+
+    def test_cold_sector_dropped_from_queue(self):
+        """L2 不在当日热度前 N ⇒ 不进确认队列（选手：只选热点板块，冷门概念不玩）。"""
+        # 300468/300469 同属热板块 A（涨幅高）; 300470 属冷板块 B（涨幅低）
+        with mock.patch.object(scan, 'HOT_L2_TOP', 1), \
+                mock.patch.object(scan, 'industry_of',
+                                  side_effect=lambda s, d: 'A' if s in ('300468', '300469') else 'B'):
+            rc, doc, _, _ = _run(syms=SYMS,
+                                 chg_by_sym={'300468': 5.0, '300469': 4.0, '300470': 1.0},
+                                 pool_file=('write', SYMS), pattern_gate=True)
+        self.assertEqual(rc, 0)
+        q = {x['sym'] for x in doc['confirm_queue']}
+        self.assertEqual(q, {'300468', '300469'}, '冷板块标的未被剔除')
+        self.assertEqual(doc['pattern_meta']['funnel']['n_dropped_cold_l2'], 1)
+        for x in doc['confirm_queue']:
+            self.assertEqual(x['l2'], 'A')
+            self.assertEqual(x['l2_rank'], 1)
+
+    def test_hot_sector_list_recorded(self):
+        with mock.patch.object(scan, 'HOT_L2_TOP', 2), \
+                mock.patch.object(scan, 'industry_of', side_effect=lambda s, d: 'A'):
+            rc, doc, _, _ = _run(syms=SYMS, pool_file=('write', SYMS), pattern_gate=True)
+        self.assertEqual(rc, 0)
+        self.assertEqual(doc['pattern_meta']['hot_l2_top'], 2)
+        self.assertTrue(doc['pattern_meta']['hot_l2'])
+
+
+class QueueSortOrderTests(unittest.TestCase):
+    """⭐ 排序改造：信号新鲜度 + 战法共振 优先（**只作权重，不作门槛**）。"""
+
+    def _pool_doc2(self, rows):
+        return {'day': DAY, 'asof': ASOF, 'lookback': 4, 'patterns': ['huigui'],
+                'stats': {'n_pool': len(rows)},
+                'pool': [{'sym': s, 'pattern': 'huigui', 'pattern_cn': '上升回档',
+                          'patterns': pats, 'sig_date': ASOF,
+                          'bars_since_sig': age, 'close_asof': PC}
+                         for s, age, pats in rows],
+                'name_map': {}}
+
+    def test_fresher_and_more_resonant_ranks_first_despite_lower_chg(self):
+        """新鲜度优先于涨幅：T-0 低涨幅 应排在 T-3 高涨幅之前（旧排序键会反过来）。"""
+        rows = [('300468', 3, ['huigui']),      # T-3，涨幅给他最高
+                ('300469', 0, ['huigui'])]      # T-0
+        with mock.patch.object(scan, 'HOT_L2_TOP', 5), \
+                mock.patch.object(scan, 'industry_of', side_effect=lambda s, d: 'A'), \
+                mock.patch.object(scan, '_load_day_plan',
+                                  return_value={'picks': []}):
+            rc, doc, _, _ = _run(syms=('300468', '300469'),
+                                 chg_by_sym={'300468': 9.0, '300469': 1.0},
+                                 pool_file=('write', None), pattern_gate=True,
+                                 pool_doc=self._pool_doc2(rows))
+        self.assertEqual(rc, 0)
+        q = [x['sym'] for x in doc['confirm_queue']]
+        self.assertEqual(q[0], '300469', '新鲜度未优先（排序键可能又退回按涨幅）')
+
+    def test_resonance_breaks_tie(self):
+        """同新鲜度下，多战法共振者优先。"""
+        rows = [('300468', 1, ['huigui']), ('300469', 1, ['huigui', 'xianren'])]
+        with mock.patch.object(scan, 'HOT_L2_TOP', 5), \
+                mock.patch.object(scan, 'industry_of', side_effect=lambda s, d: 'A'), \
+                mock.patch.object(scan, '_load_day_plan', return_value={'picks': []}):
+            rc, doc, _, _ = _run(syms=('300468', '300469'),
+                                 chg_by_sym={'300468': 8.0, '300469': 1.0},
+                                 pool_file=('write', None), pattern_gate=True,
+                                 pool_doc=self._pool_doc2(rows))
+        self.assertEqual(rc, 0)
+        q = [x['sym'] for x in doc['confirm_queue']]
+        self.assertEqual(q[0], '300469', '共振数未参与排序')
+
+    def test_sort_source_guard(self):
+        """源码防回退：排序键必须含 in_plan + bars_since_sig + 共振，且用 AST 判据。
+
+        ⚠️ `lst.sort(key=...)` 的 key 是**关键字参数**（在 `Call.keywords`，不在 `Call.args`）——
+        第一次写这条判据时按 `args[0]` 取，取不到而误报。
+        """
+        import ast
+        src = (ROOT / 'scripts' / 'scan_and_confirm.py').read_text(encoding='utf-8')
+        tree = ast.parse(src)
+        found = False
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == 'sort'):
+                continue
+            for kw in node.keywords:
+                if kw.arg != 'key':
+                    continue
+                seg = ast.get_source_segment(src, kw.value) or ''
+                if 'bars_since_sig' in seg and 'in_plan' in seg and 'len(' in seg:
+                    found = True
+        self.assertTrue(found, 'confirm_queue 排序键被改回按涨幅（缺 bars_since_sig / 共振）')
 
 
 if __name__ == '__main__':
