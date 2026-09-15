@@ -1,0 +1,44 @@
+==============================================================================
+R1.2 裁量点清单 + R1.3 容差带 构建报告
+==============================================================================
+sop_v0.toml 规则数      : 150
+引用到的裁量点          : 10 个 → ['D1', 'D10', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9']
+引用到的容差键          : 12 个 → ['execution_lag', 'ma_pos', 'ma_pos_broad', 'pattern_boundary', 'pullback_depth', 'pullback_window', 'resist_band', 'seven_pct_band', 'support_low', 'turnover_gate', 'vwap_tol', 'washout_time']
+已定义裁量点 / 容差键   : 10 / 12
+ERR 0 / WARN 0
+
+裁量点 → 被哪些规则引用：
+  D1   [GATE  ] 大盘环境闸门强度
+        ← ['GEN-GATE-10', 'GEN-ENTRY-07']
+  D2   [MAIN  ] 选板块三信号的加权与取舍
+        ← ['GEN-MAIN-01', 'GEN-DRAGON-09', 'GEN-MAIN-07']
+  D3   [MAIN  ] 板块强度三层分级
+        ← ['GEN-MAIN-03', 'GEN-ENTRY-13']
+  D4   [DRAGON] 「是否热点概念」判定
+        ← ['GEN-DRAGON-02']
+  D5   [DRAGON] 候选池之外的主动机会
+        ← ['GEN-DRAGON-04']
+  D6   [ENTRY ] 分时质量三档分级 与「止跌企稳」判定
+        ← ['GEN-ENTRY-06', 'P1-ENTRY-03']
+  D7   [HOLD  ] 买入逻辑是否消失
+        ← ['GEN-HOLD-13']
+  D8   [SIZE  ] 仓位档位选择与弹性调节
+        ← ['GEN-SIZE-14']
+  D9   [DRAGON] 洗盘 vs 出货
+        ← ['P1-DRAGON-14', 'GEN-HOLD-29']
+  D10  [DRAGON] 趋势反包是否要求放量（口径待标定）
+        ← ['P2-DRAGON-03']
+
+容差键 → 被哪些规则引用：
+  ma_pos             ← 11 条
+  ma_pos_broad       ← 1 条
+  vwap_tol           ← 6 条
+  support_low        ← 1 条
+  resist_band        ← 1 条
+  turnover_gate      ← 2 条
+  seven_pct_band     ← 1 条
+  pullback_window    ← 4 条
+  pullback_depth     ← 1 条
+  execution_lag      ← 2 条
+  washout_time       ← 1 条
+  pattern_boundary   ← 4 条

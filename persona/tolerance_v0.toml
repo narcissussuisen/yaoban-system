@@ -1,0 +1,175 @@
+# EvoAlpha 人格层 · 容差带 v0（R1.3）
+# 生成器：yaoban-system/tools/build_persona_discretion.py（勿手改）
+
+[meta]
+version = "tolerance-v0"
+built_at = "2026-09-12"
+count = 12
+conflict_note = "均线容差两口径并存（3~7% 语义档 vs <=2% 机械档）；本表按 2%/5% 分档并弃用 7% 上界，理由见各条 ruling"
+
+[[tolerance]]
+key = "ma_pos"
+name = "均线支撑/压力的判定容差"
+tight = 0.02
+loose = 0.05
+unit = "ratio_of_ma"
+applies = ["P1-ENTRY-02", "P1-HOLD-01", "P1-HOLD-02", "P2-DRAGON-04", "P3-DRAGON-02", "P4-DRAGON-02", "GEN-HOLD-03", "GEN-HOLD-22", "GEN-DRAGON-01", "GEN-MAIN-05", "P1-DRAGON-08", "P1-DRAGON-10"]
+tight_use = "机械化执行（形态筛选、日线兜底触发、止损判定）"
+loose_use = "人工/LLM 语义判读（「回踩到 10 日线附近」这类口述）"
+evidence = "E1 + kline 交叉"
+source = "9/11《K线批量核验报告》17/18 命中、精度 0.6~1.6% ／ 画像 §3.7(8) 5 例核验"
+ruling = "机械化档取 **≤2%**（新、样本间一致、精度已知）；语义档取 **≤5%**。**弃用 3~7% 的 7% 上界** —— 该区间来自 n=5 单案例估计，且其中太极实业一例（MA5 13.92 vs 最低 14.54，偏差 4.45%）已被我们自己判为「踩 5 日线不精确」。"
+
+[[tolerance]]
+key = "ma_pos_broad"
+name = "主升浪持有的均线判读容差（含情绪附加项）"
+tight = 0.02
+loose = 0.05
+unit = "ratio_of_ma"
+applies = ["GEN-HOLD-01"]
+tight_use = "破 5/10 日线的减半/清仓触发"
+loose_use = "「情绪转弱」这类附加条件的联合判读"
+evidence = "E1"
+source = "v09@00:58（rule 16）"
+ruling = "数值同 ma_pos；区别在于本键允许**多条件联合**（均线 + 情绪），故 LLM 判读介入概率更高 → 实际以 loose 档为主。"
+
+[[tolerance]]
+key = "vwap_tol"
+name = "分时均价线（VWAP）穿越容差"
+tight = 0.003
+loose = 0.003
+unit = "ratio_of_price"
+applies = ["GEN-ENTRY-02", "GEN-ENTRY-03", "GEN-ENTRY-04", "P2-ENTRY-01", "P3-ENTRY-02"]
+tight_use = "分时破线/回踩站稳的机械化判定"
+loose_use = "（同值）"
+evidence = "E6"
+source = "`parameters.toml [sell.intraday].vwap_tol = 0.003`（引擎既有值，非选手口述）"
+ruling = "直接沿用引擎既有 0.3%。⚠️ 该值是引擎设计值（E6），**不是**从选手素材标定出来的 → 属「待标定」项，R2 拿到候选池 1m 数据后应回标。"
+
+[[tolerance]]
+key = "support_low"
+name = "支撑位（前低区域）容差"
+tight = 0.005
+loose = 0.015
+unit = "ratio_of_price"
+applies = ["GEN-GATE-09"]
+tight_use = "指数级支撑判定（精度要求高）"
+loose_use = "个股级支撑「区域」判读"
+evidence = "E2 + kline 交叉"
+source = "2026-09-11 盘面观点：支撑 3850（8/24-25 前低 3855.35 / 3850.86），当日最低 3852.03"
+ruling = "指数级取 **0.5%**（9/11 实测偏差仅 0.053%，留一个量级余量）；个股级因缺乏同类验证样本，暂取 **1.5%** 并标为待标定。取法本身 = **近 20 交易日摆动低点聚类**，非整数关。"
+
+[[tolerance]]
+key = "resist_band"
+name = "阻力位（前高/套牢筹码区）容差"
+tight = 0.005
+loose = 0.015
+unit = "ratio_of_price"
+applies = ["GEN-HOLD-18"]
+tight_use = "「遇压不突破 → 止盈」的机械化判定"
+loose_use = "「上方 X 块有阻力」这类口述判读"
+evidence = "E1（量级与 support_low 同源，未单独核验）"
+source = "v37 / v44 / v45（新安股份 15.7、永杉锂业 24 块）"
+ruling = "与 support_low 同值（对称处理）。⚠️ 阻力位**未做过 K 线核验**，依据只有两条口述实例 → 标为待核验。"
+
+[[tolerance]]
+key = "turnover_gate"
+name = "换手率闸门"
+healthy_min = 10.0
+healthy_max = 30.0
+warn_above = 50.0
+unit = "percent"
+applies = ["GEN-MAIN-04", "GEN-GATE-14"]
+tight_use = "龙头识别（健康区间）"
+loose_use = "风险警戒（>50% 需小心）"
+evidence = "E1"
+source = "v36@01:22（换手 10%~30%）／ 2026-09-08（超过 50 以上换手都需要小心）"
+ruling = "健康区间 [10%, 30%] 与警戒线 50% **分别来自两期视频**，二者之间（30~50%）选手未给口径 → 该段留空，交 LLM 裁量时须显式说明「无 SOP 依据」。"
+
+[[tolerance]]
+key = "seven_pct_band"
+name = "冲高「7 个点」封不住的判定带"
+threshold = 0.07
+band = 0.005
+unit = "ratio"
+applies = ["GEN-HOLD-15"]
+tight_use = "盘中冲高止盈触发"
+loose_use = "（同值）"
+evidence = "E1"
+source = "v37（06-22）：「冲高 7 个点以上封不住的话，就可以先锁住部分利润」"
+ruling = "「7 个点以上」取下界 7%，容差带 ±0.5pp（6.5%~7% 起算）。⚠️ 选手同时给了「直接高开封板就继续等」的例外 → 该例外**不可机械化**，交 D7。"
+
+[[tolerance]]
+key = "pullback_window"
+name = "回档天数窗口"
+formula_min = 3
+formula_max = 5
+live_min = 1
+live_max = 5
+hard_max = 5
+unit = "trading_days"
+applies = ["P1-DRAGON-03", "P1-DRAGON-04", "P4-DRAGON-01"]
+tight_use = "筛选口径（formula：3~5 天）"
+loose_use = "实战判定口径（live：1~3 天，最多 ≤5）"
+evidence = "E1"
+source = "v05@00:28（rule 3）／ v24@02:28（rule 4）"
+ruling = "**两口径并存且都已落在参数里**（`[strategy.huigui]` 用于 screen、`[strategy.huigui.live]` 用于 live）。硬上界 5 天两口径一致。"
+
+[[tolerance]]
+key = "pullback_depth"
+name = "回调幅度窗口"
+formula_min = 0.05
+formula_max = 0.15
+live_min = 0.01
+live_max = 0.15
+prior_gain_frac = 0.3333
+unit = "ratio"
+applies = ["P1-DRAGON-05"]
+tight_use = "筛选口径 5%~15%"
+loose_use = "实战口径 1%~15%（案例回归校准 2026-08-24）"
+evidence = "E1"
+source = "v05@00:28 / v01@00:58（rule 5）＋ `parameters.toml` v4.0.1 修正注释"
+ruling = "实战案例幅度**远小于**公式口径（协鑫能科 1.5%、江特电机 5%、振华科技）→ live 下界放宽到 1%。另加约束「不超前期涨幅 1/3」。"
+
+[[tolerance]]
+key = "execution_lag"
+name = "执行偏差容许（人格评估档）"
+days = 3
+unit = "trading_days"
+applies = ["GEN-HOLD-19", "GEN-HOLD-23"]
+tight_use = "**不可用于生产执行**"
+loose_use = "只用于「人格像不像」的诊断轨评估"
+evidence = "E1（画像 §4 原文明示）"
+source = "皖维高新案：明确「留意 7.5 支撑」、收盘 7.41 已破位、实际 06-17 才卖 = **3 个交易日偏差**"
+ruling = "⭐ 这是**诊断轨专用**参数。生产执行必须即时（结构破位当场了结，如粤传媒买入次日即砍）。把 3 日容许套到生产上会系统性放大回撤，与 GEN-HOLD-23 直接冲突。"
+
+[[tolerance]]
+key = "washout_time"
+name = "洗盘时间止损"
+warn_days = 30
+exit_days = 60
+unit = "calendar_days"
+applies = ["P1-DRAGON-15"]
+tight_use = "周级复核（warn 30 天）"
+loose_use = "换股决策（exit 60 天）"
+evidence = "E1"
+source = "v51@02:40（rule 24）＋ `[sell].washout_warn_days=30 / washout_exit_days=60`"
+ruling = "⚠️ 单位是**自然月**（选手说「超 1 月/超 2 月」），参数里按自然日 30/60 近似 —— 二者不等价（30 自然日 ≈ 20 交易日），须在实现时明确取哪一个。"
+
+[[tolerance]]
+key = "pattern_boundary"
+name = "形态边界（「像不像」的判据化）"
+xianren_upper_shadow_ratio_min = 2.0
+xianren_upper_shadow_pct_min = 2.8
+xianren_position = [0.85, 1.35]
+fanbao_strict = "close > prev_open（完全吞没）"
+fanbao_loose = "close > prev_close（部分覆盖）"
+zthuicai_volume_surge_min = 1.2
+unit = "mixed"
+applies = ["P3-DRAGON-01", "P3-DRAGON-02", "P2-DRAGON-02", "P4-DRAGON-04"]
+tight_use = "仙人指路（唯一零歧义、有公式源码的一套）"
+loose_use = "趋势反包的「包住」（严格/宽松两口径未裁定）"
+evidence = "E1（仙人指路零歧义）／ E6（反包口径）"
+source = "v70 通达信公式源码原文 ／ v22 口述定义"
+ruling = "仙人指路三条件**直接照抄公式**，无容差；趋势反包「包住」**未裁定** → 现实现取严格档，并登记为缺口（P2-DRAGON-02 note 已标）。"
+

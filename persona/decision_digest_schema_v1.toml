@@ -1,0 +1,269 @@
+# EvoAlpha · decision_digest 字段契约 v1（R1.6）
+# 生成器 tools/build_decision_digest_schema.py；单一事实源 src/core/decision_digest.py
+# 用途：供 R5.0 把「实现层」与「有效性层」机械分开（见 docs/DECISION_DIGEST_CONTRACT.md）
+
+[meta]
+version = "decision-digest/v1"
+built_at = "2026-09-12"
+field_count = 27
+hash_field_count = 12
+exec_context_field_count = 9
+layer_rule_count = 7
+purpose = "一次决策的不可变结构化摘要 + 内容哈希；覆盖 inputs_snapshot → rules_fired → discretions → risk_gate → order_intent → fill|not_executed"
+core_insight = "replay_hash 不变 = 纯实现层改动（可直接晋级）；replay_hash 变化 = 行为改动（必须进 60 日有效性队列）"
+
+[layers]
+identity = "标识与溯源，不参与行为判定"
+implementation = "实现层：可机械判定，不需要净值"
+effectiveness = "有效性层：只能由 R5.1 净值判定器解释；digest 只携带指针"
+
+[hash_policy]
+implementation_hash_fields = ["day", "sym", "side", "inputs.candidate_snapshot_id", "inputs.market_snapshot_hash", "inputs.sop_version_id", "inputs.params_hash", "decision.rules_fired", "decision.discretions", "decision.risk_gate", "decision.narrative_refs", "action.order_intent"]
+execution_context_fields = ["timing.signal_ts", "timing.decision_ts", "timing.recorded_at", "timing.freshness_sec", "timing.tick_executor", "action.executed", "action.kind", "action.authority", "action.fill_ref"]
+excluded_note = "结果(outcome.*)、派生值(digest_id/replay_hash/digest_revision) 一律不进哈希"
+
+[[field]]
+path = "digest_id"
+type = "str"
+layer = "identity"
+required = true
+fmt = "dd-{day}-{seq}-{hash8}"
+note = "本 digest 的稳定标识；seq 为当日序号，hash8 = replay_hash 前 8 位"
+
+[[field]]
+path = "digest_revision"
+type = "str"
+layer = "identity"
+required = true
+fmt = "decision-digest/v1"
+note = "schema 版本；跨版本比对必须显式声明"
+
+[[field]]
+path = "decision_id"
+type = "str"
+layer = "identity"
+required = true
+note = "**必须与 ledger 的 decision_id 一致**（R0.4）；ledger 侧空值即拒单"
+
+[[field]]
+path = "day"
+type = "date"
+layer = "identity"
+required = true
+note = "交易日（YYYY-MM-DD）；同一 digest 的 day 必须与 timing.decision_ts 的日期一致"
+
+[[field]]
+path = "sym"
+type = "str"
+layer = "identity"
+required = true
+note = "标的代码（6 位数字）；与 ledger fill 的 sym 必须完全一致"
+
+[[field]]
+path = "side"
+type = "enum"
+layer = "identity"
+required = true
+values = ["buy", "sell", "hold", "skip"]
+note = "hold/skip 也必须有 digest —— 否则「没做什么」不可审计"
+
+[[field]]
+path = "timing.signal_ts"
+type = "datetime"
+layer = "implementation"
+required = true
+note = "信号产生时刻；格式 'YYYY-MM-DD HH:MM:SS'。时序契约链的第 1 环"
+
+[[field]]
+path = "timing.decision_ts"
+type = "datetime"
+layer = "implementation"
+required = true
+note = "作出决策的时刻。必须 ≥ signal_ts —— 否则是回溯成交（R0.3 禁止）"
+
+[[field]]
+path = "timing.recorded_at"
+type = "datetime"
+layer = "implementation"
+required = true
+note = "落账时刻。必须 ≥ decision_ts —— 否则时序倒挂"
+
+[[field]]
+path = "timing.freshness_sec"
+type = "number"
+layer = "implementation"
+required = true
+note = "decision_ts − signal_ts；>120s 一律拒单（tick 卖出豁免，见 SELL_EXECUTION_CONTRACT §2）"
+
+[[field]]
+path = "timing.tick_executor"
+type = "bool"
+layer = "implementation"
+required = true
+note = "是否由 tick 执行器产生的决策（决定是否适用 120s 新鲜度门）"
+
+[[field]]
+path = "inputs.candidate_snapshot_id"
+type = "str"
+layer = "implementation"
+required = true
+note = "候选池快照 id（R0.4 蓝图要求）；无候选池的卖出决策可写空串"
+
+[[field]]
+path = "inputs.market_snapshot_hash"
+type = "str"
+layer = "implementation"
+required = true
+note = "决策所依据的行情数据 canonical hash（涉及标的的 bar 序列）—— 重放的基准"
+
+[[field]]
+path = "inputs.sop_version_id"
+type = "str"
+layer = "implementation"
+required = true
+note = "人格版本 id，如 v0；取自 persona/versions/registry.json"
+
+[[field]]
+path = "inputs.params_hash"
+type = "str"
+layer = "implementation"
+required = true
+note = "config/parameters.toml 的 sha256（R1.5 frozen 组）"
+
+[[field]]
+path = "decision.rules_fired"
+type = "list[str]"
+layer = "implementation"
+required = true
+note = "⭐ 必须是 R1.1 SOP 表里的规则 id（如 GEN-HOLD-01）；无规则触发时为空数组"
+
+[[field]]
+path = "decision.discretions"
+type = "list[table]"
+layer = "implementation"
+required = true
+fields = ["point_id", "output", "rationale", "model", "prompt_sha256", "cli_version"]
+note = "⭐ 每项 point_id 必须是 R1.2 的 D1–D10；output 必须落在该点的枚举内。model/prompt_sha256/cli_version 是可重放性的前提（计划 §4.2）"
+
+[[field]]
+path = "decision.risk_gate"
+type = "table"
+layer = "implementation"
+required = true
+fields = ["passed", "veto_reason", "checks"]
+note = "风控 veto 不可被裁量绕过；checks 列出实际执行的门禁项"
+
+[[field]]
+path = "decision.narrative_refs"
+type = "list[str]"
+layer = "implementation"
+required = false
+note = "本轮引用的 R1.4 记忆 id（MEM-*）或自述字段路径"
+
+[[field]]
+path = "action.order_intent"
+type = "table"
+layer = "implementation"
+required = true
+fields = ["side", "qty", "px_limit", "reason", "plan_ref"]
+note = "打算做什么。`reason` 应是 rules_fired 或裁量点的可读映射，不是自由文本下单理由"
+
+[[field]]
+path = "action.executed"
+type = "bool"
+layer = "implementation"
+required = true
+note = "**是否真成交**。审计重建必须为 false（SELL_EXECUTION_CONTRACT §4）"
+
+[[field]]
+path = "action.kind"
+type = "enum"
+layer = "implementation"
+required = true
+values = ["fill", "audit_counterfactual", "shadow"]
+note = "与 SELL_EXECUTION_CONTRACT §4 对齐；audit_counterfactual 是被 return 5 守卫永久禁执行的重建流水线产物"
+
+[[field]]
+path = "action.authority"
+type = "str"
+layer = "implementation"
+required = true
+note = "执行权威来源；真成交固定为 `account.fills`（防双重计算的机器可读标记）"
+
+[[field]]
+path = "action.fill_ref"
+type = "str"
+layer = "implementation"
+required = false
+note = "executed=true 时指向 account.fills 的定位键（sym+ts+qty+px）"
+
+[[field]]
+path = "outcome.pnl_attributable"
+type = "number"
+layer = "effectiveness"
+required = false
+note = "本 digest 关联的已实现盈亏。**仅供 R5.1 归因，不用于实现层判定**"
+
+[[field]]
+path = "outcome.effectiveness_basis"
+type = "str"
+layer = "effectiveness"
+required = false
+note = "该盈亏属于哪段净值（R5.2 版本分段）；禁止跨段拼接"
+
+[[field]]
+path = "replay_hash"
+type = "str"
+layer = "identity"
+required = true
+note = "⭐ 对**决策内容**（IMPLEMENTATION_HASH_FIELDS）的 canonical sha256。重放一致性的唯一判据：hash 相同即同决策"
+
+[[layer_rule]]
+id = "R-IMPL-1"
+layer = "implementation"
+rule = "replay_hash 不变"
+meaning = "该改动属**实现层**（refactor / 性能优化 / 日志调整等不改变决策内容）"
+verdict = "可直接晋级（无需净值）"
+
+[[layer_rule]]
+id = "R-IMPL-2"
+layer = "implementation"
+rule = "provenance_complete"
+meaning = "必填字段齐备 + decision_id 已在 ledger 登记（R0.4）"
+verdict = "失败即实现层不达标，禁止晋级"
+
+[[layer_rule]]
+id = "R-IMPL-3"
+layer = "implementation"
+rule = "timing_ok"
+meaning = "signal_ts ≤ decision_ts ≤ recorded_at；tick 执行器豁免 120s 新鲜度门，其余 >120s 拒单"
+verdict = "失败即实现层不达标"
+
+[[layer_rule]]
+id = "R-IMPL-4"
+layer = "implementation"
+rule = "sop_conformant"
+meaning = "rules_fired ⊆ SOP 规则 id；discretions[].point_id ⊆ D1–D10 且 output ∈ 枚举"
+verdict = "失败即实现层不达标（出现表外理由 = 绕过 SOP）"
+
+[[layer_rule]]
+id = "R-IMPL-5"
+layer = "implementation"
+rule = "authority_not_double_counted"
+meaning = "kind=audit_counterfactual ⇒ executed=false；executed=true ⇒ authority='account.fills'"
+verdict = "失败即实现层不达标（会导致审计重建被误当成交、双重计算收益）"
+
+[[layer_rule]]
+id = "R-EFF-1"
+layer = "effectiveness"
+rule = "replay_hash 变化"
+meaning = "属**行为改动**（决策内容变了）"
+verdict = "**必须**进 60 日有效性队列，不得仅凭实现层判据晋级"
+
+[[layer_rule]]
+id = "R-EFF-2"
+layer = "effectiveness"
+rule = "有效性只能由 R5.1 判定"
+meaning = "净值 / 回撤 / 收益÷回撤 vs 双基准臂 / 纪律合规率"
+verdict = "digest 只提供 pnl_attributable 与版本分段依据，**不自行判定有效性**"
+

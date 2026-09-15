@@ -1,0 +1,55 @@
+==============================================================================
+parameters.toml 消费者地图
+==============================================================================
+
+── 段清单 ──
+  [env]  9 keys   e.g. ['breadth', 'fallback_dims', 'height', 'limit_up']
+  [strategy]  4 keys   e.g. ['huigui', 'qu_shi_fanbao', 'xianren', 'zt_huicai']
+  [risk]  8 keys   e.g. ['drawdown_pause', 'drawdown_stepdown', 'max_positions', 'max_single_stock_pct']
+  [sell]  10 keys   e.g. ['intraday', 'ma10_break_action', 'ma5_break_action', 'ma60_break_action']
+  [data]  8 keys   e.g. ['backfill_start', 'case_stocks_file', 'index_names', 'index_symbols']
+
+── ① 段级消费者（section 调用点）──
+  [data        ] scripts\backfill_data.py:24, src\data\fetchers.py:17, src\data\store.py:297
+  [env         ] src\core\env_score.py:22
+  [risk        ] src\core\backtest.py:24, src\core\env_score.py:23
+  [sell        ] src\core\backtest.py:25, src\core\sell.py:76
+  [x           ] tools\param_consumer_map.py:9
+
+  ⚠️ 无 section() 调用的段：['strategy']（可能走旁路，见 ③）
+
+── ② 模块级变量：是否真被使用 ──
+  RISK       = section("risk")   src\core\backtest.py   ⚠️ **定义后未使用（死变量）**
+  SELL       = section("sell")   src\core\backtest.py   ⚠️ **定义后未使用（死变量）**
+  RISK       = section("risk")   src\core\env_score.py   使用 1 次
+  CFG        = section("data")   scripts\backfill_data.py   使用 4 次
+  CFG        = section("data")   src\data\fetchers.py   使用 4 次
+  ENV        = section("env")   src\core\env_score.py   使用 12 次
+
+── ③ 旁路读取路径（不经 section()）──
+  scripts\daily_iteration.py:183  base = rules.rule_params(name, config)
+  scripts\run_optimize.py:86  return dict(cfg["strategy"]["huigui"]["live"])
+  src\config.py:35  return dict(CONFIG.get("strategy", {}).get(name, {}))
+  src\config.py:51  print("strategies:", list(CONFIG.get("strategy", {}).keys()))
+  tests\test_smoke.py:27  self.assertIn(name, config.CONFIG["strategy"], f"缺少 strategy.{name}")
+  tools\param_consumer_map.py:11  ③ 旁路读取路径（`[strategy.*]` 不走 `section()`，而走 `config.strategy(name)` + `rules.rule_params()`）
+  tools\param_consumer_map.py:55  if ("rule_params(" in ln or '["strategy' in ln or "['strategy" in ln
+  tools\param_consumer_map.py:56  or 'get("strategy"' in ln):
+  tools\param_consumer_map.py:97  L.append("      `src/iteration/rules.py::rule_params(name, config)` 消费。")
+  tools\run_intraday_counterfactual.py:52  params = rules.rule_params(name, config)
+  tools\run_intraday_decision_point.py:254  params = rules.rule_params(rule_name, config)
+  tools\snapshot_minute.py:83  params = rules_mod.rule_params(name, cfg)
+  tools\_gen_iteration_seed.py:42  linked_params=["strategy.huigui", "strategy.qu_shi_fanbao"]),
+  tools\_gen_iteration_seed.py:48  linked_params=["strategy.huigui.live.pullback_days_min",
+  tools\_gen_iteration_seed.py:57  linked_params=["strategy.qu_shi_fanbao"]),
+  tools\_gen_iteration_seed.py:63  linked_params=["strategy.zt_huicai.pullback_days_min",
+  tools\_gen_iteration_seed.py:89  linked_params=["strategy.huigui.live.pullback_pct_max"]),
+  tools\_gen_iteration_seed.py:203  testability="daily", linked_params=["strategy.zt_huicai.volume_shrink_ratio"]),
+  tools\_plan_minute_scope.py:26  params = rules.rule_params(name, cfg)
+  src\iteration\proposals.py:52  base_params = rules.rule_params(rule_name, config)
+  src\iteration\rules.py:425  def rule_params(name: str, config: dict) -> dict:
+  src\iteration\rules.py:447  base = rule_params(name, config)
+  src\iteration\shadow.py:420  base = rules.rule_params(name, config) or {}
+
+提示：`[strategy.*]` 经 `src/config.py::strategy(name)` 与
+      `src/iteration/rules.py::rule_params(name, config)` 消费。

@@ -1,0 +1,69 @@
+{
+ "digest_revision": "decision-digest/v1",
+ "decision_id": "dec-tick-20260911-300468",
+ "day": "2026-09-11",
+ "sym": "300468",
+ "side": "sell",
+ "timing": {
+  "signal_ts": "2026-09-11 09:41:08",
+  "decision_ts": "2026-09-11 09:41:08",
+  "recorded_at": "2026-09-11 09:41:09",
+  "freshness_sec": 0.0,
+  "tick_executor": true
+ },
+ "inputs": {
+  "candidate_snapshot_id": "",
+  "market_snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "sop_version_id": "v0",
+  "params_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+ },
+ "decision": {
+  "rules_fired": [
+   "GEN-HOLD-22",
+   "P1-HOLD-01",
+   "GEN-HOLD-03"
+  ],
+  "discretions": [
+   {
+    "point_id": "D7",
+    "output": "logic_invalidated",
+    "rationale": "有效跌破 20 日线（收盘破 + 次日未收回）→ 买入逻辑消失",
+    "model": "deepseek-v4-flash",
+    "prompt_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "cli_version": "n/a"
+   }
+  ],
+  "risk_gate": {
+   "passed": true,
+   "veto_reason": "",
+   "checks": [
+    "single_stock_pct",
+    "portfolio_floor",
+    "stop_px"
+   ]
+  },
+  "narrative_refs": [
+   "MEM-005",
+   "MEM-002"
+  ]
+ },
+ "action": {
+  "order_intent": {
+   "side": "sell",
+   "qty": 1800,
+   "px_limit": 23.3,
+   "reason": "stop_loss(px<=stop_px) → GEN-HOLD-22",
+   "plan_ref": "plan-20260911"
+  },
+  "executed": true,
+  "kind": "fill",
+  "authority": "account.fills",
+  "fill_ref": "300468|2026-09-11T09:41:09|1800|23.31"
+ },
+ "outcome": {
+  "pnl_attributable": -1930.52,
+  "effectiveness_basis": "v0-seg-1（start_date=2026-09-14 之前无，留空）"
+ },
+ "replay_hash": "a4dfa01a43465d5234d7f54385fe4663146d0a3c33b017a67c9537359f03e9a8",
+ "digest_id": "dd-2026-09-11-2-a4dfa01a"
+}

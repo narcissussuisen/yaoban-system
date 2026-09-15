@@ -1,0 +1,43 @@
+====================================================================================
+R1.6 decision_digest 契约 构建报告
+====================================================================================
+schema 版本         : decision-digest/v1
+字段总数            : 27
+  layer=identity        : 7
+  layer=implementation  : 18
+  layer=effectiveness   : 2
+进内容哈希的字段    : 12
+执行环境（不进哈希）: 9
+分层判定规则        : 7（implementation 5 / effectiveness 2）
+样例 digest_id      : dd-2026-09-11-2-a4dfa01a
+样例 replay_hash    : a4dfa01a43465d5234d7f54385fe4663146d0a3c33b017a67c9537359f03e9a8
+ERR 0 / WARN 0
+
+字段清单（path | layer | required）：
+  digest_id                          identity         必填
+  digest_revision                    identity         必填
+  decision_id                        identity         必填
+  day                                identity         必填
+  sym                                identity         必填
+  side                               identity         必填
+  timing.signal_ts                   implementation   必填
+  timing.decision_ts                 implementation   必填
+  timing.recorded_at                 implementation   必填
+  timing.freshness_sec               implementation   必填
+  timing.tick_executor               implementation   必填
+  inputs.candidate_snapshot_id       implementation   必填
+  inputs.market_snapshot_hash        implementation   必填
+  inputs.sop_version_id              implementation   必填
+  inputs.params_hash                 implementation   必填
+  decision.rules_fired               implementation   必填
+  decision.discretions               implementation   必填
+  decision.risk_gate                 implementation   必填
+  decision.narrative_refs            implementation   可选
+  action.order_intent                implementation   必填
+  action.executed                    implementation   必填
+  action.kind                        implementation   必填
+  action.authority                   implementation   必填
+  action.fill_ref                    implementation   可选
+  outcome.pnl_attributable           effectiveness    可选
+  outcome.effectiveness_basis        effectiveness    可选
+  replay_hash                        identity         必填

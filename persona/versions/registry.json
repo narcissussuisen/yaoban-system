@@ -1,0 +1,18 @@
+{
+ "versions": [
+  {
+   "version": "v0",
+   "kind": "baseline",
+   "parent_version": null,
+   "declared_at": "2026-09-12",
+   "frozen_at": "2026-09-12T17:26:02",
+   "promotion_requested": false,
+   "frozen_files": 8,
+   "semantics": 11,
+   "referenced_files": 7,
+   "note": "v0 = 现状生产逐字克隆（verbatim clone of current production）。唯一目的是把「当前生产」钉成可比对的基线：不新增策略、不改参数、不改代码，所以它**不申请晋级**，也不构成任何业绩声明。"
+  }
+ ],
+ "updated_at": "2026-09-12T17:26:02",
+ "note": "不可变 append-only 版本注册表。每次人格改动生成新版本条目（parent_version 指向前一版），禁止改写历史条目。"
+}

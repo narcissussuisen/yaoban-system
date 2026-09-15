@@ -1,0 +1,50 @@
+# EvoAlpha 人格版本 v0 —— 现状生产逐字克隆（R1.5）
+# 生成器：yaoban-system/tools/build_persona_version.py
+# 校验：python build_persona_version.py --verify（frozen 漂移即非零退出）
+
+[meta]
+frozen_at = "2026-09-12T17:26:02"
+version = "v0"
+kind = "baseline"
+parent_version = ""
+name = "现状生产逐字克隆"
+declared_at = "2026-09-12"
+authority = "docs/EVOALPHA_V2_RESTRUCTURE_PLAN.md §R1.5"
+definition = "v0 = 现状生产逐字克隆（verbatim clone of current production）。唯一目的是把「当前生产」钉成可比对的基线：不新增策略、不改参数、不改代码，所以它**不申请晋级**，也不构成任何业绩声明。"
+promotion_requested = false
+promotion_note = "按计划：v0 **只验证零差异**，不申请晋级。晋级只能由 R5.1 净值判定器（前向净值 vs 双基准臂）授予。"
+zero_diff_protocol = ["① 文件 hash 全等：frozen 组每个文件 sha256 与冻结时一致（--verify 失败即非零退出）", "② 语义契约全等：代码里抽出的关键契约常量与冻结时一致", "③ 决策重放一致：给定同一交易日输入，决策链产出同一 artifact（需 R3/R4 harness，本轮只定义契约）"]
+preregistered = {"hypothesis" = "v0 与现状生产逐日零差异（同输入 → 同决策 → 同 fill 序列）", "falsifier" = "出现任一：(a) frozen 组 hash 漂移；(b) 语义契约漂移；(c) 同一交易日输入下决策 artifact 不一致", "expected_result" = "零差异", "performance_claim" = "无 —— v0 明确**不作业绩声明**。主账本已于 2026-09-12 切换为50 万独立账本（start_date=2026-09-14），与切换前账户不具可比性。", "review_trigger" = "R5.0（分层晋级机制）建成后，v0 作为「实现层」基线参与比对"}
+scope_note = "frozen 组的任何改动都意味着**人格变了** → 必须产生 v1 并声明 parent_version=v0 与新的预注册假设。referenced 组（决策路径代码）的演进是 R2–R4 施工常态，故只记录 hash 供溯源，漂移不判失败。"
+
+[frozen]
+"yaoban-system/persona/sop_v0.toml" = { sha256 = "1681b83dfca358f9dc5a7f4c86141a53f1bd0257488f0da0323216d6f53c3ea0", bytes = 72321, mtime = "2026-09-12T17:06:27" }
+"yaoban-system/persona/discretion_v0.toml" = { sha256 = "5899eb81bd9ef0774fa4ace3b762474722083ed786e83c33d700ec5f01921b18", bytes = 10160, mtime = "2026-09-12T17:06:28" }
+"yaoban-system/persona/tolerance_v0.toml" = { sha256 = "3146fd3e0f97d53a3d8adae703c8edff64273d382ea7d7333f1d07886eb8a563", bytes = 8060, mtime = "2026-09-12T17:06:28" }
+"yaoban-system/persona/memory/memory_v0.toml" = { sha256 = "3327433e68ebbc848171f02ea7315af6afcc2a765a67f7bee736f0a3183c252f", bytes = 23906, mtime = "2026-09-12T17:23:44" }
+"yaoban-system/persona/memory/self_narrative_schema_v0.toml" = { sha256 = "0dd31f89ed04ba9b1492c1ae280a2907919f4dbef821aa31ed26b51945e046b7", bytes = 4012, mtime = "2026-09-12T17:23:44" }
+"yaoban-system/persona/memory/self_narrative_v0.toml" = { sha256 = "a88a527f488fac5a47f929c4abad7f1f76d6ffd8eb6a84b73b9b97e66fa92ed6", bytes = 2998, mtime = "2026-09-12T17:23:44" }
+"yaoban-system/persona/video_index.json" = { sha256 = "cca9b4a81c694552520f9ac1c1619bd23f83e3341f3da1d497a8645753fde40e", bytes = 80209, mtime = "2026-09-12T16:24:36" }
+"yaoban-system/config/parameters.toml" = { sha256 = "4e5f1276bfa4902d37539722916561b6e26320880531793779866c3884cdf003", bytes = 14368, mtime = "2026-09-11T12:57:51" }
+
+[semantics]
+"tick_monitor.py::盘后固定价格窗口边界" = "'15:05', '15:30'"
+"tick_monitor.py::成交窗口判定函数（三处调用点收敛到此）" = "in_continuous_session; in_after_hours_session; in_exec_window"
+"tick_monitor.py::卖点引擎生产参数覆盖" = "SELL_ENGINE_PARAMS = {**SELL_DEFAULTS, \"t_enabled\": False, \"dragon_link_sell\": False, \"sector_retreat_sell\": False}"
+"tick_monitor.py::日线兜底数据源路径" = "pathlib.Path(r'F:\\WorkBuddyItem\\a股level2\\daily_rebuilt')"
+"_tick_watch.py::看门狗：收盘后不再重启的时刻" = "15 * 60 + 33 # 15:33 起 daemon missing/stale 不再重启"
+"_tick_watch.py::看门狗：兜底退出时刻" = "15 * 60 + 40 # 15:40 看门狗兜底退出"
+"_tick_watch.py::看门狗生产配置（check_every/stale_sec/boot_grace/max_restarts）" = "'check_every': 20, 'stale_sec': 90, 'boot_grace': 150, 'max_restarts': 5,"
+"sell.py::引擎默认参数 t_enabled（做T）" = "True"
+"sell.py::引擎默认参数 stop_loss_pct" = "5.0"
+"ledger.py::账本默认路径" = "ROOT / \"ledger.json\""
+"ledger.py::账本路径解析 / 动态权益函数" = "_resolve_ledger; cost_equity"
+
+[referenced]
+"yaoban-system/src/core/sell.py" = { sha256 = "3e593a7ac47f9af796aa336a88de74d5d16230dde5634e54c031631f855b65a4", bytes = 26960, mtime = "2026-08-29T09:50:46" }
+"yaoban-system/scripts/tick_monitor.py" = { sha256 = "eedc6328829fca697b5146e2e1591e7252f4648ddc9a5410fb57a57f7be5db98", bytes = 26083, mtime = "2026-09-12T16:07:16" }
+"yaoban-system/scripts/_tick_watch.py" = { sha256 = "4dc2f5973d264afabbe09b2234cef2e5f86f38447fcb4847388ae4ff5322062a", bytes = 50172, mtime = "2026-09-12T14:53:51" }
+"yaoban-system/scripts/plan_daily.py" = { sha256 = "8b45e746115296feed16e7ffd22fd9fda8ee1946a88ed3949ef8453d6e0ee8a3", bytes = 9315, mtime = "2026-08-31T00:59:22" }
+"yaoban-system/scripts/scan_and_confirm.py" = { sha256 = "3485d75fb8443d668463a67181e7e2d77414d958d2f33711d7a57f32fc2734eb", bytes = 22524, mtime = "2026-09-12T12:08:14" }
+"yaoban-system/scripts/close_pipeline.py" = { sha256 = "ff1186a8894f1a08c0685dfd1f37b8a4e16a90e0f6dc16906ed4861e4d2a0148", bytes = 16978, mtime = "2026-09-11T10:01:47" }
+"yaoban-system/portfolio/ledger.py" = { sha256 = "e5c5a4637118c7565d67a9f539254b3260652ecedcfde9f4317253de1b467b54", bytes = 21525, mtime = "2026-09-12T12:08:05" }

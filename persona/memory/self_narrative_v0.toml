@@ -1,0 +1,37 @@
+# EvoAlpha 人格层 · 自述当前实例 v0（R1.4 种子）
+# 生成器：yaoban-system/tools/build_persona_memory.py（勿手改）
+# ⚠️ 这是 LLM 裁量的**输入**，不是交易指令。
+
+[meta]
+version = "self-narrative-v0"
+as_of = "2026-09-11"
+built_at = "2026-09-12"
+writer = "manual_seed"
+note = "R1.4 种子：观测日 = 最后一次有完整素材的交易日（2026-09-11）。此后由 R3 影子盘 / R4 实盘每日覆写。"
+
+[persona_view]
+regime = "weak"
+regime_note = "「指数很弱」—— 当日同时跌破 MA5/MA10/MA20（3924/3940/3933）；选手 10:22 主动明示「可以选择观望不操作，等市场明朗再说」"
+index_vs_ma = "收盘低于 MA5/MA10/MA20；支撑 3850 = 8/24–8/25 前低区"
+turnover_state = "1.65 万亿 = 年内新地量（「地量见地价」）；此前 9/10 亦记 1.65 万亿"
+sentiment = "很弱：需同时看涨侧与跌侧（涨停家数 + 跌停家数 + 跌幅>7% 家数）"
+confidence = "medium"
+key_support = [3850]
+key_resistance = [3924, 3940]
+main_lines = ["文传（16 只齐涨停，与科技形成对冲）"]
+avoid = ["科技全线（MLCC/复合铜箔/存储芯片/PCB/先进封装/CPO 等 22 个细分全绿）", "高位漂"]
+open_questions = ["地量是否见地价：1.65 万亿为年内新地量，但「连续缩量 3 天内必选方向」的方向未知", "「科技弱→看文传」是板块轮动反向判断，属**真假设但未回测验证**（见 GEN-ENTRY-13）", "自身 50 万账本 9/14 才起算，尚无净值可参照", "本自述的 regime 判定只用了均线结构与量能，未接入完整的情绪温度计口径（GEN-GATE-15 待实现）"]
+
+[persona_holding_stance]
+as_of = "2026-09-09"
+stance_note = "选手 9/9 为**净减仓日**：清仓 5 只（茶花/协鑫/高新/集泰/粤传）、仅新进 2 只（海通发展/诺普信）、保留杭电 1 只，持仓 6 → 3 只，仓位降至 43.4%。按票型分档：**趋势票看均线结构，短线票看隔天强弱**，两者判据不同不可混用。⚠️ 本轨是**选手的持仓心态**，与下方 account_state 严格分离。"
+positions = [{sym = "603618", name = "杭电股份", cost = 38.312, entry_logic = "趋势票（「属于趋势走法，很少走连板，涨涨调调」）；9/8 买入 1000 股 @38.312", hold_condition = "趋势线未有效跌破（5 日线短线 / 10 日线生命线 / 20 日线中期）", exit_condition = "趋势破位立即离场；或拉升兑现时顺势止盈", stance = "9/9 净减仓日唯一保留的持仓"}]
+
+[account_state]
+as_of = "2026-09-12"
+status = "flat"
+equity_basis = 500000
+start_date = "2026-09-14"
+positions_note = "EvoAlpha 独立主账本（R0.2）：start_cash=500000、start_date=2026-09-14、空仓、risk_state 熔断已清零（切换前为 paused=true / drawdown=-10.64 / position_multiplier=0.0）。首批成交预计在 2026-09-14（周一）。⚠️ **本账本与选手账户无关**，不得用选手的仓位/净值填充本轨。"
+positions = []
+

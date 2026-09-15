@@ -1,0 +1,173 @@
+{
+ "scheme": "uNN = library_scan 逐期清单 #1–#6（后加入的 6 期，不参与 vNN 体系）",
+ "why_separate": "video_index.json（vNN 体系）属 R1.5 v0 的 frozen 组；这 6 期承载数据层溯源而非人格定义，故单列注册表，不进 frozen 组 —— 避免因补编号而触发人格版本变更。",
+ "warning": "绝不把 uNN 重排成 vNN（会作废 52 条规则的 src）。uNN 与 vNN 不会混淆：现有校验用 \\bv(\\d{1,2})\\b，u01 不匹配。",
+ "vnn_offset": "vNN = library_scan 清单序号 − 6（故 #1–#6 无 vNN）",
+ "entries": [
+  {
+   "id": "u01",
+   "list_index": 1,
+   "declared_date": "2026-08-19",
+   "title": "2026-08-19 拿捏大A第78天，揭秘抢反弹的3种走势技巧，附明天策略解读！.mp4",
+   "list_mp4": "-20260826/2026-08-19 拿捏大A第78天，揭秘抢反弹的3种走势技巧，附明天策略解读！.mp4",
+   "duration_s": 241,
+   "resolution": "886x720",
+   "size_mb": 6.3,
+   "disk_mp4": "选手学习资料/人工录入资料/妖板选手/-20260826/2026-08-19 拿捏大A第78天，揭秘抢反弹的3种走势技巧，附明天策略解读！.mp4",
+   "disk_matches": 1,
+   "frames_dir": "evoalpha_all/妖板选手方法论拆解/new_frames_pil/v1",
+   "frames_count": 81
+  },
+  {
+   "id": "u02",
+   "list_index": 2,
+   "declared_date": "2026-08-20",
+   "title": "2026-08-20 拿捏大A第79天，弱抽极致缩量，明天怎么办？附明天策略解读！.mp4",
+   "list_mp4": "-20260826/2026-08-20 拿捏大A第79天，弱抽极致缩量，明天怎么办？附明天策略解读！.mp4",
+   "duration_s": 217,
+   "resolution": "720x826",
+   "size_mb": 4.8,
+   "disk_mp4": "选手学习资料/人工录入资料/妖板选手/-20260826/2026-08-20 拿捏大A第79天，弱抽极致缩量，明天怎么办？附明天策略解读！.mp4",
+   "disk_matches": 1,
+   "frames_dir": "evoalpha_all/妖板选手方法论拆解/new_frames_pil/v2",
+   "frames_count": 73
+  },
+  {
+   "id": "u03",
+   "list_index": 3,
+   "declared_date": "2026-08-24",
+   "title": "2026-08-24 大盘放量调整趋势未坏，今日四川黄金抓板，明天继续抓板回血！.mp4",
+   "list_mp4": "-20260826/2026-08-24 大盘放量调整趋势未坏，今日四川黄金抓板，明天继续抓板回血！.mp4",
+   "duration_s": 190,
+   "resolution": "720x720",
+   "size_mb": 4.4,
+   "disk_mp4": "选手学习资料/人工录入资料/妖板选手/-20260826/2026-08-24 大盘放量调整趋势未坏，今日四川黄金抓板，明天继续抓板回血！.mp4",
+   "disk_matches": 1,
+   "frames_dir": "evoalpha_all/妖板选手方法论拆解/new_frames_pil/v3",
+   "frames_count": 64
+  },
+  {
+   "id": "u04",
+   "list_index": 4,
+   "declared_date": "2026-08-25",
+   "title": "2026-08-25 地量普涨悬念很大，百花医药能否崛起？明天继续抓板回血！.mp4",
+   "list_mp4": "-20260826/2026-08-25 地量普涨悬念很大，百花医药能否崛起？明天继续抓板回血！.mp4",
+   "duration_s": 176,
+   "resolution": "960x720",
+   "size_mb": 4.5,
+   "disk_mp4": "选手学习资料/人工录入资料/妖板选手/-20260826/2026-08-25 地量普涨悬念很大，百花医药能否崛起？明天继续抓板回血！.mp4",
+   "disk_matches": 1,
+   "frames_dir": "evoalpha_all/妖板选手方法论拆解/new_frames_pil/v4",
+   "frames_count": 59
+  },
+  {
+   "id": "u05",
+   "list_index": 5,
+   "declared_date": "2026-08-26",
+   "title": "2026-08-26 今日低吸2只补涨龙，期待补涨成功，明天继续抓板回血！.mp4",
+   "list_mp4": "-20260826/2026-08-26 今日低吸2只补涨龙，期待补涨成功，明天继续抓板回血！.mp4",
+   "duration_s": 172,
+   "resolution": "960x720",
+   "size_mb": 4.5,
+   "disk_mp4": "选手学习资料/人工录入资料/妖板选手/-20260826/2026-08-26 今日低吸2只补涨龙，期待补涨成功，明天继续抓板回血！.mp4",
+   "disk_matches": 1,
+   "frames_dir": "evoalpha_all/妖板选手方法论拆解/new_frames_pil/v5",
+   "frames_count": 58
+  },
+  {
+   "id": "u06",
+   "list_index": 6,
+   "declared_date": "",
+   "title": "小白炒股知识点：成交量是什么？为啥它比股价还重要？.mp4",
+   "list_mp4": "-20260826/小白炒股知识点：成交量是什么？为啥它比股价还重要？.mp4",
+   "duration_s": 178,
+   "resolution": "720x962",
+   "size_mb": 5.6,
+   "disk_mp4": "选手学习资料/人工录入资料/妖板选手/-20260826/小白炒股知识点：成交量是什么？为啥它比股价还重要？.mp4",
+   "disk_matches": 1,
+   "frames_dir": "evoalpha_all/妖板选手方法论拆解/new_frames_pil/v6",
+   "frames_count": 60
+  }
+ ],
+ "analysis_docs": [
+  {
+   "path": "evoalpha_all/妖板选手方法论拆解/docs/NEW_VIDEOS_READ_2026-08-26.md",
+   "kind": "file",
+   "exists": true
+  },
+  {
+   "path": "选手学习资料/成交量六种形态-学习笔记.md",
+   "kind": "file",
+   "exists": true
+  },
+  {
+   "path": "evoalpha_all/妖板选手方法论拆解/ocr_text",
+   "kind": "dir",
+   "exists": true
+  }
+ ],
+ "ocr_status": {
+  "note": "这 6 期的 OCR 任务启动过但**未完成** → ocr_text/NEW_v*.md 全为空文件；现有成果只有人工逐帧识读（NEW_VIDEOS_READ_2026-08-26.md）",
+  "files": [
+   {
+    "file": "NEW_2026-08-19 拿捏大A第78天，揭秘抢反弹的3种走势技巧，附明天策略解读！.md",
+    "bytes": 99
+   },
+   {
+    "file": "NEW_2026-08-20 拿捏大A第79天，弱抽极致缩量，明天怎么办？附明天策略解读！.md",
+    "bytes": 101
+   },
+   {
+    "file": "NEW_2026-08-24 大盘放量调整趋势未坏，今日四川黄金抓板，明天继续抓板回血！.md",
+    "bytes": 104
+   },
+   {
+    "file": "NEW_2026-08-25 地量普涨悬念很大，百花医药能否崛起？明天继续抓板回血！.md",
+    "bytes": 98
+   },
+   {
+    "file": "NEW_2026-08-26 今日低吸2只补涨龙，期待补涨成功，明天继续抓板回血！.md",
+    "bytes": 93
+   },
+   {
+    "file": "NEW_v0826.md",
+    "bytes": 11
+   },
+   {
+    "file": "NEW_v1.md",
+    "bytes": 8
+   },
+   {
+    "file": "NEW_v2.md",
+    "bytes": 8
+   },
+   {
+    "file": "NEW_v3.md",
+    "bytes": 8
+   },
+   {
+    "file": "NEW_v4.md",
+    "bytes": 8
+   },
+   {
+    "file": "NEW_v5.md",
+    "bytes": 8
+   },
+   {
+    "file": "NEW_v6.md",
+    "bytes": 8
+   },
+   {
+    "file": "NEW_小白炒股知识点：成交量是什么？为啥它比股价还重要？.md",
+    "bytes": 81
+   }
+  ]
+ },
+ "coverage": {
+  "entries": 6,
+  "with_disk_mp4": 6,
+  "with_frames": 6,
+  "total_frames": 395,
+  "problems": []
+ }
+}

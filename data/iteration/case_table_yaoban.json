@@ -1,0 +1,498 @@
+{
+ "meta": {
+  "generated_at": "2026-09-11",
+  "source": "选手学习资料（画像累计 + 复盘视频笔记 + 逐日文字资料）",
+  "disclaimer": "公开候选池 ≠ 完整交易集；本表分列 entries(实际交易) / exits(实际清仓) / candidates(公开池) / screened_no_fill(命中未成交)。"
+ },
+ "entries": [
+  {
+   "code": "603615",
+   "name": "茶花股份",
+   "entry_date": "2026-08-28",
+   "entry_px": 19.036,
+   "shares": 3000,
+   "exit_date": "2026-09-09",
+   "exit_px": 19.1501,
+   "realized_pct": 0.599,
+   "source": "选手学习资料/文字资料/2026-09-10_1044_持仓截图/record.md"
+  },
+  {
+   "code": "603618",
+   "name": "杭电股份",
+   "entry_date": "2026-09-08",
+   "entry_px": 38.312,
+   "shares": 1000,
+   "exit_date": null,
+   "exit_px": null,
+   "realized_pct": null,
+   "source": "选手学习资料/文字资料/2026-09-10_1044_持仓截图/record.md"
+  },
+  {
+   "code": "605006",
+   "name": "山东玻纤",
+   "entry_date": "2026-09-10",
+   "entry_px": 16.875,
+   "shares": 6500,
+   "exit_date": null,
+   "exit_px": null,
+   "realized_pct": null,
+   "source": "选手学习资料/文字资料/2026-09-10_1044_持仓截图/record.md"
+  },
+  {
+   "code": "002886",
+   "name": "沃特股份",
+   "entry_date": "2026-09-10",
+   "entry_px": 26.838,
+   "shares": 4000,
+   "exit_date": null,
+   "exit_px": null,
+   "realized_pct": null,
+   "source": "选手学习资料/文字资料/2026-09-10_1044_持仓截图/record.md"
+  },
+  {
+   "code": "603162",
+   "name": "海通发展",
+   "entry_date": "2026-09-09",
+   "entry_px": 14.585,
+   "shares": 4000,
+   "exit_date": "2026-09-10",
+   "exit_px": 16.5805,
+   "realized_pct": 13.682,
+   "source": "选手学习资料/文字资料/2026-09-10_1044_持仓截图/record.md"
+  },
+  {
+   "code": "002215",
+   "name": "诺普信",
+   "entry_date": "2026-09-09",
+   "entry_px": 10.903,
+   "shares": 5000,
+   "exit_date": null,
+   "exit_px": null,
+   "realized_pct": null,
+   "source": "选手学习资料/文字资料/2026-09-10_1044_持仓截图/record.md"
+  },
+  {
+   "code": "002181",
+   "name": "粤传媒",
+   "entry_date": "2026-09-08",
+   "entry_px": 10.103,
+   "shares": 4000,
+   "exit_date": "2026-09-09",
+   "exit_px": 9.71,
+   "realized_pct": -3.89,
+   "source": "选手学习资料/文字资料/2026-09-09_0946_候选池与复盘/record.md"
+  }
+ ],
+ "exits": [
+  {
+   "code": "603615",
+   "name": "茶花股份",
+   "exit_date": "2026-09-09",
+   "exit_px": 19.1501,
+   "realized_pct": 0.599,
+   "hold": "8日",
+   "reason": "反弹到支撑上方了结",
+   "source": "选手学习资料/文字资料/2026-09-10_1044_持仓截图/record.md"
+  },
+  {
+   "code": "603162",
+   "name": "海通发展",
+   "exit_date": "2026-09-10",
+   "exit_px": 16.5805,
+   "realized_pct": 13.682,
+   "hold": "1日",
+   "reason": "短线拉升不板止盈",
+   "source": "选手学习资料/文字资料/2026-09-10_1044_持仓截图/record.md"
+  },
+  {
+   "code": "002181",
+   "name": "粤传媒",
+   "exit_date": "2026-09-09",
+   "exit_px": 9.71,
+   "realized_pct": -3.89,
+   "hold": "1日",
+   "reason": "板块龙头停牌情绪影响出局",
+   "source": "选手学习资料/文字资料/2026-09-09_0946_候选池与复盘/record.md"
+  },
+  {
+   "code": "002909",
+   "name": "集泰股份",
+   "exit_date": "2026-09-09",
+   "exit_px": 9.1795,
+   "realized_pct": 11.51,
+   "hold": "1日",
+   "reason": "短线拉升不板止盈",
+   "source": "选手学习资料/文字资料/2026-09-09_0946_候选池与复盘/record.md"
+  },
+  {
+   "code": "000628",
+   "name": "高新发展",
+   "exit_date": "2026-09-09",
+   "exit_px": 56.3196,
+   "realized_pct": 2.762,
+   "hold": "3日",
+   "reason": "洗盘后反弹了结",
+   "source": "选手学习资料/文字资料/2026-09-09_0946_候选池与复盘/record.md"
+  },
+  {
+   "code": "002015",
+   "name": "协鑫能科",
+   "exit_date": "2026-09-09",
+   "exit_px": 16.5697,
+   "realized_pct": -5.505,
+   "hold": "多日",
+   "reason": "开盘直接跌破10日线破位止损",
+   "source": "选手学习资料/文字资料/2026-09-09_0946_候选池与复盘/record.md"
+  },
+  {
+   "code": "002708",
+   "name": "光洋股份",
+   "exit_date": "2026-09-08",
+   "exit_px": 16.6402,
+   "realized_pct": 3.58,
+   "hold": "1日",
+   "reason": "开盘后不久回落，短线低于预期",
+   "source": "选手学习资料/文字资料/2026-09-07_1045_持仓截图/record.md"
+  },
+  {
+   "code": "601208",
+   "name": "东材科技",
+   "exit_date": "2026-09-08",
+   "exit_px": 48.85,
+   "realized_pct": 1.233,
+   "hold": "1日",
+   "reason": "同上",
+   "source": "选手学习资料/文字资料/2026-09-07_1045_持仓截图/record.md"
+  },
+  {
+   "code": "000892",
+   "name": "欢瑞世纪",
+   "exit_date": "2026-09-07",
+   "exit_px": 5.7404,
+   "realized_pct": 8.886,
+   "hold": "多日",
+   "reason": "分时上攻但没什么买量",
+   "source": "选手学习资料/文字资料/2026-09-07_1045_持仓截图/record.md"
+  },
+  {
+   "code": "600869",
+   "name": "远东股份",
+   "exit_date": "2026-09-07",
+   "exit_px": 20.5597,
+   "realized_pct": 1.6,
+   "hold": "多日",
+   "reason": "同上（后续卖飞 +21.3%）",
+   "source": "选手学习资料/文字资料/2026-09-07_1045_持仓截图/record.md"
+  },
+  {
+   "code": "603118",
+   "name": "共进股份",
+   "exit_date": "2026-09-02",
+   "exit_px": 17.98,
+   "realized_pct": -0.86,
+   "hold": "多日",
+   "reason": "破倍量涨停柱+反弹乏力（共进式触发器）",
+   "source": "选手学习资料/文字资料/2026-09-02_1047_持仓截图/record.md"
+  }
+ ],
+ "candidates": [
+  {
+   "pool_date": "2026-08-31",
+   "code": "603615",
+   "name": "茶花股份",
+   "executed": true,
+   "entry_date": "2026-08-28",
+   "entry_px": 19.036,
+   "note": "涨停回踩低吸",
+   "source": "选手学习资料/文字资料/2026-09-02_1047_持仓截图/record.md"
+  },
+  {
+   "pool_date": "2026-08-31",
+   "code": "603118",
+   "name": "共进股份",
+   "executed": true,
+   "entry_date": "2026-08-31",
+   "entry_px": 18.135,
+   "note": "8/31 14:18 建仓",
+   "source": "选手学习资料/文字资料/2026-09-02_1047_持仓截图/record.md"
+  },
+  {
+   "pool_date": "2026-09-03",
+   "code": "003018",
+   "name": "金富科技",
+   "executed": true,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "上升回档精选，当日涨停",
+   "source": "选手学习资料/文字资料/2026-09-03_0940_候选池/record.md"
+  },
+  {
+   "pool_date": "2026-09-03",
+   "code": "605118",
+   "name": "力鼎光电",
+   "executed": false,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "分时没什么量→次日冲高不板则止盈",
+   "source": "选手学习资料/文字资料/2026-09-03_0940_候选池/record.md"
+  },
+  {
+   "pool_date": "2026-09-03",
+   "code": "603912",
+   "name": "佳力图",
+   "executed": false,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "候选未执行",
+   "source": "选手学习资料/文字资料/2026-09-03_0940_候选池/record.md"
+  },
+  {
+   "pool_date": "2026-09-03",
+   "code": "300192",
+   "name": "科德教育",
+   "executed": false,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "候选未执行",
+   "source": "选手学习资料/文字资料/2026-09-03_0940_候选池/record.md"
+  },
+  {
+   "pool_date": "2026-09-04",
+   "code": "600511",
+   "name": "欢瑞世纪",
+   "executed": true,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "执行率 3/5",
+   "source": "选手学习资料/文字资料/2026-09-04_1041_持仓截图/record.md"
+  },
+  {
+   "pool_date": "2026-09-04",
+   "code": "300492",
+   "name": "高新发展",
+   "executed": true,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "执行率 3/5",
+   "source": "选手学习资料/文字资料/2026-09-04_1041_持仓截图/record.md"
+  },
+  {
+   "pool_date": "2026-09-04",
+   "code": "600682",
+   "name": "协鑫能科",
+   "executed": true,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "执行率 3/5",
+   "source": "选手学习资料/文字资料/2026-09-04_1041_持仓截图/record.md"
+  },
+  {
+   "pool_date": "2026-09-04",
+   "code": "000626",
+   "name": "远大控股",
+   "executed": false,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "被过滤",
+   "source": "选手学习资料/文字资料/2026-09-04_1041_持仓截图/record.md"
+  },
+  {
+   "pool_date": "2026-09-04",
+   "code": "002279",
+   "name": "久其软件",
+   "executed": false,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "被过滤",
+   "source": "选手学习资料/文字资料/2026-09-04_1041_持仓截图/record.md"
+  },
+  {
+   "pool_date": "2026-09-07",
+   "code": "002708",
+   "name": "光洋股份",
+   "executed": true,
+   "entry_date": "2026-09-07",
+   "entry_px": 16.065,
+   "note": "趋势反包战法",
+   "source": "选手学习资料/文字资料/2026-09-07_1045_持仓截图/record.md"
+  },
+  {
+   "pool_date": "2026-09-07",
+   "code": "603258",
+   "name": "东材科技",
+   "executed": true,
+   "entry_date": "2026-09-07",
+   "entry_px": 48.255,
+   "note": "上升回档战法",
+   "source": "选手学习资料/文字资料/2026-09-07_1045_持仓截图/record.md"
+  },
+  {
+   "pool_date": "2026-09-07",
+   "code": "000998",
+   "name": "隆平高科",
+   "executed": false,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "未执行",
+   "source": "选手学习资料/文字资料/2026-09-07_1045_持仓截图/record.md"
+  },
+  {
+   "pool_date": "2026-09-07",
+   "code": "000912",
+   "name": "泸天化",
+   "executed": false,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "后续两连板但拉升太快未上车",
+   "source": "选手学习资料/文字资料/2026-09-07_1045_持仓截图/record.md"
+  },
+  {
+   "pool_date": "2026-09-09",
+   "code": "603270",
+   "name": "金帝股份",
+   "executed": false,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "分时跌破均价线→弃",
+   "source": "选手学习资料/文字资料/2026-09-09_0946_候选池与复盘/record.md"
+  },
+  {
+   "pool_date": "2026-09-09",
+   "code": "002194",
+   "name": "武汉凡谷",
+   "executed": false,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "分时跌破均价线→弃",
+   "source": "选手学习资料/文字资料/2026-09-09_0946_候选池与复盘/record.md"
+  },
+  {
+   "pool_date": "2026-09-09",
+   "code": "003018",
+   "name": "金富科技",
+   "executed": false,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "分时跌破均价线→弃",
+   "source": "选手学习资料/文字资料/2026-09-09_0946_候选池与复盘/record.md"
+  },
+  {
+   "pool_date": "2026-09-09",
+   "code": "603162",
+   "name": "海通发展",
+   "executed": true,
+   "entry_date": "2026-09-09",
+   "entry_px": 14.585,
+   "note": "唯一未被警示→买入，当日涨停",
+   "source": "选手学习资料/文字资料/2026-09-09_0946_候选池与复盘/record.md"
+  },
+  {
+   "pool_date": "2026-09-10",
+   "code": "605006",
+   "name": "山东玻纤",
+   "executed": true,
+   "entry_date": "2026-09-10",
+   "entry_px": 16.875,
+   "note": "①最优：有量+一步步向上",
+   "source": "选手学习资料/文字资料/2026-09-10_1044_持仓截图/record.md"
+  },
+  {
+   "pool_date": "2026-09-10",
+   "code": "002886",
+   "name": "沃特股份",
+   "executed": true,
+   "entry_date": "2026-09-10",
+   "entry_px": 26.838,
+   "note": "②中等：无量欠缺力度",
+   "source": "选手学习资料/文字资料/2026-09-10_1044_持仓截图/record.md"
+  },
+  {
+   "pool_date": "2026-09-10",
+   "code": "603113",
+   "name": "金能科技",
+   "executed": false,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "③弃：破均价线，当日 −5.71%",
+   "source": "选手学习资料/文字资料/2026-09-10_1044_持仓截图/record.md"
+  },
+  {
+   "pool_date": "2026-09-10",
+   "code": "603093",
+   "name": "南华期货",
+   "executed": false,
+   "entry_date": null,
+   "entry_px": null,
+   "note": "③弃：破均价线",
+   "source": "选手学习资料/文字资料/2026-09-10_1044_持仓截图/record.md"
+  }
+ ],
+ "data_gaps": [
+  "8/31 日志「有研新材/双良节能/宿迁联盛 9/6 建仓」：9/6 为周日，与 8/31 场次矛盾，未解。",
+  "9/3 持仓截图缺失：三只离场票的精确时点/价格无法定。",
+  "9/3-9/4 选手文字复盘缺失。",
+  "2026-08-24 两笔建仓（300468 四方精创 / 300394 天孚通信）缺成本价与标的确认来源。"
+ ],
+ "screened_no_fill": [
+  {
+   "date": "2026-09-07",
+   "code": "000912",
+   "name": "泸天化",
+   "note": "9/7 筛出，9/8 早盘分时快速拉升，拉的太快没上车",
+   "source": "选手学习资料/视频复盘学习笔记/复盘视频学习笔记_20260903-20260910.md"
+  },
+  {
+   "date": "2026-09-08",
+   "code": "000912",
+   "name": "泸天化",
+   "note": "再次动态讲解但未成交",
+   "source": "选手学习资料/视频复盘学习笔记/复盘视频学习笔记_20260903-20260910.md"
+  },
+  {
+   "date": "2026-09-08",
+   "code": "603031",
+   "name": "集泰股份",
+   "note": "试错龙头抱团方向（已成交）",
+   "source": "选手学习资料/视频复盘学习笔记/复盘视频学习笔记_20260903-20260910.md"
+  }
+ ],
+ "readout_checks": [
+  {
+   "date": "2026-09-02",
+   "holding_pl": -713.31,
+   "realized": 4589.35,
+   "total": 3876.04
+  },
+  {
+   "date": "2026-09-04",
+   "holding_pl": 3137.89,
+   "realized": 430.95,
+   "total": 3568.84
+  },
+  {
+   "date": "2026-09-07",
+   "holding_pl": -2192.67,
+   "realized": 3457.97,
+   "total": 1265.3
+  },
+  {
+   "date": "2026-09-08",
+   "holding_pl": 4641.36,
+   "realized": -870.58,
+   "total": 2932.98,
+   "note": "协鑫由恒等式反推"
+  },
+  {
+   "date": "2026-09-09",
+   "holding_pl": 5383.69,
+   "realized": 2485.45,
+   "total": 7869.14
+  },
+  {
+   "date": "2026-09-10",
+   "holding_pl": 4370.58,
+   "realized": 7981.92,
+   "total": 12352.5
+  }
+ ]
+}

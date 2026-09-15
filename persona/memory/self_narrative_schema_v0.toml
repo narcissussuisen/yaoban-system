@@ -1,0 +1,165 @@
+# EvoAlpha 人格层 · 自述 schema v0（R1.4）
+# 生成器：yaoban-system/tools/build_persona_memory.py（勿手改）
+
+[meta]
+version = "self-narrative-schema-v0"
+purpose = "人格层的「当前状态自述」契约：由决策环每写入一次，供 R3 LLM 裁量时作为输入引用。目的是让 LLM 知道「人格此刻怎么看市场、怎么看待持仓、以及**自己不知道什么**」。"
+
+[[track]]
+name = "persona_view"
+desc = "选手视角的市场观点（人格要复刻的对象，as-of 最后一次可观测）"
+
+[[track]]
+name = "persona_holding_stance"
+desc = "选手视角的持仓心态（人格要复刻的对象）"
+
+[[track]]
+name = "account_state"
+desc = "**EvoAlpha 自己的账户**（与上面两轨严格分离，避免 LLM 把选手持仓误当我们持仓）"
+
+[[field]]
+path = "meta.as_of"
+type = "date"
+required = true
+note = "本自述对应的观测日"
+
+[[field]]
+path = "meta.built_at"
+type = "date"
+required = true
+
+[[field]]
+path = "meta.writer"
+type = "enum"
+values = ["manual_seed", "R3_shadow", "R4_live"]
+required = true
+note = "谁写的：R1.4 种子 / R3 影子盘 / R4 实盘"
+
+[[field]]
+path = "persona_view.regime"
+type = "enum"
+values = ["strong", "neutral", "weak"]
+required = true
+maps_to = "GEN-SIZE-02 / [risk].regime_position_cap"
+
+[[field]]
+path = "persona_view.regime_note"
+type = "text"
+required = true
+
+[[field]]
+path = "persona_view.index_vs_ma"
+type = "text"
+required = true
+note = "相对 MA5/10/20/60 的位置"
+
+[[field]]
+path = "persona_view.key_support"
+type = "list[number]"
+required = true
+maps_to = "GEN-GATE-09（前低区域，非整数关）"
+
+[[field]]
+path = "persona_view.key_resistance"
+type = "list[number]"
+required = false
+maps_to = "GEN-HOLD-18"
+
+[[field]]
+path = "persona_view.turnover_state"
+type = "text"
+required = true
+maps_to = "GEN-GATE-04"
+
+[[field]]
+path = "persona_view.sentiment"
+type = "text"
+required = true
+maps_to = "GEN-GATE-01/02/17（含跌侧）"
+
+[[field]]
+path = "persona_view.main_lines"
+type = "list[text]"
+required = true
+maps_to = "GEN-MAIN-01"
+
+[[field]]
+path = "persona_view.avoid"
+type = "list[text]"
+required = true
+maps_to = "GEN-DRAGON-02/03"
+
+[[field]]
+path = "persona_view.confidence"
+type = "enum"
+values = ["high", "medium", "low"]
+required = true
+note = "对**本自述整体**的置信度；低置信时 LLM 应倾向于保守档"
+
+[[field]]
+path = "persona_view.open_questions"
+type = "list[text]"
+required = true
+note = "⭐ 显式写「我不知道什么」—— 否则 LLM 会把不确定当确定"
+
+[[field]]
+path = "persona_holding_stance.as_of"
+type = "date"
+required = true
+
+[[field]]
+path = "persona_holding_stance.positions"
+type = "list[table]"
+required = true
+fields = ["sym", "name", "cost", "entry_logic", "hold_condition", "exit_condition", "stance"]
+note = "每只持仓必须写清 entry_logic（买入逻辑）与 exit_condition（离场条件）—— 这是 GEN-HOLD-13 的输入"
+
+[[field]]
+path = "persona_holding_stance.stance_note"
+type = "text"
+required = true
+
+[[field]]
+path = "account_state.as_of"
+type = "date"
+required = true
+
+[[field]]
+path = "account_state.status"
+type = "enum"
+values = ["flat", "holding"]
+required = true
+
+[[field]]
+path = "account_state.equity_basis"
+type = "number"
+required = true
+
+[[field]]
+path = "account_state.start_date"
+type = "date"
+required = true
+
+[[field]]
+path = "account_state.positions"
+type = "list[table]"
+required = true
+fields = ["sym", "name", "qty", "cost", "entry_logic", "exit_condition"]
+
+[[field]]
+path = "account_state.positions_note"
+type = "text"
+required = true
+
+[[hard_rule]]
+rule = "persona_* 与 account_state 不得交叉引用（选手持仓 ≠ 我们的持仓）。"
+
+[[hard_rule]]
+rule = "open_questions 不得为空 —— 必须至少写出一条不确定性。"
+
+[[hard_rule]]
+rule = "account_state 的持仓若为空，status 必须为 flat 且 positions 为空数组。"
+
+[[hard_rule]]
+rule = "本条自述不产生任何交易指令；它是 LLM 裁量的**输入**，不是输出。"
+

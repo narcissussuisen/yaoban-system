@@ -1,0 +1,18 @@
+================================================================================
+R1.4 记忆与自述 构建报告
+================================================================================
+记忆条数            : 34
+  lesson           : 13
+  case             : 8
+  meta_lesson      : 7
+  quote            : 6
+证据等级分布        : E0=11, E1=19, E2=2, E5=1, E6=1
+引用到的规则/裁量点 : 43 个
+自述 schema 字段数  : 23
+ERR 0 / WARN 0
+
+── 记忆 → 规则映射覆盖 ──
+  GEN-DRAGON-04 GEN-DRAGON-06 GEN-DRAGON-08 GEN-DRAGON-10 GEN-DRAGON-11 GEN-ENTRY-04 GEN-ENTRY-05 GEN-ENTRY-06 GEN-GATE-08 GEN-GATE-09 GEN-GATE-10 GEN-HOLD-03 GEN-HOLD-07 GEN-HOLD-11 GEN-HOLD-12 GEN-HOLD-13 GEN-HOLD-14 GEN-HOLD-17 GEN-HOLD-18 GEN-HOLD-19 GEN-HOLD-20 GEN-HOLD-21 GEN-HOLD-22 GEN-HOLD-23 GEN-HOLD-25 GEN-HOLD-29 GEN-HOLD-30 GEN-HOLD-33 GEN-HOLD-34 GEN-HOLD-36 GEN-MAIN-04 GEN-MAIN-06 GEN-SIZE-04 GEN-SIZE-07 GEN-SIZE-11 GEN-SIZE-16 P1-DRAGON-10 P1-DRAGON-16 P1-ENTRY-02 P1-HOLD-01 P1-HOLD-02 P3-ENTRY-01 P4-NOTE-01
+
+── 未被任何记忆引用的规则（正常，规则不必都有案例）──
+  共 107 条 / 总 150 条
