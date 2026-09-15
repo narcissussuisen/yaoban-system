@@ -191,7 +191,7 @@ def intraday_rule_verdict(counterfactual: dict | None, *, card_title: str) -> di
     与日线规则的根本差别：**命中选手行为 ≠ 有收益筛选价值**。
     因此除「与选手决策的吻合度」外，必须通过**全市场反事实检验**：
     被否决组的前向收益必须显著**劣于**通过组，否则该纪律只是复刻选手的措辞，
-    甚至在收益上是反向的（实测确实如此，见 docs/ITERATION_2026-09-11.md §六）。
+    甚至在收益上是反向的（实测确实如此，见 evoalpha_all/docs_archive_20260915/ITERATION_2026-09-11.md §六）。
 
     counterfactual: tools/run_intraday_counterfactual.py 的输出；None 表示未检验。
     """

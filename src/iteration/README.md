@@ -61,7 +61,7 @@ python tools/snapshot_minute.py --verify           # 校验覆盖度
 **被否决的样本反而涨得更多。** 该纪律复刻了选手的行为与心理偏好（规避回撤路径不适），
 但**不筛选收益**。据此已加入门禁 `gate.intraday_rule_verdict()`：
 分时规则必须同时通过「反事实方向为正」与「统计显著」，**"命中率"不再构成晋级理由**。
-详见 `../../docs/ITERATION_2026-09-11.md` §六。
+详见 `../../evoalpha_all/docs_archive_20260915/ITERATION_2026-09-11.md` §六。
 
 ## 出厂硬边界（改代码前必读）
 
