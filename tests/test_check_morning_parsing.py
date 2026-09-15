@@ -41,7 +41,7 @@ class TaskInfoParsingTests(unittest.TestCase):
     def test_chinese_keys_parsed_from_gbk_decoded_text(self):
         """中文键解析 + A1 调用参数证据(encoding='gbk' / errors='replace')。"""
         with mock.patch.object(cm.subprocess, 'run', return_value=_cp(CN_KEYS)) as m:
-            info = cm.task_info('YaobanPreflight')
+            info = cm.task_info('EvoAlphaPreflight')
         self.assertEqual(info['Last Run Time'], '2026/9/2 8:45:45')
         self.assertEqual(info['Last Result'], '0x0')
         self.assertEqual(info['_lr_date'], '2026-09-02')
@@ -65,7 +65,7 @@ class TaskInfoParsingTests(unittest.TestCase):
         中文键不可匹配 → last_run 恒空——即 9/2 08:58 晨检假阴性的根因现场。"""
         bad = CN_KEYS.encode('gbk').decode('utf-8', errors='replace')
         with mock.patch.object(cm.subprocess, 'run', return_value=_cp(bad)):
-            info = cm.task_info('YaobanPreflight')
+            info = cm.task_info('EvoAlphaPreflight')
         self.assertNotIn('Last Run Time', info)
         self.assertNotIn('Last Result', info)
 

@@ -10,7 +10,7 @@ def sample_report():
   'results':[
    {'name':'交易日历','ok':True,'detail':'day=2026-09-01','critical':True,'category':'日历'},
    {'name':'TDX行情','ok':False,'detail':'all_servers_failed','critical':True,'category':'行情'},
-   {'name':'任务历史','ok':False,'detail':'unproven=[YaobanPostCloseChain]','critical':False,'category':'计划任务'},
+   {'name':'任务历史','ok':False,'detail':'unproven=[EvoAlphaPostCloseChain]','critical':False,'category':'计划任务'},
   ],
   'summary':{'pass':1,'fail':1,'warn':1},'status':'fail'}
 

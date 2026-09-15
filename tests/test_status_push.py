@@ -480,17 +480,17 @@ class ScheduleContractTests(unittest.TestCase):
 
     def test_preflight_contract_lists_status_push(self):
         import preflight
-        self.assertIn("YaobanStatusPush", preflight.TRIGGER_EXPECTED)
-        self.assertEqual(preflight.TRIGGER_EXPECTED["YaobanStatusPush"],
+        self.assertIn("EvoAlphaStatusPush", preflight.TRIGGER_EXPECTED)
+        self.assertEqual(preflight.TRIGGER_EXPECTED["EvoAlphaStatusPush"],
                          ["08:36", "08:50", "08:55", "09:00", "09:30", "09:35", "11:30",
                           "13:05", "13:10", "15:05", "15:40", "17:45", "18:30"])
 
     def test_registrar_declares_same_times(self):
         reg = (ROOT / "scripts" / "register_schedule.ps1").read_text(encoding="utf-8")
-        self.assertIn('Name = "YaobanStatusPush"', reg)
+        self.assertIn('Name = "EvoAlphaStatusPush"', reg)
         self.assertIn('Script = "run_status_push.ps1"', reg)
         import preflight
-        for at in preflight.TRIGGER_EXPECTED["YaobanStatusPush"]:
+        for at in preflight.TRIGGER_EXPECTED["EvoAlphaStatusPush"]:
             self.assertIn(f'"{at}"', reg, f"注册表缺少触发时刻 {at}")
 
     def test_node_deadlines_are_inside_the_repeat_window(self):
@@ -511,7 +511,7 @@ class ScheduleContractTests(unittest.TestCase):
 
         Windows PowerShell 5.1 对**无 BOM** 的 .ps1 按系统 ANSI(GBK) 解码：
         含中文注释的脚本会被错解，个别行会连带吞掉相邻表项——register_schedule.ps1
-        就这样静默漏注册了 YaobanStatusPush（只注册了 18/19 条）。
+        就这样静默漏注册了 EvoAlphaStatusPush（只注册了 18/19 条）。
         规则：.ps1 要么保持纯 ASCII，要么必须带 UTF-8 BOM。
         """
         for name in ("run_status_push.ps1", "register_schedule.ps1", "run_trading_task.ps1"):

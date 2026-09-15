@@ -30,25 +30,25 @@ if ($configuredRoot -ne $expectedRoot) { throw "root.txt points to $configuredRo
 $weekdays = @("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
 
 $Schedule = @(
-    @{ Name = "YaobanPreflight";          Mode = "infra";          At = @("08:35");          Limit = "PT30M"; Restart = "3xPT1M"; Enabled = $true;  Desc = "EvoAlpha infra preflight gate" },
-    @{ Name = "YaobanSelfHeal";           Mode = "selfheal";       At = @("08:36");          Limit = "PT20M"; Enabled = $true;  Desc = "EvoAlpha pre-open self-heal (restart/data repairs only)" },
-    @{ Name = "YaobanPremarket";          Mode = "premarket";      At = @("08:50");          Limit = "PT30M"; Restart = "3xPT1M"; Enabled = $true;  Desc = "EvoAlpha premarket snapshot" },
-    @{ Name = "YaobanPlanGate";           Mode = "plan-gate";      At = @("08:55");          Limit = "PT30M"; Restart = "3xPT1M"; Enabled = $true;  Desc = "EvoAlpha plan acceptance gate" },
-    @{ Name = "YaobanMorningCheck";       Mode = "morning-check";  At = @("08:58");          Limit = "PT2M";  Enabled = $true;  Desc = "EvoAlpha single pre-open selfcheck card" },
-    @{ Name = "YaobanTdxProbe";           Mode = "tdx-probe";      At = @("09:00");          Limit = "";      Interval = "PT30M"; Duration = "PT7H"; Enabled = $true; Desc = "EvoAlpha TDX recovery probe" },
-    @{ Name = "YaobanAuctionMonitor";     Mode = "auction";        At = @("09:15");          Limit = "PT5M";  Interval = "PT1M";  Duration = "PT15M"; Enabled = $true; Desc = "EvoAlpha auction observer (read-only)" },
-    @{ Name = "YaobanEventNotify";        Mode = "notify";         At = @("09:15");          Limit = "PT5M";  Interval = "PT1M";  Duration = "PT5H46M"; Enabled = $true; Desc = "EvoAlpha intraday event notify" },
+    @{ Name = "EvoAlphaPreflight";          Mode = "infra";          At = @("08:35");          Limit = "PT30M"; Restart = "3xPT1M"; Enabled = $true;  Desc = "EvoAlpha infra preflight gate" },
+    @{ Name = "EvoAlphaSelfHeal";           Mode = "selfheal";       At = @("08:36");          Limit = "PT20M"; Enabled = $true;  Desc = "EvoAlpha pre-open self-heal (restart/data repairs only)" },
+    @{ Name = "EvoAlphaPremarket";          Mode = "premarket";      At = @("08:50");          Limit = "PT30M"; Restart = "3xPT1M"; Enabled = $true;  Desc = "EvoAlpha premarket snapshot" },
+    @{ Name = "EvoAlphaPlanGate";           Mode = "plan-gate";      At = @("08:55");          Limit = "PT30M"; Restart = "3xPT1M"; Enabled = $true;  Desc = "EvoAlpha plan acceptance gate" },
+    @{ Name = "EvoAlphaMorningCheck";       Mode = "morning-check";  At = @("08:58");          Limit = "PT2M";  Enabled = $true;  Desc = "EvoAlpha single pre-open selfcheck card" },
+    @{ Name = "EvoAlphaTdxProbe";           Mode = "tdx-probe";      At = @("09:00");          Limit = "";      Interval = "PT30M"; Duration = "PT7H"; Enabled = $true; Desc = "EvoAlpha TDX recovery probe" },
+    @{ Name = "EvoAlphaAuctionMonitor";     Mode = "auction";        At = @("09:15");          Limit = "PT5M";  Interval = "PT1M";  Duration = "PT15M"; Enabled = $true; Desc = "EvoAlpha auction observer (read-only)" },
+    @{ Name = "EvoAlphaEventNotify";        Mode = "notify";         At = @("09:15");          Limit = "PT5M";  Interval = "PT1M";  Duration = "PT5H46M"; Enabled = $true; Desc = "EvoAlpha intraday event notify" },
     # 2026-09-12 R0.8: Limit 由 PT6H(09:30+6h=15:30) 放宽到 PT6H20M(→15:50)。
     # 盘后固定价格交易窗口 15:05-15:30 需要 daemon 存活, 而 watcher 在 15:40 优雅自退
     # (WATCH_EXIT_AT)、daemon 在 15:30 自退 —— 任务上限必须晚于二者, 否则会被硬杀在 15:30。
-    @{ Name = "YaobanTickDaemon";         Mode = "tick";           At = @("09:30");          Limit = "PT6H20M"; Restart = "3xPT1M"; Enabled = $true; Desc = "EvoAlpha tick risk daemon (gate-independent; covers 15:05-15:30 after-hours window)" },
-    @{ Name = "YaobanScanConfirm";        Mode = "scan";           At = @("09:30");          Limit = "PT10M"; Interval = "PT1M";  Duration = "PT5H31M"; Enabled = $true; Desc = "EvoAlpha full-market scan (T2)" },
-    @{ Name = "YaobanIntradayMonitor";    Mode = "monitor";        At = @("09:30");          Limit = "PT10M"; Interval = "PT1M";  Duration = "PT5H31M"; Enabled = $true; Desc = "EvoAlpha intraday monitor" },
-    @{ Name = "YaobanClosePipeline";      Mode = "close";          At = @("15:10");          Limit = "PT30M"; Restart = "3xPT1M"; Enabled = $true;  Desc = "EvoAlpha close pipeline" },
-    @{ Name = "YaobanPostCloseChain";     Mode = "post-close";     At = @("15:35");          Limit = "PT3H";  Restart = "2xPT5M"; Enabled = $true; Desc = "EvoAlpha post-close chain (rebuild/r5p/r6p/plan/acceptance/log-review)" },
-    @{ Name = "YaobanEveningCheck";       Mode = "evening-check";  At = @("17:30");          Limit = "PT15M"; Enabled = $true;  Desc = "EvoAlpha evening verification card" },
-    @{ Name = "YaobanTdxServerVerify";    Mode = "tdx-verify";     At = @("10:00"); Days = @("Saturday"); Limit = ""; Enabled = $true; Desc = "Weekly TDX server liveness + calendar refresh" },
-    @{ Name = "YaobanBoardRefresh";       Script = "run_board_refresh.ps1"; At = @("09:35", "13:05"); Limit = "PT3M"; Interval = "PT3M"; Duration = "PT1H51M"; Enabled = $true; Desc = "EvoAlpha board snapshot refresh" },
+    @{ Name = "EvoAlphaTickDaemon";         Mode = "tick";           At = @("09:30");          Limit = "PT6H20M"; Restart = "3xPT1M"; Enabled = $true; Desc = "EvoAlpha tick risk daemon (gate-independent; covers 15:05-15:30 after-hours window)" },
+    @{ Name = "EvoAlphaScanConfirm";        Mode = "scan";           At = @("09:30");          Limit = "PT10M"; Interval = "PT1M";  Duration = "PT5H31M"; Enabled = $true; Desc = "EvoAlpha full-market scan (T2)" },
+    @{ Name = "EvoAlphaIntradayMonitor";    Mode = "monitor";        At = @("09:30");          Limit = "PT10M"; Interval = "PT1M";  Duration = "PT5H31M"; Enabled = $true; Desc = "EvoAlpha intraday monitor" },
+    @{ Name = "EvoAlphaClosePipeline";      Mode = "close";          At = @("15:10");          Limit = "PT30M"; Restart = "3xPT1M"; Enabled = $true;  Desc = "EvoAlpha close pipeline" },
+    @{ Name = "EvoAlphaPostCloseChain";     Mode = "post-close";     At = @("15:35");          Limit = "PT3H";  Restart = "2xPT5M"; Enabled = $true; Desc = "EvoAlpha post-close chain (rebuild/r5p/r6p/plan/acceptance/log-review)" },
+    @{ Name = "EvoAlphaEveningCheck";       Mode = "evening-check";  At = @("17:30");          Limit = "PT15M"; Enabled = $true;  Desc = "EvoAlpha evening verification card" },
+    @{ Name = "EvoAlphaTdxServerVerify";    Mode = "tdx-verify";     At = @("10:00"); Days = @("Saturday"); Limit = ""; Enabled = $true; Desc = "Weekly TDX server liveness + calendar refresh" },
+    @{ Name = "EvoAlphaBoardRefresh";       Script = "run_board_refresh.ps1"; At = @("09:35", "13:05"); Limit = "PT3M"; Interval = "PT3M"; Duration = "PT1H51M"; Enabled = $true; Desc = "EvoAlpha board snapshot refresh" },
     # 2026-09-11 (用户裁定): 关键节点状态卡推送 —— 只读观测者, 不参与门禁/账本/计划;
     # At 为节点产卡时刻(含迟到的补推触发点), PT5M 重复窗负责吸收上游迟到; 状态文件 + 事件键双重去重。
     # 2026-09-14 (用户裁定, 定时任务全景审计): 重复窗 PT10H24M -> PT4H。
@@ -57,7 +57,7 @@ $Schedule = @(
     #   ⚠️ At 的 13 个时刻**保持不变** ⇒ preflight.py:40 的 TRIGGER_EXPECTED 无需同步
     #   (该断言只比对 StartBoundary 时刻, 不比对 Duration)。上游迟到 >4h 时补推失效,
     #   但 PENDING_ALERT_ROUNDS=3(15 分钟)即升级告警, 不会静默。
-    @{ Name = "YaobanStatusPush";         Script = "run_status_push.ps1"; At = @("08:36", "08:50", "08:55", "09:00", "09:30", "09:35", "11:30", "13:05", "13:10", "15:05", "15:40", "17:45", "18:30"); Limit = "PT3M"; Interval = "PT5M"; Duration = "PT4H"; Enabled = $true; Desc = "EvoAlpha key-node status cards (read-only observer)" },
+    @{ Name = "EvoAlphaStatusPush";         Script = "run_status_push.ps1"; At = @("08:36", "08:50", "08:55", "09:00", "09:30", "09:35", "11:30", "13:05", "13:10", "15:05", "15:40", "17:45", "18:30"); Limit = "PT3M"; Interval = "PT5M"; Duration = "PT4H"; Enabled = $true; Desc = "EvoAlpha key-node status cards (read-only observer)" },
     @{ Name = "VibeResearchDashboardServices"; Vibe = "ensure-dashboard-services.ps1"; At = @("08:30", "09:20"); Limit = "PT5M"; Enabled = $true; Desc = "Vibe dashboard services keepalive" },
     @{ Name = "VibeResearchLiveTickValidation"; Vibe = "run-live-tick-validation.ps1";  At = @("09:35", "13:05"); Limit = "PT5M"; Restart = "3xPT1M"; Enabled = $true; Desc = "Vibe live tick validation" }
 )
@@ -67,7 +67,7 @@ function New-IsoSpan([string]$iso) {
     return [System.Xml.XmlConvert]::ToTimeSpan($iso)
 }
 
-function New-YaobanAction($e) {
+function New-EvoAlphaAction($e) {
     if ($e.ContainsKey("Vibe")) {
         $file = Join-Path $vibe $e.Vibe
         if (-not (Test-Path -LiteralPath $file)) { throw "missing vibe script: $file" }
@@ -131,7 +131,7 @@ if (-not $VerifyOnly) {
     foreach ($e in $Schedule) {
         if ($SkipVibe -and $e.ContainsKey("Vibe")) { continue }
         $triggers = @($e.At | ForEach-Object { New-EntryTrigger $e $_ })
-        Register-ScheduledTask -TaskName $e.Name -Action (New-YaobanAction $e) -Trigger $triggers `
+        Register-ScheduledTask -TaskName $e.Name -Action (New-EvoAlphaAction $e) -Trigger $triggers `
             -Settings (New-EntrySettings $e) -Description $e.Desc -Force | Out-Null
         if (-not $e.Enabled) { Disable-ScheduledTask -TaskName $e.Name | Out-Null }
         Write-Host ("registered " + $e.Name)

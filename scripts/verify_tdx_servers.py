@@ -5,7 +5,7 @@
 本工具: 枚举 pytdx hq_hosts(104) + mootdx config HQ(38) 去重后全量验活, 输出报告与建议清单。
   验活判据(双层): get_security_count>0(协议) + get_security_bars 有效(数据); 仅 TCP 通不算可用。
 输出: outputs/validation/tdx_servers_<date>.json + 打印可直接粘贴的清单字面量。
-建议频率: 每周一次(节点会轮换/失效); 可与 YaobanTdxProbe 共用清单。
+建议频率: 每周一次(节点会轮换/失效); 可与 EvoAlphaTdxProbe 共用清单。
 用法: python scripts/verify_tdx_servers.py [--limit N]
 """
 from __future__ import annotations

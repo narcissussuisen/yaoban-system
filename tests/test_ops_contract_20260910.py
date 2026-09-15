@@ -102,13 +102,13 @@ class ScheduleTableTest(unittest.TestCase):
             if name in expected and sorted(ats) != sorted(expected[name]):
                 drift.append(name + ": table=" + ",".join(sorted(ats)) + " preflight=" + ",".join(sorted(expected[name])))
         self.assertEqual(drift, [], "计划表与 preflight 触发器契约不一致: " + " | ".join(drift))
-        self.assertIn("YaobanSelfHeal", expected)
+        self.assertIn("EvoAlphaSelfHeal", expected)
 
     def test_key_times(self):
         times = {n: a for n, _m, a in self.table()}
-        self.assertEqual(times.get("YaobanPreflight"), ["08:35"])
-        self.assertEqual(times.get("YaobanPostCloseChain"), ["15:35"])
-        self.assertEqual(times.get("YaobanEveningCheck"), ["17:30"])
+        self.assertEqual(times.get("EvoAlphaPreflight"), ["08:35"])
+        self.assertEqual(times.get("EvoAlphaPostCloseChain"), ["15:35"])
+        self.assertEqual(times.get("EvoAlphaEveningCheck"), ["17:30"])
 
 
 class SelfHealBoundaryTest(unittest.TestCase):

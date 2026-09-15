@@ -1,4 +1,4 @@
-"""每日自迭代批编排（YaobanDailyIteration 内核，22:00 计划任务调用）。
+"""每日自迭代批编排（EvoAlphaDailyIteration 内核，22:00 计划任务调用）。
 
 流水线：资料扫描 → 知识卡片 → 画像 → 提案（门槛判定）→ 影子回归 → 台账与卡片摘要
 
@@ -209,7 +209,7 @@ def run(date: str | None = None, *, case_window: int = 4, market_codes: int = 12
 
     payload = {
         "date": date, "run_id": run_id, "generated_at": now_str(),
-        "source": "YaobanDailyIteration（资料解析→知识卡片→画像→提案→影子回归）",
+        "source": "EvoAlphaDailyIteration（资料解析→知识卡片→画像→提案→影子回归）",
         "config_file": str(table_path.relative_to(ROOT)),
         "status": "pending_confirm" if pending else ("applied" if applied else "no_change"),
         "policy": {

@@ -5,7 +5,7 @@ P0.5 重构（2026-09-01，蓝图 B0-P0-5 修复）:
   - final 三重门槛: ①显式 --date ②墙钟与 --date 同日且 >= 15:05 ③首份优先(已存在 final 且
     status=pass 的报告拒绝覆盖; --force 仅当既有报告 status!=pass 时允许盖写并标记 regenerated)
   - 输入完整性: inputs 枚举 ok/missing; 任一必需输入 missing → status=incomplete
-  - F7 修复: required 任务移除已禁用的 YaobanDailyRebuild; rebuild 完成性改查
+  - F7 修复: required 任务移除已禁用的 EvoAlphaDailyRebuild; rebuild 完成性改查
     daily_rebuilt 产物 mtime 证据
   - exit code: 0=pass / 2=fail / 3=incomplete或降级 / 4=拒绝覆盖
 
@@ -25,8 +25,8 @@ from ledger import LEDGER  # noqa: E402  env-aware (EVOALPHA_LEDGER) — R0.2 �
 OUT=BASE/'outputs'/'acceptance'
 REBUILT_DIR=pathlib.Path('F:/WorkBuddyItem/a股level2/daily_rebuilt')
 # 信息采集含 Rebuild(可见性); 必需清单不含(任务已禁用, 完成性走产物证据)
-TASKS=['YaobanAuctionMonitor','YaobanPreflight','YaobanPremarket','YaobanPlanGate','YaobanTickDaemon','YaobanScanConfirm','YaobanIntradayMonitor','YaobanEventNotify','YaobanClosePipeline','YaobanDailyRebuild','VibeResearchLiveTickValidation']
-REQUIRED_TASKS=[n for n in TASKS if n!='YaobanDailyRebuild']
+TASKS=['EvoAlphaAuctionMonitor','EvoAlphaPreflight','EvoAlphaPremarket','EvoAlphaPlanGate','EvoAlphaTickDaemon','EvoAlphaScanConfirm','EvoAlphaIntradayMonitor','EvoAlphaEventNotify','EvoAlphaClosePipeline','EvoAlphaDailyRebuild','VibeResearchLiveTickValidation']
+REQUIRED_TASKS=[n for n in TASKS if n!='EvoAlphaDailyRebuild']
 FINAL_NOT_BEFORE=(15,5)  # 墙钟门槛: 当日 15:05 起（收盘后）
 # 2026-09-12 R0.2: 主账本重建为 50 万独立主账本(8.1 裁决), start_date 随之变更。
 # 原为字面量 '2026-08-31' 内联在 checks 里 —— 抽成单一常量, 避免账本重建时漏改。

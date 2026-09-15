@@ -1,6 +1,6 @@
-# Register YaobanLoopEngine (16:35) - loop engineering state check
+# Register EvoAlphaLoopEngine (16:35) - loop engineering state check
 #
-# 2026-09-14 (user ruling, scheduled-task audit): the scheduled task YaobanLoopEngine
+# 2026-09-14 (user ruling, scheduled-task audit): the scheduled task EvoAlphaLoopEngine
 # was RETIRED and is currently NOT registered. Do NOT run this script routinely.
 #
 # Why the file is kept: docs/ROADMAP_v5_PLAYER_REPLICA.md states the "loop_engine
@@ -22,5 +22,5 @@ Set-Content -Path $runner -Value $content -Encoding Default -NoNewline
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
 $action = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument ('/c "' + $runner + '"')
 $trigger = New-ScheduledTaskTrigger -Daily -At '16:35'
-Register-ScheduledTask -TaskName 'YaobanLoopEngine' -Action $action -Trigger $trigger -Settings $settings -Description 'Loop engineering state check (R8)' -Force | Out-Null
-Write-Host 'Registered YaobanLoopEngine (16:35)'
+Register-ScheduledTask -TaskName 'EvoAlphaLoopEngine' -Action $action -Trigger $trigger -Settings $settings -Description 'Loop engineering state check (R8)' -Force | Out-Null
+Write-Host 'Registered EvoAlphaLoopEngine (16:35)'

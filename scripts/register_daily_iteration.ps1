@@ -1,7 +1,7 @@
-﻿# EvoAlpha 每日自迭代批任务注册（22:00，YaobanDailyIteration）。
+﻿# EvoAlpha 每日自迭代批任务注册（22:00，EvoAlphaDailyIteration）。
 #
 # 定位：这是**排期变更**，需人工确认后运行；与 scripts/register_schedule.ps1 的 $Schedule 表配套：
-#   1. 本脚本只注册 YaobanDailyIteration 单条，并做与表中一致的验证；
+#   1. 本脚本只注册 EvoAlphaDailyIteration 单条，并做与表中一致的验证；
 #   2. 正式固化请把下面 $Entry 的同一行合并进 register_schedule.ps1 的 $Schedule，
 #      否则 register_schedule.ps1 的「任务触发器」校验会因为缺这条而告警、preflight 会记为漂移。
 #
@@ -22,7 +22,7 @@ $configuredRoot = (Get-Content -LiteralPath $rootFile -Raw -Encoding UTF8).Trim(
 if ($configuredRoot -ne $expectedRoot) { throw "root.txt points to $configuredRoot; expected $expectedRoot" }
 
 # 与 register_schedule.ps1 $Schedule 的行保持一致
-$Entry = @{ Name = "YaobanDailyIteration"; Script = "run_daily_iteration.ps1";
+$Entry = @{ Name = "EvoAlphaDailyIteration"; Script = "run_daily_iteration.ps1";
             At = @("22:00"); Limit = "PT1H"; Enabled = $true;
             Desc = "EvoAlpha daily self-iteration batch (materials->cards->profile->proposals->shadow)" }
 

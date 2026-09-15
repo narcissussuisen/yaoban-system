@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""注册一次性计划任务 YaobanManualTick20260902（触发 manual_tick_unblock 启动器）。
+"""注册一次性计划任务 EvoAlphaManualTick20260902（触发 manual_tick_unblock 启动器）。
 
 复刻 yaoban 现有任务的可用模式：pythonw.exe + run_hidden.py + InteractiveToken + 本机 SID。
 XML 以 UTF-16 LE BOM 写出（schtasks 导入要求），规避中文路径的 shell 引号问题。
@@ -8,7 +8,7 @@ import pathlib
 import subprocess
 
 XML_PATH = pathlib.Path(r"C:\Users\YZP\WorkBuddy\yaoban_tasks\manual_tick_20260902_task.xml")
-TASK_NAME = "YaobanManualTick20260902"
+TASK_NAME = "EvoAlphaManualTick20260902"
 
 xml = """<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.3" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">

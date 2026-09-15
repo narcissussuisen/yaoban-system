@@ -47,7 +47,7 @@ v3 修复(2026-09-11 盘中事故, INC-2026-09-11-01):
       2026-09-11: 进程探测改为 cfg['pid_lister'] 可注入 —— 原先直连 Get-CimInstance, 沙箱下
       被拒访问导致 stub 恒不可见, A/B 断言必然 FAIL(与改动无关), 等于本地无回归保护。
 用法: python scripts/_tick_watch.py
-      (YaobanTickDaemon 09:30 计划任务经 launch.ps1 -Mode tick 前台运行本进程;
+      (EvoAlphaTickDaemon 09:30 计划任务经 launch.ps1 -Mode tick 前台运行本进程;
        _restart_tick_daemon.py --spawn 手动链路兼容, 文件锁单实例)
 """
 from __future__ import annotations

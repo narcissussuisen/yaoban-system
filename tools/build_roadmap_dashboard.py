@@ -31,11 +31,11 @@ ARCHIVE = pathlib.Path(r"C:\Users\YZP\WorkBuddy\yaoban_tasks\ledger_archive")
 MANIFEST_DIR = REPO / "baseline" / "manifests" / "baseline-v2-pre-restructure"
 
 TASK_NAMES = [
-    "YaobanPreflight", "YaobanSelfHeal", "YaobanPremarket", "YaobanPlanGate",
-    "YaobanMorningCheck", "YaobanTdxProbe", "YaobanAuctionMonitor", "YaobanEventNotify",
-    "YaobanTickDaemon", "YaobanScanConfirm", "YaobanIntradayMonitor", "YaobanClosePipeline",
-    "YaobanPostCloseChain", "YaobanEveningCheck", "YaobanTdxServerVerify", "YaobanBoardRefresh",
-    "YaobanStatusPush", "VibeResearchDashboardServices", "VibeResearchLiveTickValidation",
+    "EvoAlphaPreflight", "EvoAlphaSelfHeal", "EvoAlphaPremarket", "EvoAlphaPlanGate",
+    "EvoAlphaMorningCheck", "EvoAlphaTdxProbe", "EvoAlphaAuctionMonitor", "EvoAlphaEventNotify",
+    "EvoAlphaTickDaemon", "EvoAlphaScanConfirm", "EvoAlphaIntradayMonitor", "EvoAlphaClosePipeline",
+    "EvoAlphaPostCloseChain", "EvoAlphaEveningCheck", "EvoAlphaTdxServerVerify", "EvoAlphaBoardRefresh",
+    "EvoAlphaStatusPush", "VibeResearchDashboardServices", "VibeResearchLiveTickValidation",
 ]
 
 

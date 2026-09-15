@@ -1,4 +1,4 @@
-# Yaoban runner: collect_tick_daily.py
+# EvoAlpha runner: collect_tick_daily.py
 $ErrorActionPreference = 'Continue'
 $root = Split-Path -Parent $PSScriptRoot
 $libs = Join-Path (Split-Path $root) 'py_libs'

@@ -8,5 +8,5 @@ $pm = New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek Monday,Tuesd
 $basePm = New-ScheduledTaskTrigger -Once -At '13:05' -RepetitionInterval (New-TimeSpan -Minutes 3) -RepetitionDuration (New-TimeSpan -Minutes 111)
 $pm.Repetition = $basePm.Repetition
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 3) -MultipleInstances IgnoreNew
-Register-ScheduledTask -TaskName 'YaobanBoardRefresh' -Action $action -Trigger $am, $pm -Settings $settings -Description 'Rebuild board snapshot every 5 min during trading windows' -Force | Out-Null
-Write-Host 'YaobanBoardRefresh registered'
+Register-ScheduledTask -TaskName 'EvoAlphaBoardRefresh' -Action $action -Trigger $am, $pm -Settings $settings -Description 'Rebuild board snapshot every 5 min during trading windows' -Force | Out-Null
+Write-Host 'EvoAlphaBoardRefresh registered'

@@ -1,4 +1,4 @@
-# Yaoban runner: daily_candidates.py
+# EvoAlpha runner: daily_candidates.py
 $ErrorActionPreference = 'Continue'
 $root = Split-Path -Parent $PSScriptRoot
 $libs = Join-Path (Split-Path $root) 'py_libs'

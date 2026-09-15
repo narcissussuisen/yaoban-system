@@ -22,9 +22,9 @@ OUT = BASE / 'outputs'
 # 2026-09-01 重构(用户评审): 系统检验必须在 09:00 前完成(09:15 集合竞价/09:30 开盘)。
 # 晨检 08:58 只检查"开盘前就绪"链; 盘中连续性(scan/monitor/notify/auction)由收盘后 acceptance 覆盖。
 CHAIN = [
-    ('YaobanPreflight', '08:35'), ('YaobanPremarket', '08:50'), ('YaobanPlanGate', '08:55'),
+    ('EvoAlphaPreflight', '08:35'), ('EvoAlphaPremarket', '08:50'), ('EvoAlphaPlanGate', '08:55'),
 ]
-NEXT_DAY = [('YaobanPostCloseChain', '16:30'), ('YaobanClosePipeline', '15:10')]
+NEXT_DAY = [('EvoAlphaPostCloseChain', '16:30'), ('EvoAlphaClosePipeline', '15:10')]
 # 与 feishu_notify.py 同源的生产 webhook(用户 2026-08-30 23:14 设置, 2026-09-02 确认为 EvoAlpha 专用)
 WEBHOOK_FILE = pathlib.Path(os.environ.get('YAOBAN_FEISHU_SECRET_FILE',
                                            r'C:\Users\YZP\WorkBuddy\yaoban_tasks\feishu_webhook.txt'))

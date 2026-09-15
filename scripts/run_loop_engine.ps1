@@ -1,4 +1,4 @@
-# Yaoban runner: loop_engine.py
+# EvoAlpha runner: loop_engine.py
 $ErrorActionPreference = 'Continue'
 $root = Split-Path -Parent $PSScriptRoot
 $libs = Join-Path (Split-Path $root) 'py_libs'

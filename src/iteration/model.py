@@ -1,4 +1,4 @@
-"""每日自迭代批（YaobanDailyIteration）核心数据结构。
+"""每日自迭代批（EvoAlphaDailyIteration）核心数据结构。
 
 设计原则（继承 EvoAlpha 蓝图硬边界）：
   1. 确定性优先：本包所有逻辑禁止 LLM 语义判断；卡片只搬运资料已归纳结论。

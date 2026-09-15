@@ -1,4 +1,4 @@
-﻿# EvoAlpha 每日自迭代批入口（22:00，YaobanDailyIteration）。
+﻿# EvoAlpha 每日自迭代批入口（22:00，EvoAlphaDailyIteration）。
 #
 # 定位：学习闭环的夜间批处理。资料解析 → 知识卡片 → 画像 → 提案 → 影子回归。
 # 硬边界：

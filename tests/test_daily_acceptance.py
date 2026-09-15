@@ -10,11 +10,11 @@ def _no_tasks(name):
 
 class AcceptanceContractTests(unittest.TestCase):
  def test_required_tasks_exclude_disabled_and_self(self):
-  # F7 回归防护: 已禁用的 YaobanDailyRebuild 与采集器自身不得出现在必需清单
-  self.assertNotIn('YaobanDailyRebuild',acceptance.REQUIRED_TASKS)
-  self.assertNotIn('YaobanDailyAcceptance',acceptance.REQUIRED_TASKS)
+  # F7 回归防护: 已禁用的 EvoAlphaDailyRebuild 与采集器自身不得出现在必需清单
+  self.assertNotIn('EvoAlphaDailyRebuild',acceptance.REQUIRED_TASKS)
+  self.assertNotIn('EvoAlphaDailyAcceptance',acceptance.REQUIRED_TASKS)
  def test_tick_daemon_is_required(self):
-  self.assertIn('YaobanTickDaemon',acceptance.REQUIRED_TASKS)
+  self.assertIn('EvoAlphaTickDaemon',acceptance.REQUIRED_TASKS)
  def test_acceptance_requires_auction_evidence(self):
   source=(ROOT/'scripts'/'collect_daily_acceptance.py').read_text(encoding='utf-8')
   for token in ("'auction_latest'","'auction_freeze'","'auction_delivery'"):

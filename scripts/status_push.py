@@ -48,7 +48,7 @@ STATE_DIR = OUT / "selfcheck"
 SCRIPTS = BASE / "scripts"
 TZ = ZoneInfo("Asia/Shanghai")
 
-TASK_NAME = "YaobanStatusPush"
+TASK_NAME = "EvoAlphaStatusPush"
 PENDING_ALERT_ROUNDS = 3  # 连续 3 轮(计划任务 5 分钟重复窗)来源缺失 → 升级 1 条告警
 DEADLINE_GRACE = datetime.timedelta(minutes=1)  # 触发时刻 + 宽限, 吸收计划任务启动抖动
 

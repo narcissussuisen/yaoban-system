@@ -14,21 +14,21 @@ if ($configuredRoot -ne $expectedRoot) {
     throw "root.txt points to '$configuredRoot'; expected '$expectedRoot'. Refusing to register tasks."
 }
 
-function New-YaobanAction([string]$Mode) {
+function New-EvoAlphaAction([string]$Mode) {
     New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $launch + '" -Mode ' + $Mode)
 }
 
 $weekdays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 $morningTrigger = New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek $weekdays -At '08:58'
 $morningSettings = New-ScheduledTaskSettingsSet -Hidden -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 2)
-Register-ScheduledTask -TaskName 'YaobanMorningCheck' -Action (New-YaobanAction 'morning-check') -Trigger $morningTrigger -Settings $morningSettings -Description 'P0 pre-open readiness check at 08:58 China Standard Time' -Force | Out-Null
+Register-ScheduledTask -TaskName 'EvoAlphaMorningCheck' -Action (New-EvoAlphaAction 'morning-check') -Trigger $morningTrigger -Settings $morningSettings -Description 'P0 pre-open readiness check at 08:58 China Standard Time' -Force | Out-Null
 
 # 2026-09-10: evening verification at 19:30 (post-close chain finishes ~18:25). Read-only merged
 # check that replaces the two WorkBuddy prompt tasks; it never returns non-zero, the verdict rides
 # on its own Feishu card, so it cannot double-push with the generic failure notifier.
 $eveningTrigger = New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek $weekdays -At '19:30'
 $eveningSettings = New-ScheduledTaskSettingsSet -Hidden -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 15)
-Register-ScheduledTask -TaskName 'YaobanEveningCheck' -Action (New-YaobanAction 'evening-check') -Trigger $eveningTrigger -Settings $eveningSettings -Description 'EvoAlpha evening verification 19:30 CST: post-close chain result, close pipeline, sentiment/candidates freshness and sanity, next-day plan, daily_rebuilt coverage, acceptance verdict, fill compliance' -Force | Out-Null
+Register-ScheduledTask -TaskName 'EvoAlphaEveningCheck' -Action (New-EvoAlphaAction 'evening-check') -Trigger $eveningTrigger -Settings $eveningSettings -Description 'EvoAlpha evening verification 19:30 CST: post-close chain result, close pipeline, sentiment/candidates freshness and sanity, next-day plan, daily_rebuilt coverage, acceptance verdict, fill compliance' -Force | Out-Null
 
 if (-not $SkipVibe) {
     if (-not (Test-Path -LiteralPath $vibeRegister)) { throw "Missing Vibe register script: $vibeRegister" }
@@ -36,8 +36,8 @@ if (-not $SkipVibe) {
 }
 
 $expected = [ordered]@{
-    YaobanMorningCheck = @('08:58')
-    YaobanEveningCheck = @('19:30')
+    EvoAlphaMorningCheck = @('08:58')
+    EvoAlphaEveningCheck = @('19:30')
     VibeResearchLiveTickValidation = @('09:35', '13:05')
 }
 foreach ($entry in $expected.GetEnumerator()) {
@@ -49,16 +49,16 @@ foreach ($entry in $expected.GetEnumerator()) {
     if (($actual -join ',') -ne ($wanted -join ',')) {
         throw "$($entry.Key) trigger mismatch: actual=$($actual -join ',') expected=$($wanted -join ',')"
     }
-    if ($entry.Key -eq 'YaobanMorningCheck') {
+    if ($entry.Key -eq 'EvoAlphaMorningCheck') {
         $argument = [string]$task.Actions[0].Arguments
         if ($argument -notlike '*launch.ps1*' -or $argument -notlike '*-Mode morning-check*') {
-            throw "YaobanMorningCheck action mismatch: $argument"
+            throw "EvoAlphaMorningCheck action mismatch: $argument"
         }
     }
-    if ($entry.Key -eq 'YaobanEveningCheck') {
+    if ($entry.Key -eq 'EvoAlphaEveningCheck') {
         $argument = [string]$task.Actions[0].Arguments
         if ($argument -notlike '*launch.ps1*' -or $argument -notlike '*-Mode evening-check*') {
-            throw "YaobanEveningCheck action mismatch: $argument"
+            throw "EvoAlphaEveningCheck action mismatch: $argument"
         }
     }
     if ($entry.Key -eq 'VibeResearchLiveTickValidation') {

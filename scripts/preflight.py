@@ -14,9 +14,9 @@ SELFCHK_DIR=OUT/'selfcheck'; ANOMALY_LOG=SELFCHK_DIR/'anomalies.log'
 SECRET_FILE=pathlib.Path(os.environ.get("YAOBAN_FEISHU_SECRET_FILE", r"C:\Users\YZP\WorkBuddy\yaoban_tasks\feishu_webhook.txt"))
 DISK_WARN_PCT=90; DISK_FAIL_PCT=95; MEM_WARN_PCT=85; CPU_WARN_PCT=80; CPU_FAIL_PCT=95
 EXPECTED={
- 'YaobanPreflight':'infra','YaobanPremarket':'premarket','YaobanPlanGate':'plan-gate',
- 'YaobanAuctionMonitor':'auction','YaobanTickDaemon':'tick','YaobanScanConfirm':'scan','YaobanIntradayMonitor':'monitor',
- 'YaobanEventNotify':'notify','YaobanClosePipeline':'close','YaobanPostCloseChain':'post-close',
+ 'EvoAlphaPreflight':'infra','EvoAlphaPremarket':'premarket','EvoAlphaPlanGate':'plan-gate',
+ 'EvoAlphaAuctionMonitor':'auction','EvoAlphaTickDaemon':'tick','EvoAlphaScanConfirm':'scan','EvoAlphaIntradayMonitor':'monitor',
+ 'EvoAlphaEventNotify':'notify','EvoAlphaClosePipeline':'close','EvoAlphaPostCloseChain':'post-close',
 }
 # P0-3修复(2026-08-31): ASCII_TASKS 从 BASE 上溯3级=WorkBuddy/yaoban_tasks(旧parents[2]=Claw下, 不存在导致任务Action全FAIL);
 # 增加存在性候选回退, 避免路径级数变化再回归
@@ -31,13 +31,13 @@ TDX_SERVERS=[('59.36.5.11',7709),('117.34.114.18',7709),('117.34.114.13',7709),(
  ('117.34.114.15',7709),('115.238.56.198',7709)]
 # 2026-09-10: 计划表即代码 —— 触发器时刻契约(与 scripts/register_schedule.ps1 的表一致);
 # 漂移属非致命告警(critical=False): 人为改点不应拦住整条开盘链, 但必须每天可见。
-TRIGGER_EXPECTED={'YaobanPreflight':['08:35'],'YaobanSelfHeal':['08:36'],'YaobanPremarket':['08:50'],
- 'YaobanPlanGate':['08:55'],'YaobanMorningCheck':['08:58'],'YaobanTdxProbe':['09:00'],
- 'YaobanAuctionMonitor':['09:15'],'YaobanEventNotify':['09:15'],'YaobanTickDaemon':['09:30'],
- 'YaobanScanConfirm':['09:30'],'YaobanIntradayMonitor':['09:30'],'YaobanClosePipeline':['15:10'],
- 'YaobanPostCloseChain':['15:35'],'YaobanEveningCheck':['17:30'],'YaobanTdxServerVerify':['10:00'],
- 'YaobanBoardRefresh':['09:35','13:05'],
- 'YaobanStatusPush':['08:36','08:50','08:55','09:00','09:30','09:35','11:30','13:05','13:10','15:05','15:40','17:45','18:30']}
+TRIGGER_EXPECTED={'EvoAlphaPreflight':['08:35'],'EvoAlphaSelfHeal':['08:36'],'EvoAlphaPremarket':['08:50'],
+ 'EvoAlphaPlanGate':['08:55'],'EvoAlphaMorningCheck':['08:58'],'EvoAlphaTdxProbe':['09:00'],
+ 'EvoAlphaAuctionMonitor':['09:15'],'EvoAlphaEventNotify':['09:15'],'EvoAlphaTickDaemon':['09:30'],
+ 'EvoAlphaScanConfirm':['09:30'],'EvoAlphaIntradayMonitor':['09:30'],'EvoAlphaClosePipeline':['15:10'],
+ 'EvoAlphaPostCloseChain':['15:35'],'EvoAlphaEveningCheck':['17:30'],'EvoAlphaTdxServerVerify':['10:00'],
+ 'EvoAlphaBoardRefresh':['09:35','13:05'],
+ 'EvoAlphaStatusPush':['08:36','08:50','08:55','09:00','09:30','09:35','11:30','13:05','13:10','15:05','15:40','17:45','18:30']}
 TDX_CATEGORIES=[0,4,9,7]
 TDX_TCP_TIMEOUT=1.0  # P0-7: TCP预筛超时(秒), 快速排除死节点
 
@@ -158,7 +158,7 @@ SUGGESTIONS={
  '交易日历':'交易日历证据缺失或非交易日判定失败。检查网络与 Vibe-Research/.agents/skills/data-access/scripts/fetch_trade_calendar.py；非交易日 preflight 失败属预期，不得作为交易日门禁证据。',
  'TDX行情':'通达信服务器连接或K线验证失败。2026-09-10 起: TDX 全挂时自动验腾讯备胎(mkline m1)，备胎可用则降级 WARN 不阻断(tick/scan/monitor 已接入同源备胎)。备胎也不可用时盘中/盘后仍 FAIL。',
  '腾讯快照':'腾讯实时接口 qt.gtimg.cn 请求失败。检查外网连通性；主源 TDX 可用时仅影响兜底数据源。',
- '账本/持仓':'持仓 parquet 缺失或数据落后于上一交易日。检查 F:/WorkBuddyItem/a股level2/daily_rebuilt/ 与 YaobanDailyRebuild 任务是否完成；缺失标的需补重建。',
+ '账本/持仓':'持仓 parquet 缺失或数据落后于上一交易日。检查 F:/WorkBuddyItem/a股level2/daily_rebuilt/ 与 EvoAlphaDailyRebuild 任务是否完成；缺失标的需补重建。',
  '净值守恒':'equity_curve 与现金+市值计算不一致。检查 ledger.json 记账是否正确（禁止人工改账），查看 _revision 与当日成交记录。',
  '情绪表':'sentiment_full_2026.csv 最新日期落后于上一交易日。运行 scripts/r5p_sentiment_build.py 重建情绪表。',
  '候选表':'r6p_candidates_2026.csv 最新日期落后。运行 scripts/r6p_candidates_build.py 重建候选表。',
@@ -168,7 +168,7 @@ SUGGESTIONS={
  '残留进程':'检测到残留 tick_monitor/scan_and_confirm 进程。手动结束残留进程，避免与计划任务实例并发写账。',
  '脚本语法':'脚本编译失败。用 python -m py_compile 定位语法错误并修复。',
  '当日计划':'当日计划缺失/无候选/模式不含前一日/发布时间异常/外盘未刷新。检查 generate_next_plan.py 盘后是否成功；08:50 premarket 是否刷新外盘并原子更新计划。',
- '外盘新鲜度':'global_snapshot.json 非当日生成。检查 pull_global.py 与 YaobanPremarket 任务。',
+ '外盘新鲜度':'global_snapshot.json 非当日生成。检查 pull_global.py 与 EvoAlphaPremarket 任务。',
  'CPU 使用率':'CPU 持续高负载。检查异常进程占用；扫描/回测任务单轮不应长期占满多核。',
  '内存使用率':'内存紧张。检查常驻进程内存增长，必要时重启相关服务。',
  '磁盘 C: 使用率':'系统盘空间不足。清理旧日志与临时文件，保持 C: 剩余空间。',

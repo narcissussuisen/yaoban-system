@@ -1,4 +1,4 @@
-"""EvoAlpha 每日自迭代批核心包（YaobanDailyIteration）。
+"""EvoAlpha 每日自迭代批核心包（EvoAlphaDailyIteration）。
 
 模块划分：
   model      数据结构（Card / Proposal / BatchResult）与变更类别常量
