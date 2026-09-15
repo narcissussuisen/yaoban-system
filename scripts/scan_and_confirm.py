@@ -105,7 +105,7 @@ def load_strong_mainline(day: str):
 
 
 def load_pattern_pool(day: str):
-    """读取当日战法池（形态筛选层产物，见 `core/pattern_pool.py` / `build_pattern_pool.py`）。
+    """读取当日战法池（形态筛选层产物，见 `core/pattern_pool.py` / `plan_daily.py`）。
 
     ⚠️ 口径硬校验（防前视）：产物里的 `asof` 必须 **严格早于** `day`。
         T-1 日线确定的形态池才能用于 T 日建仓；`asof >= day` 一律视为口径违规。
@@ -185,17 +185,54 @@ def prev_close(sym: str, day: str):
     return prev_close_of(sym, day)
 
 
-def rough_screen(sym: str, chg: float, turn: float, amt: float, min_amt: float = 1.0) -> str | None:
-    """选手模式粗筛（盘前形态信息 + 异动特征）"""
+# ⚠️ 换手门槛的口径残留（2026-09-15 已登记，待标定，**未擅自改**）：
+#   与成交额同理，`turn` 也是**当日累计**换手，其「T−1 全天」口径**当前无法实现** ——
+#   本地数据层没有流通股本（`data/yaoban.db::stock_daily` 只有 OHLCV+amount；
+#   仓库内无 shares/float 表）⇒ 算不出 T−1 换手。
+#   实测影响有限：9/15 09:46 选手 4 只的**累计**换手 = 艾华 3.43% / 协和 4.60% /
+#   沃特 5.93% / 国脉 1.27% ⇒ 只有国脉被这道闸挡（成交额闸才是 4/4 全挡）。
+#   ⇒ 先修成交额口径（收益最大），换手留待「补流通股本表 or 改量比（腾讯原始串索引 49）」
+#     的方案标定后定档。按本仓纪律不得凭直觉改 1%/2%。
+
+
+def rough_screen(sym: str, chg: float, turn: float, amt: float, min_amt: float = 1.0,
+                 prev_amt_yi: float | None = None,
+                 reject_reasons: dict | None = None) -> str | None:
+    """选手模式粗筛（盘前形态信息 + 异动特征）。
+
+    ⚠️ **成交额门槛的口径（2026-09-15 修，RCA R4）**
+      该门槛按「**前日（T−1）全天成交额**」设计 —— 原始 help 见 `scripts/_patch_ladder.py:5`
+      （`'前日成交额门槛(亿): 选手买入日成交额中位18.9亿/89%>=5亿'`），研究侧
+      `scripts/r6p_replication.py:179-181` 也用 `prev_amt`。但生产侧一直拿
+      **当日累计成交额**（`v['amt']`，盘中单调递增）去比 ⇒ 09:46 就要求已成交 10 亿
+      （按当时占全天约 27% 折算 ≈ 全天 37 亿），与选手「买入日中位 18.9 亿」直接冲突。
+      实测代价（9/15 09:46）：选手 4 只候选 + 计划 4 只 picks **全部被挡**（日志 `计划内 0 只`）。
+      ⇒ 现在优先用 `prev_amt_yi`（池层带出的 T−1 全天成交额，亿元，`core.pattern_pool` 产出）；
+        取不到时**退回**当日累计口径，并计入 `reject_reasons['amt_legacy_basis']`（不静默）。
+
+    reject_reasons  可选出参 dict：按判据统计被拒次数（供 funnel 落痕，2026-09-15 WP5）。
+                    **不改变返回契约**（真值 = 通过）。
+    """
+    def _rej(code: str):
+        if reject_reasons is not None:
+            reject_reasons[code] = reject_reasons.get(code, 0) + 1
+        return None
+
     # 涨停/一字买不进
     if chg >= 9.8 and turn < 3:
-        return None
-    # 成交额门槛（妖票活跃底线; 选手实证: 买入日成交额中位18.9亿; 自主期可用 --min-amt 调）
-    if amt < min_amt:
-        return None
-    # 量能特征：换手 3-30%（活跃非一字）
+        return _rej('limit_up_unbuyable')
+    # 成交额门槛（妖票活跃底线）—— 口径见上方 docstring
+    if prev_amt_yi is not None:
+        if prev_amt_yi < min_amt:
+            return _rej('amt_prev_day')
+    else:
+        if reject_reasons is not None:
+            reject_reasons['amt_legacy_basis'] = reject_reasons.get('amt_legacy_basis', 0) + 1
+        if amt < min_amt:
+            return _rej('amt_intraday_cum')
+    # 量能特征：换手 3-30%（活跃非一字）—— ⚠️ 口径仍为当日累计，见文件内 TODO
     if turn is None or not (3 <= turn <= 30):
-        return None
+        return _rej('turn_band')
     # 涨幅窗口（**候选观察窗，不是买入窗**）：单窗口 -1%~9.8%。
     #   ⚠️ 2026-09-14 修正此注释：原文写作「引擎触发时刻涨幅≤3% 为实际买入上界」，但当时
     #      `e4_support` 分支并无上界（详见 E4_MAX_PCT 处注释），注释与代码不符。
@@ -204,7 +241,7 @@ def rough_screen(sym: str, chg: float, turn: float, amt: float, min_amt: float =
     #   本函数只负责「哪些票进入观察池」，选手候选池在 09:35-09:47 发布时其标的本就
     #   已涨 4.8%~8.8% ⇒ 池窗必须宽于买入窗，二者不可混为一谈。
     if not (-1 <= chg <= 9.8):
-        return None
+        return _rej('chg_window')
     return 'active'
 
 
@@ -239,13 +276,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--execute', action='store_true', help='仅 autonomous_paper 账户执行保守模拟成交')
     ap.add_argument('--force', action='store_true', help='非交易时段强制运行（测试用）')
-    ap.add_argument('--min-amt', type=float, default=1.0, help='成交额门槛(亿), 默认1.0; 选手实证中位18.9亿')
+    ap.add_argument('--min-amt', type=float, default=1.0,
+                    help='活跃闸·成交额门槛(亿)：单位是「**前一日(T−1)全天成交额**」（选手买入日中位18.9亿/89%%>=5亿）。'
+                         '2026-09-15 前误用「当日累计成交额」⇒ 09:46 即要求 10 亿（折算≈全天37亿）。'
+                         '取不到 T−1 值时退回当日累计口径并打 WARN（见 rough_screen docstring）')
     ap.add_argument('--e4-support', action='store_true', help='E4支撑位低吸确认(基板规格): 回踩MA5/MA10(±3%%)+盘中涨幅≥2%%站VWAP, 替代三引擎')
     ap.add_argument('--temp-ladder', action='store_true', help='温度联动: 读前日温度并标记弱市(2026-09-13 起仅记录, 不再阻断买点)')
     ap.add_argument('--pattern-gate', action='store_true',
                     help='⭐ 启用形态门（ROADMAP §1.2 第三层）：确认队列 = 战法池(T-1日线形态) ∩ 今日活跃。'
                          '启用后**不再**用"涨幅前8"当选股层；战法池缺失则 fail-closed rc=8。'
-                         '战法池由 scripts/build_pattern_pool.py 生成到 outputs/patterns/<day>_pattern_pool.json')
+                         '战法池由 scripts/plan_daily.py 盘后一并生成到 outputs/patterns/<day>_pattern_pool.json'
+                         '（2026-09-14 起合并，避免重复付全市场遍历；原独立脚本已归档 '
+                         'scripts/_legacy/build_pattern_pool.py，勿再单独跑）')
     args = ap.parse_args()
     now = datetime.now()
     day = now.strftime('%Y-%m-%d')
@@ -323,6 +365,10 @@ def main():
             continue
         if 'ST' in v['name'] or v['name'].startswith('*'):
             continue  # ST/退市风险股不参与（选手模式无 ST 证据）
+        # ⚠️ 本路径（全市场 movers）**拿不到**池记录里的 T−1 成交额 ⇒ 仍按当日累计口径，
+        #    且**不传** `reject_reasons`（避免把全市场的拒绝混进 confirm_queue 的判据统计）。
+        #    movers 自 2026-09-14 起只是**发现层/留痕**（见下方 "2) 异动池" 注释），不参与选股，
+        #    故该口径残留不影响决策 —— 决策路径的成交额口径见 "3) 确认队列" 的调用。
         tag = rough_screen(sym, v['chg'], v['turn'], v['amt'] / 10000, min_amt=args.min_amt)
         if tag:
             pool.append({'sym': sym, 'name': v['name'], 'chg': v['chg'],
@@ -373,13 +419,18 @@ def main():
         _pat = load_pattern_pool(day)
         if _pat is None:
             print(f'战法池缺失或口径违规, fail-closed 禁止新仓: '
-                  f'{PATTERN_DIR / f"{day}_pattern_pool.json"}（需先跑 scripts/build_pattern_pool.py）',
+                  f'{PATTERN_DIR / f"{day}_pattern_pool.json"}'
+                  f'（需先跑 scripts/plan_daily.py --date {day}；原独立脚本已归档 '
+                  f'scripts/_legacy/build_pattern_pool.py）',
                   file=sys.stderr, flush=True)
             return 8
         _pmap = {r['sym']: r for r in _pat['pool'] if r.get('sym')}
         confirm_queue = []
         n_pat_active = 0          # 漏斗中间档：形态合格 ∩ 今日活跃（板块过滤**之前**）
         n_hot_only = 0            # 因板块不热被挡掉的数量
+        # ⭐ 活跃闸各判据的拒绝计数（2026-09-15，WP5 落痕）：把「在哪一道被挡」变成可读产物，
+        #    不再只能靠推断（本次 RCA 的 R5 就因为"被剔者不留痕"而只能推断）。
+        _rej_stats: dict = {}
         for sym, v in allq.items():
             if sym not in _pmap or v['chg'] is None:
                 continue
@@ -387,7 +438,11 @@ def main():
                 continue
             if 'ST' in v['name'] or v['name'].startswith('*'):
                 continue
-            if rough_screen(sym, v['chg'], v['turn'], v['amt'] / 10000, min_amt=args.min_amt) is None:
+            # ⭐ 成交额用池记录里的 **T−1 全天** 口径（`prev_amt_yi`）；字段缺失时 rough_screen
+            #    内部退回当日累计并计入 `_rej_stats['amt_legacy_basis']`（不静默）。
+            if rough_screen(sym, v['chg'], v['turn'], v['amt'] / 10000, min_amt=args.min_amt,
+                            prev_amt_yi=_pmap[sym].get('prev_amt_yi'),
+                            reject_reasons=_rej_stats) is None:
                 continue   # 形态合格但今日买不进/不活跃 → 不进队列（非丢弃，下轮再来）
             n_pat_active += 1
             _l2 = industry_of(sym, day) or 'NA'
@@ -436,11 +491,20 @@ def main():
                                'n_dropped_cold_l2': n_hot_only,
                                'n_hot_active': n_queue_before_cap,
                                'n_strong_mainline_only': n_strong_only,
-                               'n_queue_capped': len(confirm_queue)}}
+                               'n_queue_capped': len(confirm_queue),
+                               # ⭐ 活跃闸判据拒绝明细（2026-09-15，WP5 落痕）。键 = 判据码，值 = 只数：
+                               #   amt_prev_day=成交额<T−1门槛；amt_intraday_cum=退回当日累计后仍不够；
+                               #   turn_band=换手不在 3–30%；chg_window=涨幅不在 −1%~9.8%；
+                               #   limit_up_unbuyable=涨停/一字买不进；
+                               #   amt_legacy_basis=**走了退回口径的只数**（>0 ⇒ 池缺 prev_amt_yi，需查）
+                               'rejects': dict(_rej_stats)}}
         print(f'[{now:%H:%M}] 战法池 {len(_pat["pool"])} (asof={_pat.get("asof")}) '
               f'→ 形态∩活跃 {n_pat_active} → 剔冷门 {n_hot_only} → 候选 {n_queue_before_cap}'
               f'（其中强主线豁免 {n_strong_only}）→ 队列 {len(confirm_queue)}'
               f'（计划内 {sum(1 for x in confirm_queue if x["in_plan"])} 只）', flush=True)
+        if _rej_stats:
+            print(f'          活跃闸拒绝明细: '
+                  f'{dict(sorted(_rej_stats.items(), key=lambda kv: -kv[1]))}', flush=True)
         for x in confirm_queue[:8]:
             _tag = '强主线豁免' if x['strong_mainline_only'] else f'L2#{x["l2_rank"]}'
             print(f'          {x["sym"]} {x["name"]} {x["pattern_cn"]} 信号日{x["sig_date"]}(T-{x["bars_since_sig"]}) '

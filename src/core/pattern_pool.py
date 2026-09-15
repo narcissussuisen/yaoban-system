@@ -88,8 +88,19 @@ def write_pattern_pool(day: str, asof: str, lookback: int, patterns,
     import os
     fp = pathlib.Path(path) if path else (pathlib.Path(out_dir or POOL_DIR) / f'{day}_pattern_pool.json')
     fp.parent.mkdir(parents=True, exist_ok=True)
+    # ⚠️ `patterns` 必须与**池内实际标签**一致（2026-09-15 修）：
+    #   调用方传的 `patterns` 是 DETECTORS 名单，**不含 `zt_watch`** —— 它是**池层规则**、
+    #   不是 `strategies` 检测器（见文件头 `PATTERN_CN["zt_watch"]` 注释）。但 `zt_watch=True`
+    #   是默认值，池里会真的出现 `zt_watch` 条目（9/15 实池 8 只）⇒ 声明列表漏掉它，
+    #   任何"按声明列表过滤"的消费者会**静默漏掉这批票**。
+    #   ⇒ 由池内实际标签并集推导（数据驱动，不会随参数漂移）。
+    _declared = list(patterns)
+    for _r in (pool or []):
+        for _p in (_r.get('patterns') or []):
+            if _p not in _declared:
+                _declared.append(_p)
     doc = {
-        'day': day, 'asof': asof, 'lookback': lookback, 'patterns': list(patterns),
+        'day': day, 'asof': asof, 'lookback': lookback, 'patterns': _declared,
         'stats': stats, 'pool': pool, 'name_map': name_map,
         'built_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'source': 'core.pattern_pool.build_pattern_pool ← core.strategies（参数: config/parameters.toml）',
@@ -103,7 +114,7 @@ def write_pattern_pool(day: str, asof: str, lookback: int, patterns,
     return fp
 
 
-def build_pattern_pool(dmap: dict, asof: str, lookback: int = 4,
+def build_pattern_pool(dmap: dict, asof: str, lookback: int = 6,
                        patterns: tuple = DEFAULT_PATTERNS,
                        names: dict | None = None,
                        exclude_fanbao_only: bool = True,
@@ -113,7 +124,15 @@ def build_pattern_pool(dmap: dict, asof: str, lookback: int = 4,
 
     dmap      {sym: 日线 DataFrame(date/open/high/low/close/volume)}，date 升序
     asof      **信号窗口的最新交易日**（= T-1；调用方必须保证不含 T 日数据，否则即为前视）
-    lookback  信号日回溯窗口（含 asof）。默认 4 —— 与 `plan_daily.py` 的「信号日∈最近4交易日」一致
+    lookback  信号日回溯窗口（含 asof）。默认 **6**（2026-09-15 恢复）。
+              ⚠️ **池窗与 plan 的 picks/scope 窗是两个口径，刻意解耦** ——
+              池是 scan 侧 fail-closed 的召回闸门（缺产物 ⇒ rc=8 ⇒ 全天禁新仓），
+              备选域不得比闸门更窄，否则「池里有、计划层永远看不到」。
+              历史事故：commit f496be6 把本默认值从 6 静默退回 4，并写了「与 win_days 同口径」
+              的注释（而 win_days 当时是硬编码 4，"对齐"在代码上从未成立），
+              导致 596 只池内候选对计划层不可见（实测 4 日窗仅 537 只 / 6 日窗 1131 只）。
+              ⇒ **勿再以"对齐"为由收窄本窗口**；对应棘轮见
+              `tests/test_plan_picks_window_guard.py`。
     patterns  启用哪些战法（默认并集；单战法可传单元素元组做消融）
     names     {sym: 名称} 名称表（来自 `data/stock_names_stocks.json`）；用于**池层**剔除 ST/退市风险
     exclude_fanbao_only  剔除「仅反包命中」（`patterns == ['qu_shi_fanbao']`）的标的
@@ -132,7 +151,7 @@ def build_pattern_pool(dmap: dict, asof: str, lookback: int = 4,
               涨停判定按**板块分档**（`indicators.limit_up_mask(symbol=...)`，10/20/30cm）。
 
     返回 (pool, stats)：
-      pool  [{'sym','pattern','pattern_cn','sig_date','bars_since_sig','close_asof','patterns'}]，按信号日降序
+      pool  [{'sym','pattern','pattern_cn','sig_date','bars_since_sig','close_asof','patterns','prev_amt_yi'}]，按信号日降序
       stats {'n_syms_scanned','n_skipped_short','n_excluded_st','n_no_name',
              'n_excluded_fanbao_only','n_pool','by_pattern','n_zt_watch_added','asof','lookback','window'}
 
@@ -226,6 +245,26 @@ def build_pattern_pool(dmap: dict, asof: str, lookback: int = 4,
         stats["by_pattern"][hit_patterns[0]] = stats["by_pattern"].get(hit_patterns[0], 0) + 1
         if hit_patterns[0] == "zt_watch":
             stats["n_zt_watch_added"] += 1
+        # ⭐ `prev_amt_yi` = **T−1（asof）当日全天成交额（亿元）**（2026-09-15 新增）。
+        #   为什么由池层带出：`scan_and_confirm.py` 的活跃闸原本拿**当日累计成交额**去比一个
+        #   按"前日全天"设计的门槛（`--min-amt 10`），09:46 就要求已成交 10 亿
+        #   （折算 ≈ 全天 37 亿）⇒ 选手候选与计划 picks **全军覆没**（实测 4/4 被挡）。
+        #   正确口径的证据：研究侧 `scripts/r6p_replication.py:179-181` 用 `prev_amt`；
+        #   原始 help（`scripts/_patch_ladder.py:5`）= `'前日成交额门槛(亿)'`。
+        #   建池本就在 `plan_daily` 的同一次全市场日线遍历里（~900s 已付）⇒ **零额外 IO**，
+        #   与既有 `close_asof` 同性质（as-of 状态字段），不混入形态信息。
+        #   ⚠️ 单位：日线 `amount` 为**元**（`plan_daily.py:255` 的 `if amt < 1e8` 可证）⇒ /1e8 得亿。
+        #   ⚠️ **取不到就给 None，不可给 0** —— `plan_daily.load_all_daily()` 会给缺列补 0.0，
+        #      若把 0 带出去，消费侧会把"无数据"当成"零成交额"从而**全票拒**（静默灾难）。
+        #      消费侧见到 None 会退回当日累计口径并打 WARN（见 scan_and_confirm.rough_screen）。
+        _prev_amt = None
+        try:
+            if "amount" in d.columns and len(d) >= 1:
+                _a = float(d["amount"].iloc[-1] or 0.0)
+                if _a > 0:
+                    _prev_amt = round(_a / 1e8, 4)
+        except Exception:
+            _prev_amt = None
         out.append({
             "sym": sym,
             "pattern": hit_patterns[0],                       # 主要战法（首个命中）
@@ -234,6 +273,7 @@ def build_pattern_pool(dmap: dict, asof: str, lookback: int = 4,
             "sig_date": sig_date,
             "bars_since_sig": len(dates) - 1 - sig_pos,       # 0 = 信号就在 asof 当日
             "close_asof": float(d["close"].iloc[-1]),
+            "prev_amt_yi": _prev_amt,                         # T−1 全天成交额（亿元）；取不到 = None
         })
     # 按信号日降序（最新信号优先）；Python 排序稳定 ⇒ 同信号日保持 dmap 原顺序，可复现
     out.sort(key=lambda r: r["sig_date"], reverse=True)

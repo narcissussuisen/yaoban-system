@@ -1,3 +1,21 @@
+# ============================================================================
+# ⚠️ 已归档（2026-09-15）—— 请勿再单独运行本脚本。
+#
+# 2026-09-14 用户裁定把战法池生成**并入 `scripts/plan_daily.py`**（`build_pattern_artifact`）：
+#   本脚本与 plan_daily 都要 `load_all_daily()`（实测 ~900s 全市场遍历），
+#   分开跑等于把同一笔 IO 付两遍；合并后**一次载入 → 两份产物**（plan.json + pattern_pool.json），
+#   schema 由 `core.pattern_pool.write_pattern_pool` 单点保证。
+#
+# 生产路径：`scripts/plan_daily.py --date <T>`（盘后链调用）→ 产出
+#   outputs/plans/<T>_plan.json 与 outputs/patterns/<T>_pattern_pool.json
+#   ⇒ scan 侧只依赖后者，**不需要**本脚本。
+#
+# 保留原因：① 消融/受控试验时可单独建池（`--patterns huigui` 单战法）；
+#          ② 它自带的「asof 必须严格早于 day」防前视校验，是与 plan_daily 互为兜底的第二处实现。
+# ⚠️ 若单独跑，注意其 `--lookback` 默认值需与 `plan_daily.PATTERN_LOOKBACK` 保持一致
+#    （2026-09-15 起为 6；历史上曾因两处默认值不一致造成池窗/计划窗错位，见
+#     tests/test_plan_picks_window_guard.py）。
+# ============================================================================
 """构建并落盘当日「战法池」（形态筛选层 / ROADMAP §1.2 第三层）。
 
 用法:

@@ -304,9 +304,18 @@ class WriteEntryPointTests(unittest.TestCase):
                              [f'{DAY}_pattern_pool.json'], '残留 tmp 文件（半截 JSON 风险）')
 
     def test_both_entries_share_writer(self):
-        """源码契约：`build_pattern_pool.py` 与 `plan_daily.py` 都必须走同一写入口。"""
-        for rel in ('scripts/build_pattern_pool.py', 'scripts/plan_daily.py'):
-            src = (ROOT / rel).read_text(encoding='utf-8')
+        """源码契约：两个建池入口都必须走同一写入口（schema 不得漂移）。
+
+        ⚠️ 2026-09-15：独立脚本 `scripts/build_pattern_pool.py` 已归档到
+        `scripts/_legacy/`（2026-09-14 裁定把建池并入 `plan_daily.py`，避免重复付
+        ~900s 全市场遍历 ⇒ 一次载入出两份产物）。本用例同步改路径，并**显式断言
+        文件存在** —— 否则将来再次移动时用例会静默跳过，契约失效而不自知。
+        """
+        entries = ('scripts/_legacy/build_pattern_pool.py', 'scripts/plan_daily.py')
+        for rel in entries:
+            p = ROOT / rel
+            self.assertTrue(p.exists(), f'{rel} 不存在 ⇒ 契约用例失去对象，请同步本用例')
+            src = p.read_text(encoding='utf-8')
             self.assertIn('write_pattern_pool', src,
                           f'{rel} 未使用共享写入口 ⇒ schema 会漂移')
 

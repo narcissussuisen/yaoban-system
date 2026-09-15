@@ -101,6 +101,7 @@ def build_pattern_artifact(dmap, day: str, asof: str, lookback: int = 4,
 
     为什么并入本脚本（2026-09-14 用户裁定）：
       原先战法池由 `scripts/build_pattern_pool.py` 单独跑 —— 它自己再 `load_all_daily()`
+      （该脚本已于 2026-09-15 归档到 `scripts/_legacy/build_pattern_pool.py`，勿再单独跑）
       一次（实测日线载入 ~900s + 形态计算 ~1200s ≈ 35 分钟），而 `plan_daily.py` 盘后
       已经为日计划付过同一笔全市场遍历。两者**读的完全是同一份数据**（`core.daily_src`
       + `build_daily_map`），分开跑纯属把 IO 付两遍。

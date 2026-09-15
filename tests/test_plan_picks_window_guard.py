@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import ast
 import pathlib
+import sys
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -118,6 +119,49 @@ class RatchetSelfCheckTests(unittest.TestCase):
         self.assertGreater(len(src), 5000, "plan_daily.py 过小 ⇒ 路径或文件被换掉了")
         self.assertIn("def main(", src)
         self.assertIn("build_pattern_artifact", src)
+
+
+class CrossModuleDefaultTests(unittest.TestCase):
+    """两个建池入口的**默认窗口必须一致**（第三处历史残留，2026-09-15 修）。
+
+    事故形态：`plan_daily` 用的值被静默退回 4，而 `core.pattern_pool` 的**函数默认值**
+    长期是 4、`scripts/_legacy/build_pattern_pool.py` 的 `--lookback` 默认却是 6 ——
+    **同一件事三个数**。任何一处不同步，都会让"池窗/计划窗"错位再次发生。
+    """
+
+    def _load(self):
+        import importlib
+        import inspect
+        for p in (str(ROOT / "src"), str(ROOT), str(ROOT / "scripts")):
+            if p not in sys.path:
+                sys.path.insert(0, p)
+        pp = importlib.import_module("core.pattern_pool")
+        pd = importlib.import_module("plan_daily")
+        sig = inspect.signature(pp.build_pattern_pool)
+        return sig.parameters["lookback"].default, pd.PATTERN_LOOKBACK, pd.PICKS_SIGNAL_WINDOW
+
+    def test_defaults_are_identical(self):
+        pool_default, plan_lookback, plan_picks = self._load()
+        self.assertEqual(
+            pool_default, plan_lookback,
+            "core.pattern_pool.build_pattern_pool 的默认 lookback 与 plan_daily.PATTERN_LOOKBACK "
+            "不一致 ⇒ 同一件事两个数（历史上正是这样错位的）",
+        )
+        self.assertGreaterEqual(
+            plan_picks, plan_lookback,
+            "picks 窗窄于池窗 ⇒ 池内候选对计划层不可见",
+        )
+
+    def test_legacy_script_cli_default_matches(self):
+        """归档脚本 `--lookback` 的 CLI 默认值也必须一致（不能只有函数默认值对）。"""
+        legacy = ROOT / "scripts" / "_legacy" / "build_pattern_pool.py"
+        self.assertTrue(legacy.exists(), "归档脚本不在预期路径 ⇒ 请同步本用例")
+        src = legacy.read_text(encoding="utf-8")
+        pool_default, _, _ = self._load()
+        self.assertIn(
+            f"default={pool_default}", src,
+            f"归档脚本的 --lookback 默认值不是 {pool_default} ⇒ 单独跑会建出不同窗口的池",
+        )
 
 
 if __name__ == "__main__":
