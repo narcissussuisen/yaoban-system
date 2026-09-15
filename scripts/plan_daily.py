@@ -27,6 +27,33 @@ from core.sell import limit_pct_of  # noqa: E402
 BASE = pathlib.Path(__file__).resolve().parent.parent
 TDX = pathlib.Path(r'F:/WorkBuddyItem/a股level2/daily')
 
+# ==== 选股窗口口径（单点常量，2026-09-15 立）==================================
+# 背景（用户 2026-09-15 13:49 报「备选股池以及买入标的无一命中」的根因之一）：
+#   Layer C（commit ae73dff）已裁定 **战法池 lookback = 6**（8 天选手候选池矩阵召回 31/32 → 32/32），
+#   并在注释里明确写「池的召回窗与 picks 窗**不是同一口径**，勿再"对齐"回去」。
+#   commit f496be6（9/15 09:03）把 lookback **静默退回 4**，理由注释为「lookback=4 与下面 win_days 同口径」——
+#   而 win_days 当时是硬编码 4 ⇒ **"对齐"在代码上从未成立**，却让计划层比池层少看 2 个交易日。
+#
+# 实测代价（2026-09-15 池产物，metadata 记 lookback=6 实建）：
+#   池内 huigui 1133 只，按 sig_date 分布 9/14:92 9/11:96 9/10:184 9/9:165 9/8:200 9/7:394；
+#   4 日窗 [9/9..9/14] 只看得见 **537 只**，6 日窗 [9/7..9/14] **1131 只（+110.6%）**；
+#   **596 只池内候选被窗口结构性排除**，其中含选手当日**唯一被买入**的
+#   沃特股份(sz002886, sig=2026-09-07, bars_since_sig=5) —— 即"无一命中"的直接来源。
+#
+# 纪律（防再次静默回退）：**池窗（召回闸门）与 picks 窗（备选域）保持解耦，但 picks 窗不得窄于池窗。**
+#   池是 scan 侧 fail-closed 的硬依赖（缺产物 ⇒ rc=8 ⇒ 全天禁新仓）；备选域比闸门更窄是无理由的信息损失。
+PATTERN_LOOKBACK = 6        # 战法池召回窗（交易日）
+PICKS_SIGNAL_WINDOW = 6     # 日计划 picks 信号窗（交易日）；必须 >= PATTERN_LOOKBACK
+
+# picks 排序键（行为参数，抽成常量便于 A/B 与裁定）
+# 原实现只按 ["heat","brk5","yang"] 排序 ⇒ 同 L2 内大量并列 + 不稳定排序 = 随机裁掉。
+# heat 仍是第一主键（保留现有"板块热度优先"口径，避免本轮夹带未裁定的行为改动）；
+# 新增 amt（成交额，量能强度）与 bars_since_sig（新鲜度）作显式 tiebreak，末位 symbol 保证完全确定。
+PICKS_SORT_KEYS = ["heat", "brk5", "yang", "amt", "bars_since_sig", "symbol"]
+PICKS_SORT_ASC = [False, False, False, False, True, True]
+# ============================================================================
+
+
 
 def load_all_daily():
     """日线来源: F盘历史(2025+2026至8/21) + 60m重建(8/22+, 已验证可靠) —— 统一经 daily_src"""
@@ -135,9 +162,16 @@ def main():
     # ---- 战法池（形态筛选层）：与日计划共用**同一次** load_all_daily 遍历 ----
     # 放在日计划计算之前：战法池是 scan 侧 fail-closed（缺产物 ⇒ rc=8 ⇒ **全天禁新仓**）
     # 的硬依赖，先落盘可让「后续日计划步骤失败」不影响次日战法池的可用性。
-    # asof=pday ⇒ 严格早于 d 的真实交易日（T-1），lookback=4 与下面 win_days 同口径。
+    # asof=pday ⇒ 严格早于 d 的真实交易日（T-1）。
+    # ⭐ 2026-09-15：lookback 恢复为 6（撤销 f496be6 的静默回退，回到 ae73dff 的裁定）。
+    #   注意这与下方 win_days（日计划 picks 的信号窗）**不是同一口径** ——
+    #   池的召回窗与 picks 窗解耦，勿再"对齐"回去；但 picks 窗不得窄于池窗（见 PICKS_SIGNAL_WINDOW）。
+    if PICKS_SIGNAL_WINDOW < PATTERN_LOOKBACK:
+        print(f'[WARN] picks 信号窗({PICKS_SIGNAL_WINDOW}) < 池召回窗({PATTERN_LOOKBACK}) ⇒ '
+              f'池内近 {PATTERN_LOOKBACK - PICKS_SIGNAL_WINDOW} 个交易日的信号在计划层不可见',
+              file=sys.stderr, flush=True)
     try:
-        _pat_fp, _pat_stats = build_pattern_artifact(dmap, d, pday, lookback=4)
+        _pat_fp, _pat_stats = build_pattern_artifact(dmap, d, pday, lookback=PATTERN_LOOKBACK)
     except Exception as _pat_exc:
         # ⚠️ 战法池失败**不得**打死日计划（日计划还挂在取数前序多步上，且盘前 gate 依赖它）；
         #    但绝不允许静默 —— 打 stderr 让 post-close 的 log_review 能捞到。
@@ -192,11 +226,11 @@ def main():
                             deep_drop_count=dt7_cnt)
     bing = (dt_cnt > zt and zt < 40)
     print(f'{pday} 情绪: zt={zt} dt={dt_cnt} 跌幅>7%={dt7_cnt} 炸板率={zr:.1f}% 高度={max_h} 连板率={lianban_rate:.1f}% 温度={t["temp"]} {t["stage"]} 冰点={bing}', flush=True)
-    # ---- 信号扫描（信号日 ∈ [8/21, 8/26]，8/27 可买 = k≥1）
+    # ---- 信号扫描（信号日 ∈ 最近 PICKS_SIGNAL_WINDOW 个工作日，T 可买）
     import datetime as _dt2
     _w = []
     _dd2 = _dt.date.fromisoformat(pday)
-    while len(_w) < 4:
+    while len(_w) < PICKS_SIGNAL_WINDOW:
         if _dd2.weekday() < 5:
             _w.append(_dd2.isoformat())
         _dd2 -= _dt.timedelta(days=1)
@@ -220,7 +254,9 @@ def main():
             l2 = industry_of(sym, sd) or ""
             if amt < 1e8:
                 continue  # 流动性门槛: 信号日成交额 <1亿 不入选（妖票活跃底线）
-            cands.append({"symbol": sym, "sig_date": sd, "l2": l2, "yang": yang, "brk5": brk5, "heat": sector_zt.get(l2, 0), "amt": amt})
+            cands.append({"symbol": sym, "sig_date": sd, "l2": l2, "yang": yang, "brk5": brk5,
+                          "heat": sector_zt.get(l2, 0), "amt": amt,
+                          "bars_since_sig": len(dlist) - 1 - i})
     print(f'候选池 {len(cands)} 只', flush=True)
     # ---- 软评分排序 top4（操盘纪律：科创板688/689、北交所4/8/92 不可买——权限限制；ST 不打——选手模式无 ST 证据）
     cdf = pd.DataFrame(cands).drop_duplicates(subset=["symbol"])
@@ -240,20 +276,43 @@ def main():
         print(f'[names] 因缺名保守排除 {len(cdf) - len(_named)} 只', flush=True)
     cdf = _named[~_named["symbol"].map(
         lambda s: 'ST' in _names.get(s, '') or str(_names.get(s, '')).startswith('*'))]
-    cdf = cdf.sort_values(["heat", "brk5", "yang"], ascending=False)
+    # ⭐ 排序键（2026-09-15 修，原为 cdf.sort_values(["heat","brk5","yang"], ascending=False)）
+    #   缺陷：三个键值域极窄（heat 为小整数、brk5/yang 为布尔）⇒ 同 L2 内大量**完全并列**；
+    #   pandas 默认 quicksort **不稳定**，`groupby("l2").head(2)` 在并列上等价于**任取 2 只**。
+    #   实测 2026-09-15：崇达技术/奥士康（l2=270200, heat=6, brk5=T, yang=T）与选手候选
+    #   协和电子/艾华集团（**同为 l2=270200, heat=6, brk5=T, yang=T**）四者完全并列
+    #   ⇒ 协和/艾华被随机裁掉；而 `amt`（信号日成交额）已算出却**未参与排序**。
+    #   修法：① 显式 tiebreak，纳入已算出的 amt（量能强度）与信号新鲜度；
+    #         ② kind="mergesort" 保证稳定 ⇒ 结果可复现（原实现同一输入可产出不同 top4）。
+    #   为何是这两个 tiebreak：都对齐选手口径 —— 量柱六形态把"有量"当最优档
+    #   （9/10「分时上有量，一步一步向上走」= ①最优档），且他实际执行多落在信号后 0-3 日。
+    #   ⚠️ 顺序本身是**行为参数**，故抽成常量：便于 A/B 与裁定，勿在调用点硬编码。
+    cdf = cdf.sort_values(PICKS_SORT_KEYS, ascending=PICKS_SORT_ASC, kind="mergesort")
     # 跨方向分散：每主线(L2)最多 2 只，依次取到 4 只——避免备选押单一方向
     top = cdf.groupby("l2", group_keys=False).head(2).head(4)
     picks = []
     for _, r in top.iterrows():
         sym = r["symbol"]
         picks.append({"sym": sym, "name": _names.get(sym, ''), "sig_date": r["sig_date"], "l2": r["l2"], "heat": int(r["heat"]), "brk5": bool(r["brk5"]), "yang": bool(r["yang"])})
+    # 候选域可观测性（2026-09-15 新增）：把"窗口/过滤损失"落到产物里，
+    # 否则「池 1246 只 → picks 4 只」之间的损耗完全不可见（本次根因正是这样藏了两天）。
+    _stats = {
+        "n_cands_raw": int(len(cands)),
+        "n_cands_eligible": int(len(cdf)),
+        "picks_window_days": PICKS_SIGNAL_WINDOW,
+        "pattern_lookback": PATTERN_LOOKBACK,
+        "win_days": list(win_days),
+    }
+    print(f'候选域: raw={_stats["n_cands_raw"]} eligible={_stats["n_cands_eligible"]} '
+          f'→ picks={len(picks)} (picks窗={PICKS_SIGNAL_WINDOW}日, 池窗={PATTERN_LOOKBACK}日)', flush=True)
     plan = {
         "date": d,
         "mode": f"候选观察(输入≤{pday}收盘)",
         "emotion": {"zt": zt, "dt": dt_cnt, "dt7": dt7_cnt, "zhaban_rate": round(zr, 1), "max_h": max_h, "lianban_rate": round(lianban_rate, 1), "temp": t["temp"], "stage": t["stage"], "note": t.get("note", "")},
         "mainline": sorted(sector_zt.items(), key=lambda x: -x[1])[:5],
         "global": _global_snapshot(),
-        "picks": picks
+        "picks": picks,
+        "stats": _stats,
     }
     import sys as _s; _s.path.insert(0, str(BASE / "portfolio"))
     from ledger import transact, record_plan
