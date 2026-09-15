@@ -28,10 +28,20 @@ class LedgerRiskTests(unittest.TestCase):
  def test_human_decision_required(self):
   s=self.state()
   with self.assertRaisesRegex(ValueError,'decision_id 缺失'): ledger.buy(s,'000001','2026-08-31 09:40',10,100,'P')
- def test_45pct_and_90pct(self):
+ def test_single_weight_cap(self):
+  """单票权重上限边界。
+
+  2026-09-13：上限 0.45 → 0.30（对齐 SOP「单票 ≤30%」，见 `ledger.DEFAULT_POLICY` 注释）。
+  ⚠️ 本测试原名 `test_45pct_and_90pct`，但代码只测了单票、从未测毛敞口 ——
+  因为 `max_positions=2 × max_single_weight=0.30 = 60% < max_gross_exposure=0.90`，
+  **毛敞口上限在当前参数下不可达（死约束）**，故只保留单票边界。
+  ⚠️ 数值须含成本：`buy_net(10) = 10 × (1+0.00025+0.001) = 10.0125`（裸算 3000 股会刚好越界）。
+  """
   s=self.state(); did=self.approve(s)
-  self._hbuy(s,'000001','2026-08-31 09:40',10,4000,'P',did)
-  with self.assertRaisesRegex(ValueError,'单票权重'): self._hbuy(s,'000001','2026-08-31 09:45',10,600,'P',did)
+  # 10 万权益：2900 股 @10.0125 = 29.04% → 通过
+  self._hbuy(s,'000001','2026-08-31 09:40',10,2900,'P',did)
+  # 再 200 股 → 31.04% > 30% → 拒绝
+  with self.assertRaisesRegex(ValueError,'单票权重'): self._hbuy(s,'000001','2026-08-31 09:45',10,200,'P',did)
  def test_daily_one_new_symbol(self):
   s=self.state(); d1=self.approve(s,'000001'); self._hbuy(s,'000001','2026-08-31 09:40',10,1000,'P',d1)
   d2=self.approve(s,'000002')

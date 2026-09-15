@@ -25,12 +25,70 @@ except ImportError:  # pragma: no cover
     msvcrt = None
 
 ROOT = pathlib.Path(__file__).resolve().parent
-LEDGER = ROOT / "ledger.json"
-LOCK = ROOT / "ledger.lock"
-COMM, STAMP, SLIP = 0.00025, 0.0005, 0.001
+_DEFAULT_LEDGER = ROOT / "ledger.json"
+
+
+def _resolve_ledger() -> tuple[pathlib.Path, pathlib.Path]:
+    """账本路径解析（2026-09-12 R0.2：支持 EVOALPHA_LEDGER 环境变量）。
+
+    - 未设 env → 回退 canonical `portfolio/ledger.json`（生产零改动）
+    - env 为相对路径 → 相对本目录解析
+    - LOCK **必须随 LEDGER 走**，否则两个账本共用一个锁文件 → 文件锁与 CAS 双双失效
+    """
+    raw = os.environ.get("EVOALPHA_LEDGER")
+    if not raw:
+        led = _DEFAULT_LEDGER
+    else:
+        p = pathlib.Path(raw)
+        led = p if p.is_absolute() else ROOT / p
+    return led, led.parent / (led.stem + ".lock")
+
+
+LEDGER, LOCK = _resolve_ledger()
+
+
+def configure(path) -> tuple[pathlib.Path, pathlib.Path]:
+    """进程内切换账本路径（供基准臂账户与单测注入临时账本使用）。
+
+    注意：正常生产路径请用 EVOALPHA_LEDGER 环境变量——本函数只在同进程内改全局，
+    对已 fork/已启动的子进程无效。
+    """
+    global LEDGER, LOCK
+    LEDGER, LOCK = (pathlib.Path(path), pathlib.Path(path).parent / (pathlib.Path(path).stem + ".lock"))
+    return LEDGER, LOCK
+
+
+# ⭐ 2026-09-13「唯一真相源」治理：费率从 `config/parameters.toml [fees]` 读。
+#   此前硬编码 `0.00025`（万 2.5），而用户实盘费率是**万 1** ⇒ 成本被高估 2.5 倍。
+#   来源：用户 2026-09-13 —— 沪深 / ETF / 可转债 / 港股通 万分之一；北交所 万分之 5.75；**不免五**。
+#   ⚠️⚠️ **此处禁止 `from config import section`**（血泪教训，2026-09-13）：
+#      本机存在与 `src/config.py` **同名的 `config/` 目录**（放 parameters.toml）。
+#      由于 `portfolio/` 可能先于 `src/` 进入 `sys.path`，`import config` 会被解析成该**目录**
+#      （namespace package）并写入 `sys.modules` ⇒ 之后 `src/core/sell.py` 等处的
+#      `from config import section` **全线 ImportError**（实测 9 个测试模块收集失败）。
+#      ⇒ 故这里**直接读 toml 文件**：同一真相源，但不经 `config` 模块名。
+try:
+    import tomllib as _tomllib
+    _PARAMS_FP = pathlib.Path(__file__).resolve().parent.parent / "config" / "parameters.toml"
+    _FEES = (_tomllib.loads(_PARAMS_FP.read_text(encoding="utf-8")) or {}).get("fees", {})
+except Exception:  # noqa: BLE001
+    _FEES = {}
+
+COMM = float(_FEES.get("commission_main", 0.00025))
+STAMP = float(_FEES.get("stamp_tax_sell", 0.0005))
+SLIP = float(_FEES.get("slippage", 0.001))
+MIN_COMM = float(_FEES.get("min_commission", 0.0))
+# ⚠️ 北交所费率（`commission_bse = 0.000575`）已登记但**尚未接入**：
+#    `buy_net` / `sell_net` 目前不区分品种，统一用 COMM ⇒ 北交所标的成本仍按万 1 计，**待实现**。
+
 DEFAULT_POLICY = {
     "max_positions": 2,
-    "max_single_weight": 0.45,
+    # 2026-09-13（R4.1 配套裁定）：0.45 → 0.30，对齐人格 SOP「单票 ≤30%」。
+    # 原 0.45 的两处问题：① 与 SOP 仓位纪律冲突（知识层↔引擎层缺口）；
+    # ② 45% × stop_loss_pct 5% ≈ 总资金 2.25%，超出「单笔亏损 ≤2% 总资金」纪律。
+    # 改 0.30 后：单票 15 万 × 5% = 7500 = 总资金 1.5%，两条纪律同时满足。
+    # ⚠️ **真正生效的是账本内的 policy 快照**（本常量只在新建账本时被采用）。
+    "max_single_weight": 0.30,
     "max_gross_exposure": 0.90,
     "max_new_buys_per_day": 1,
     "require_human_decision": True,
@@ -84,6 +142,12 @@ def _normalize(state: dict) -> dict:
     acct.setdefault("positions", {})
     acct.setdefault("fills", [])
     acct.setdefault("equity_curve", [])
+    # 2026-09-12 R0.2：历史首日曲线点由 initialize_autonomous_paper.py:21 写成 market_value/baseline
+    # （baseline 是布尔标志，不是数值），而 equity() 写的是 mv → 读 mv 的消费方（Vibe 看板 acct.equity_curve）
+    # 会漏掉首点。此处做一次只补不改的兼容归并。
+    for row in acct["equity_curve"]:
+        if isinstance(row, dict) and "mv" not in row and "market_value" in row:
+            row["mv"] = row["market_value"]
     return state
 
 
@@ -172,6 +236,17 @@ def transact(mutator, retries: int = 3):
 def _cost_equity(state: dict) -> float:
     acct = state["account"]
     return float(acct["cash"]) + sum(float(p.get("cost", 0)) * int(p.get("qty", 0)) for p in acct["positions"].values())
+
+
+def cost_equity(state: dict) -> float:
+    """公开权益口径（成本口径，非盯市）——与 `_validate_buy_policy` 内部判定**完全同源**。
+
+    2026-09-12 R0.9（8.1 裁决配套）：仓位定档必须用本函数，**不得再用 `state['start_cash']`**。
+    `start_cash` 是「**初始**本金」，主账本从 10 万调到 50 万后，用它定档会把每档固定放大到
+    15 万（50万×0.30，2026-09-13 权重由 0.45 下调），与「单笔亏损 ≤2% 总资金」纪律脱节，
+    且不随账户权益变化。
+    """
+    return _cost_equity(state)
 
 
 def _gross_cost(state: dict) -> float:
@@ -412,4 +487,19 @@ def record_plan(state, date, plan):
 
 
 def record_review(state, date, review):
+    """记录盘后审计重建(close_pipeline 产物)。**非成交、非持仓权威**。
+
+    2026-09-11 澄清(INC-2026-09-11-01 附带发现): review 里的 buys/sells 是 close_pipeline
+    按当日分钟数据重建的"规则全天会怎么打"(counterfactual 审计), 该流水线只记录不执行 ——
+    `--execute` 被永久禁用(return 5), 且从不调用 fill()。因此 reviews[*].sells 会与
+    account.fills 不一致(9/11 审计实录: 08-31/09-03/09-04 均有 reviews.sells 而无对应成交),
+    这是**设计如此**, 不是账本错误。
+
+    但 reviews[*] 的字段结构与真实成交同名(同含 kind='P/D/B'、reason='止损'), 后来者或未来
+    代码若据以推断持仓/已实现盈亏会双重计算。故此处补齐机器可读标记; setdefault 不覆盖既有键,
+    历史条目保持原样不被改写。
+    """
+    review.setdefault("kind", "audit_counterfactual")
+    review.setdefault("executed", False)
+    review.setdefault("authority", "account.fills")
     state["reviews"][date] = review

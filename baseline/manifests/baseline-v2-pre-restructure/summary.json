@@ -1,0 +1,160 @@
+{
+  "baseline_id": "baseline-v2-pre-restructure",
+  "purpose": "R0.1 baseline-v2 冻结：v2.0 重构前的生产真实状态存证（代码[scripts/src/tools]/配置/账本/数据/docs/tests/19 项计划任务）",
+  "generated_at": "2026-09-12T11:58:55",
+  "repo_root": "C:\\Users\\YZP\\WorkBuddy\\Claw\\方法论与研究文档\\EvoAlpha\\yaoban-system",
+  "manifest_hash": "6ee6057e0ec1df19cd91b52a88735d2d9504a0f032de23cddf289bcb7abaad6f",
+  "manifest_file": "manifest.jsonl",
+  "file_count": 2403,
+  "total_bytes": 190033439,
+  "by_scope": {
+    "README.md": {
+      "files": 1,
+      "bytes": 3861
+    },
+    "_r7p_review_candcount.py": {
+      "files": 1,
+      "bytes": 588
+    },
+    "_r7p_review_countprobe.py": {
+      "files": 1,
+      "bytes": 1684
+    },
+    "_r7p_review_dd.py": {
+      "files": 1,
+      "bytes": 428
+    },
+    "_r7p_review_dd2.py": {
+      "files": 1,
+      "bytes": 863
+    },
+    "_r7p_review_eqcheck.py": {
+      "files": 1,
+      "bytes": 1288
+    },
+    "_r7p_review_indep.py": {
+      "files": 1,
+      "bytes": 3696
+    },
+    "_r7p_review_monthconv.py": {
+      "files": 1,
+      "bytes": 797
+    },
+    "_r7p_review_monthly.py": {
+      "files": 1,
+      "bytes": 566
+    },
+    "_r7p_review_zuoshou.py": {
+      "files": 1,
+      "bytes": 951
+    },
+    "config": {
+      "files": 3,
+      "bytes": 18329
+    },
+    "data": {
+      "files": 1951,
+      "bytes": 187201639
+    },
+    "docs": {
+      "files": 124,
+      "bytes": 710297
+    },
+    "portfolio": {
+      "files": 5,
+      "bytes": 62506
+    },
+    "scripts": {
+      "files": 223,
+      "bytes": 1196670
+    },
+    "src": {
+      "files": 39,
+      "bytes": 309209
+    },
+    "templates": {
+      "files": 1,
+      "bytes": 9850
+    },
+    "tests": {
+      "files": 39,
+      "bytes": 214469
+    },
+    "tools": {
+      "files": 7,
+      "bytes": 83543
+    },
+    "vendor_astock_skill.md": {
+      "files": 1,
+      "bytes": 212205
+    }
+  },
+  "exclude_dirs": [
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    "__pycache__"
+  ],
+  "exclude_dir_prefixes": [
+    "tmp"
+  ],
+  "exclude_suffixes": [
+    ".lock",
+    ".log",
+    ".pyc",
+    ".pyo",
+    ".tmp"
+  ],
+  "exclude_files": [
+    "ledger.lock"
+  ],
+  "task_names_checked": [
+    "YaobanPreflight",
+    "YaobanSelfHeal",
+    "YaobanPremarket",
+    "YaobanPlanGate",
+    "YaobanMorningCheck",
+    "YaobanTdxProbe",
+    "YaobanAuctionMonitor",
+    "YaobanEventNotify",
+    "YaobanTickDaemon",
+    "YaobanScanConfirm",
+    "YaobanIntradayMonitor",
+    "YaobanClosePipeline",
+    "YaobanPostCloseChain",
+    "YaobanEveningCheck",
+    "YaobanTdxServerVerify",
+    "YaobanBoardRefresh",
+    "YaobanStatusPush",
+    "VibeResearchDashboardServices",
+    "VibeResearchLiveTickValidation"
+  ],
+  "git": {
+    "head": "d6a70aa0fe5421d685a4378b9900f00a020a56b5",
+    "branch": "main",
+    "dirty_files": 45
+  },
+  "freeze_window": {
+    "ledger_window": {
+      "start": "2026-08-31",
+      "end": "2026-09-11",
+      "points": 9,
+      "start_cash": 100000.0,
+      "start_date": "2026-08-31",
+      "fills": 8,
+      "positions": 0,
+      "revision": 36,
+      "risk_state": {
+        "position_multiplier": 0.0,
+        "paused": true,
+        "terminated": false,
+        "peak_equity": 101917.58,
+        "drawdown_pct": -10.64,
+        "source_date": "2026-09-11",
+        "reason": "portfolio_drawdown_pause"
+      }
+    }
+  },
+  "acceptance": "同一输入可重放同一 Top 5",
+  "replay_note": "freeze_window.ledger_window 的 [start, end] 即 decision_digest 重放的冻结基线窗口；日线/分钟数据窗口由 R2 数据层另行登记（数据不在本 repo 内）。"
+}

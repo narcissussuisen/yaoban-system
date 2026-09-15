@@ -1,0 +1,346 @@
+# Windows 计划任务注册状态快照
+# generated_at: 2026-09-12T11:58:50
+
+== YaobanPreflight == status: REGISTERED
+任务名:                             \YaobanPreflight
+下次运行时间:                       2026/9/14 8:35:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 8:35:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           8:35:00
+
+== YaobanSelfHeal == status: REGISTERED
+任务名:                             \YaobanSelfHeal
+下次运行时间:                       2026/9/14 8:36:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 8:36:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           8:36:00
+
+== YaobanPremarket == status: REGISTERED
+任务名:                             \YaobanPremarket
+下次运行时间:                       2026/9/14 8:50:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 8:50:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           8:50:00
+
+== YaobanPlanGate == status: REGISTERED
+任务名:                             \YaobanPlanGate
+下次运行时间:                       2026/9/14 8:55:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 8:55:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           8:55:00
+
+== YaobanMorningCheck == status: REGISTERED
+任务名:                             \YaobanMorningCheck
+下次运行时间:                       2026/9/14 8:58:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 8:58:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           8:58:00
+
+== YaobanTdxProbe == status: REGISTERED
+任务名:                             \YaobanTdxProbe
+下次运行时间:                       2026/9/14 9:00:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 16:00:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           9:00:00
+
+== YaobanAuctionMonitor == status: REGISTERED
+任务名:                             \YaobanAuctionMonitor
+下次运行时间:                       2026/9/14 9:15:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 9:30:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           9:15:00
+
+== YaobanEventNotify == status: REGISTERED
+任务名:                             \YaobanEventNotify
+下次运行时间:                       2026/9/14 9:15:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 15:01:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           9:15:00
+
+== YaobanTickDaemon == status: REGISTERED
+任务名:                             \YaobanTickDaemon
+下次运行时间:                       2026/9/14 9:30:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 9:30:00
+上次结果:                           6
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           9:30:00
+
+== YaobanScanConfirm == status: REGISTERED
+任务名:                             \YaobanScanConfirm
+下次运行时间:                       2026/9/14 9:30:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 15:01:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           9:30:00
+
+== YaobanIntradayMonitor == status: REGISTERED
+任务名:                             \YaobanIntradayMonitor
+下次运行时间:                       2026/9/14 9:30:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 15:01:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           9:30:00
+
+== YaobanClosePipeline == status: REGISTERED
+任务名:                             \YaobanClosePipeline
+下次运行时间:                       2026/9/14 15:10:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 15:10:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           15:10:00
+
+== YaobanPostCloseChain == status: REGISTERED
+任务名:                             \YaobanPostCloseChain
+下次运行时间:                       2026/9/14 15:35:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 15:35:00
+上次结果:                           1
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           15:35:00
+
+== YaobanEveningCheck == status: REGISTERED
+任务名:                             \YaobanEveningCheck
+下次运行时间:                       2026/9/14 17:30:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 17:30:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           17:30:00
+
+== YaobanTdxServerVerify == status: REGISTERED
+任务名:                             \YaobanTdxServerVerify
+下次运行时间:                       2026/9/19 10:00:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/12 10:00:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\yaoban_tasks\lau
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           10:00:00
+
+== YaobanBoardRefresh == status: REGISTERED
+任务名:                             \YaobanBoardRefresh
+下次运行时间:                       2026/9/14 9:35:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 14:56:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           9:35:00
+任务名:                             \YaobanBoardRefresh
+下次运行时间:                       2026/9/14 9:35:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 14:56:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           13:05:00
+
+== YaobanStatusPush == status: REGISTERED
+任务名:                             \YaobanStatusPush
+下次运行时间:                       2026/9/14 8:36:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/12 4:50:01
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           8:36:00
+任务名:                             \YaobanStatusPush
+下次运行时间:                       2026/9/14 8:36:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/12 4:50:01
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           8:50:00
+任务名:                             \YaobanStatusPush
+下次运行时间:                       2026/9/14 8:36:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/12 4:50:01
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           8:55:00
+任务名:                             \YaobanStatusPush
+下次运行时间:                       2026/9/14 8:36:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/12 4:50:01
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           9:00:00
+任务名:                             \YaobanStatusPush
+下次运行时间:                       2026/9/14 8:36:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/12 4:50:01
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           9:30:00
+任务名:                             \YaobanStatusPush
+下次运行时间:                       2026/9/14 8:36:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/12 4:50:01
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           9:35:00
+任务名:                             \YaobanStatusPush
+下次运行时间:                       2026/9/14 8:36:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/12 4:50:01
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           11:30:00
+任务名:                             \YaobanStatusPush
+下次运行时间:                       2026/9/14 8:36:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/12 4:50:01
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           13:05:00
+任务名:                             \YaobanStatusPush
+下次运行时间:                       2026/9/14 8:36:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/12 4:50:01
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           13:10:00
+任务名:                             \YaobanStatusPush
+下次运行时间:                       2026/9/14 8:36:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/12 4:50:01
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           15:05:00
+任务名:                             \YaobanStatusPush
+下次运行时间:                       2026/9/14 8:36:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/12 4:50:01
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           15:40:00
+任务名:                             \YaobanStatusPush
+下次运行时间:                       2026/9/14 8:36:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/12 4:50:01
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           17:45:00
+任务名:                             \YaobanStatusPush
+下次运行时间:                       2026/9/14 8:36:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/12 4:50:01
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           18:30:00
+
+== VibeResearchDashboardServices == status: REGISTERED
+任务名:                             \VibeResearchDashboardServices
+下次运行时间:                       2026/9/14 8:30:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 9:20:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           8:30:00
+任务名:                             \VibeResearchDashboardServices
+下次运行时间:                       2026/9/14 8:30:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 9:20:00
+上次结果:                           0
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           9:20:00
+
+== VibeResearchLiveTickValidation == status: REGISTERED
+任务名:                             \VibeResearchLiveTickValidation
+下次运行时间:                       2026/9/14 9:35:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 13:05:00
+上次结果:                           2
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           9:35:00
+任务名:                             \VibeResearchLiveTickValidation
+下次运行时间:                       2026/9/14 9:35:00
+登录状态:                           只使用交互方式
+上次运行时间:                       2026/9/11 13:05:00
+上次结果:                           2
+要运行的任务:                       C:\Users\YZP\.workbuddy\binaries\python\versions\3.13.12\pythonw.exe "C:\Users\YZP\WorkBuddy\yaoban_tasks\run_hidden.py" powershell.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\Ev
+计划任务状态:                       已启用
+计划类型:                           每周
+开始时间:                           13:05:00

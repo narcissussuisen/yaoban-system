@@ -1,1257 +1,11 @@
 {
- "_revision": 32,
- "start_cash": 100000.0,
- "start_date": "2026-08-31",
- "benchmark": "000852.SH",
- "account": {
-  "cash": 23045.362,
-  "positions": {
-   "300468": {
-    "qty": 1800,
-    "cost": 24.610725,
-    "entry_ts": "2026-09-01 10:05",
-    "stop_px": 23.350999999999996,
-    "days": 0
-   },
-   "300394": {
-    "qty": 100,
-    "cost": 276.084675,
-    "entry_ts": "2026-09-10 10:30",
-    "stop_px": 261.953,
-    "days": 0
-   }
-  },
-  "fills": [
-   {
-    "date": "2026-08-31",
-    "ts": "2026-08-31 10:00",
-    "sym": "300489",
-    "side": "buy",
-    "qty": 100,
-    "px": 247.0,
-    "reason": "e4_support",
-    "plan_ref": "plan-2026-08-31",
-    "decision_id": "",
-    "recorded_at": "2026-08-31 09:59:09"
-   },
-   {
-    "date": "2026-09-01",
-    "ts": "2026-09-01 10:05",
-    "sym": "300468",
-    "side": "buy",
-    "qty": 1800,
-    "px": 24.58,
-    "reason": "e4_support",
-    "plan_ref": "plan-2026-09-01",
-    "decision_id": "",
-    "recorded_at": "2026-09-01 13:12:08"
-   },
-   {
-    "date": "2026-09-02",
-    "ts": "2026-09-02 09:40:04",
-    "sym": "300489",
-    "side": "sell",
-    "qty": 100,
-    "px": 229.81,
-    "reason": "stop_loss",
-    "plan_ref": "tick-risk",
-    "decision_id": "dec-tick-20260902-300489",
-    "recorded_at": "2026-09-02 09:40:04",
-    "signal_ts": "2026-09-02 09:40:04",
-    "decision_ts": "2026-09-02 09:40:04"
-   },
-   {
-    "date": "2026-09-03",
-    "ts": "2026-09-03 10:35",
-    "sym": "603538",
-    "side": "buy",
-    "qty": 1500,
-    "px": 28.28,
-    "reason": "e4_support",
-    "plan_ref": "offplan-2026-09-03:603538",
-    "decision_id": "dec-auto-20260903103407-918bddbc",
-    "recorded_at": "2026-09-03 10:34:07",
-    "signal_ts": "2026-09-03 10:35",
-    "decision_ts": "2026-09-03 10:34:03",
-    "candidates_ref": "29e98b8e6243174443ec32b47cdde55c221ada939affa485035da9e25541026e",
-    "plan_match": {
-     "in_plan": false,
-     "pick_id": null,
-     "plan_sha256": "193588fff5e0d045c37f68acbdbed348181ecff099a94cbbcc00771eb87fd11f",
-     "off_plan_reason": {
-      "code": "intraday_scan_capture",
-      "detail": "engine=e4_support;chg=+9.2%;pool_rank=1"
-     }
-    }
-   },
-   {
-    "date": "2026-09-10",
-    "ts": "2026-09-10 10:23:00",
-    "sym": "603538",
-    "side": "sell",
-    "qty": 1500,
-    "px": 26.19,
-    "reason": "stop_loss",
-    "plan_ref": "tick-risk",
-    "decision_id": "dec-auto-20260910102305-50ca2b7a",
-    "recorded_at": "2026-09-10 10:23:05",
-    "signal_ts": "2026-09-10 10:23:00",
-    "decision_ts": "2026-09-10 10:23:00"
-   },
-   {
-    "date": "2026-09-10",
-    "ts": "2026-09-10 10:30",
-    "sym": "300394",
-    "side": "buy",
-    "qty": 100,
-    "px": 275.74,
-    "reason": "e4_support",
-    "plan_ref": "offplan-2026-09-10:300394",
-    "decision_id": "dec-auto-20260910102907-c2fefed0",
-    "recorded_at": "2026-09-10 10:29:07",
-    "signal_ts": "2026-09-10 10:30",
-    "decision_ts": "2026-09-10 10:29:03",
-    "candidates_ref": "02c5177438fce7f7704f302231c2a14e4792d7279cb3079c44c6297fedd82b62",
-    "plan_match": {
-     "in_plan": false,
-     "pick_id": null,
-     "plan_sha256": "ded6ec6ef827c77b3dd96689e3b5bbdbf25f0f0fd9f80b2bef424a651ab16940",
-     "off_plan_reason": {
-      "code": "intraday_scan_capture",
-      "detail": "engine=e4_support;chg=+6.9%;pool_rank=2"
-     }
-    }
-   }
-  ],
-  "equity_curve": [
-   {
-    "date": "2026-08-31",
-    "equity": 99244.12,
-    "cash": 75269.12,
-    "mv": 23975.0
-   },
-   {
-    "date": "2026-09-02",
-    "equity": 97884.6,
-    "cash": 53910.6,
-    "mv": 43974.0
-   },
-   {
-    "date": "2026-09-03",
-    "equity": 97372.58,
-    "cash": 11437.58,
-    "mv": 85935.0
-   },
-   {
-    "date": "2026-09-04",
-    "equity": 101917.58,
-    "cash": 11437.58,
-    "mv": 90480.0
-   },
-   {
-    "date": "2026-09-07",
-    "equity": 98815.58,
-    "cash": 11437.58,
-    "mv": 87378.0
-   },
-   {
-    "date": "2026-09-08",
-    "equity": 99082.58,
-    "cash": 11437.58,
-    "mv": 87645.0
-   },
-   {
-    "date": "2026-09-09",
-    "equity": 96589.58,
-    "cash": 11437.58,
-    "mv": 85152.0
-   },
-   {
-    "date": "2026-09-10",
-    "equity": 93325.36,
-    "cash": 23045.36,
-    "mv": 70280.0
-   }
-  ]
- },
- "plans": {
-  "2026-09-01": {
-   "date": "2026-09-01",
-   "mode": "候选观察(输入≤2026-08-31收盘)",
-   "emotion": {
-    "zt": 90,
-    "dt": 15,
-    "zhaban_rate": 28.6,
-    "max_h": 6,
-    "lianban_rate": 21.2,
-    "temp": 70.0,
-    "stage": "高潮"
-   },
-   "mainline": [
-    [
-     "640100",
-     7
-    ],
-    [
-     "280200",
-     6
-    ],
-    [
-     "620200",
-     5
-    ],
-    [
-     "430100",
-     4
-    ],
-    [
-     "720900",
-     4
-    ]
-   ],
-   "global": {
-    "usDJI": {
-     "name": "道琼斯",
-     "price": 53559.99,
-     "chg_pct": -0.02
-    },
-    "usIXIC": {
-     "name": "纳斯达克",
-     "price": 26402.42,
-     "chg_pct": -0.52
-    },
-    "usINX": {
-     "name": "标普500",
-     "price": 7711.76,
-     "chg_pct": -0.25
-    }
-   },
-   "picks": [
-    {
-     "sym": "002760",
-     "name": "凤形股份",
-     "sig_date": "2026-08-31",
-     "l2": "640100",
-     "heat": 7,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "300420",
-     "name": "五洋自控",
-     "sig_date": "2026-08-27",
-     "l2": "640100",
-     "heat": 7,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "000816",
-     "name": "智慧农业",
-     "sig_date": "2026-08-28",
-     "l2": "280200",
-     "heat": 6,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "002239",
-     "name": "奥特佳",
-     "sig_date": "2026-08-27",
-     "l2": "280200",
-     "heat": 6,
-     "brk5": true,
-     "yang": true
-    }
-   ],
-   "published_at": "2026-08-31 23:42:53"
-  },
-  "2026-09-02": {
-   "date": "2026-09-02",
-   "mode": "候选观察(输入≤2026-09-01收盘)",
-   "emotion": {
-    "zt": 89,
-    "dt": 2,
-    "zhaban_rate": 13.6,
-    "max_h": 7,
-    "lianban_rate": 20.2,
-    "temp": 80.2,
-    "stage": "高潮"
-   },
-   "mainline": [
-    [
-     "110100",
-     8
-    ],
-    [
-     "450300",
-     7
-    ],
-    [
-     "280200",
-     4
-    ],
-    [
-     "110500",
-     3
-    ],
-    [
-     "710300",
-     3
-    ]
-   ],
-   "global": {
-    "usDJI": {
-     "name": "道琼斯",
-     "price": 53185.9,
-     "chg_pct": -0.7
-    },
-    "usIXIC": {
-     "name": "纳斯达克",
-     "price": 26370.89,
-     "chg_pct": -0.12
-    },
-    "usINX": {
-     "name": "标普500",
-     "price": 7686.14,
-     "chg_pct": -0.33
-    }
-   },
-   "picks": [
-    {
-     "sym": "300189",
-     "name": "神农种业",
-     "sig_date": "2026-08-27",
-     "l2": "110100",
-     "heat": 8,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "600108",
-     "name": "亚盛集团",
-     "sig_date": "2026-08-27",
-     "l2": "110100",
-     "heat": 8,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "000785",
-     "name": "居然智家",
-     "sig_date": "2026-09-01",
-     "l2": "450300",
-     "heat": 7,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "000882",
-     "name": "华联股份",
-     "sig_date": "2026-09-01",
-     "l2": "450300",
-     "heat": 7,
-     "brk5": true,
-     "yang": true
-    }
-   ],
-   "published_at": "2026-09-01 17:38:03"
-  },
-  "2026-09-03": {
-   "date": "2026-09-03",
-   "mode": "候选观察(输入≤2026-09-02收盘)",
-   "emotion": {
-    "zt": 55,
-    "dt": 10,
-    "zhaban_rate": 27.6,
-    "max_h": 5,
-    "lianban_rate": 17.4,
-    "temp": 59.0,
-    "stage": "发酵"
-   },
-   "mainline": [
-    [
-     "280200",
-     5
-    ],
-    [
-     "630800",
-     4
-    ],
-    [
-     "640100",
-     3
-    ],
-    [
-     "350200",
-     3
-    ],
-    [
-     "450300",
-     2
-    ]
-   ],
-   "global": {
-    "usDJI": {
-     "name": "道琼斯",
-     "price": 53185.9,
-     "chg_pct": -0.7
-    },
-    "usIXIC": {
-     "name": "纳斯达克",
-     "price": 26370.89,
-     "chg_pct": -0.12
-    },
-    "usINX": {
-     "name": "标普500",
-     "price": 7686.14,
-     "chg_pct": -0.33
-    }
-   },
-   "picks": [
-    {
-     "sym": "000816",
-     "name": "智慧农业",
-     "sig_date": "2026-08-28",
-     "l2": "280200",
-     "heat": 5,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "002190",
-     "name": "成飞集成",
-     "sig_date": "2026-09-02",
-     "l2": "280200",
-     "heat": 5,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "002451",
-     "name": "摩恩电气",
-     "sig_date": "2026-09-02",
-     "l2": "630800",
-     "heat": 4,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "300670",
-     "name": "大烨智能",
-     "sig_date": "2026-09-02",
-     "l2": "630800",
-     "heat": 4,
-     "brk5": true,
-     "yang": true
-    }
-   ],
-   "published_at": "2026-09-02 17:48:06"
-  },
-  "2026-09-04": {
-   "date": "2026-09-04",
-   "mode": "候选观察(输入≤2026-09-03收盘)",
-   "emotion": {
-    "zt": 49,
-    "dt": 17,
-    "zhaban_rate": 42.4,
-    "max_h": 5,
-    "lianban_rate": 17.3,
-    "temp": 46.7,
-    "stage": "发酵"
-   },
-   "mainline": [
-    [
-     "280200",
-     4
-    ],
-    [
-     "640100",
-     4
-    ],
-    [
-     "450300",
-     3
-    ],
-    [
-     "360200",
-     3
-    ],
-    [
-     "410100",
-     2
-    ]
-   ],
-   "global": {
-    "usDJI": {
-     "name": "道琼斯",
-     "price": 53061.95,
-     "chg_pct": 0.56
-    },
-    "usIXIC": {
-     "name": "纳斯达克",
-     "price": 26217.83,
-     "chg_pct": 0.45
-    },
-    "usINX": {
-     "name": "标普500",
-     "price": 7666.6,
-     "chg_pct": 0.46
-    }
-   },
-   "picks": [
-    {
-     "sym": "002190",
-     "name": "成飞集成",
-     "sig_date": "2026-09-02",
-     "l2": "280200",
-     "heat": 4,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "002328",
-     "name": "新朋股份",
-     "sig_date": "2026-08-31",
-     "l2": "280200",
-     "heat": 4,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "002760",
-     "name": "凤形股份",
-     "sig_date": "2026-08-31",
-     "l2": "640100",
-     "heat": 4,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "300420",
-     "name": "五洋自控",
-     "sig_date": "2026-09-03",
-     "l2": "640100",
-     "heat": 4,
-     "brk5": true,
-     "yang": true
-    }
-   ],
-   "published_at": "2026-09-03 23:37:00"
-  },
-  "2026-09-07": {
-   "date": "2026-09-07",
-   "mode": "候选观察(输入≤2026-09-04收盘)",
-   "emotion": {
-    "zt": 44,
-    "dt": 9,
-    "zhaban_rate": 52.7,
-    "max_h": 5,
-    "lianban_rate": 15.2,
-    "temp": 39.7,
-    "stage": "修复"
-   },
-   "mainline": [
-    [
-     "110400",
-     4
-    ],
-    [
-     "110700",
-     3
-    ],
-    [
-     "450300",
-     2
-    ],
-    [
-     "280200",
-     2
-    ],
-    [
-     "110100",
-     2
-    ]
-   ],
-   "global": {
-    "usDJI": {
-     "name": "道琼斯",
-     "price": 53061.95,
-     "chg_pct": 0.56
-    },
-    "usIXIC": {
-     "name": "纳斯达克",
-     "price": 26217.83,
-     "chg_pct": 0.45
-    },
-    "usINX": {
-     "name": "标普500",
-     "price": 7666.6,
-     "chg_pct": 0.46
-    }
-   },
-   "picks": [
-    {
-     "sym": "000702",
-     "name": "正虹科技",
-     "sig_date": "2026-09-04",
-     "l2": "110400",
-     "heat": 4,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "001313",
-     "name": "粤海饲料",
-     "sig_date": "2026-09-01",
-     "l2": "110400",
-     "heat": 4,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "001201",
-     "name": "东瑞股份",
-     "sig_date": "2026-09-04",
-     "l2": "110700",
-     "heat": 3,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "002157",
-     "name": "正邦科技",
-     "sig_date": "2026-09-04",
-     "l2": "110700",
-     "heat": 3,
-     "brk5": true,
-     "yang": true
-    }
-   ],
-   "published_at": "2026-09-04 17:40:47"
-  },
-  "2026-09-08": {
-   "date": "2026-09-08",
-   "mode": "候选观察(输入≤2026-09-07收盘)",
-   "emotion": {
-    "zt": 98,
-    "dt": 2,
-    "zhaban_rate": 20.3,
-    "max_h": 6,
-    "lianban_rate": 31.7,
-    "temp": 78.4,
-    "stage": "高潮"
-   },
-   "mainline": [
-    [
-     "270200",
-     14
-    ],
-    [
-     "730200",
-     8
-    ],
-    [
-     "280200",
-     7
-    ],
-    [
-     "450300",
-     6
-    ],
-    [
-     "110100",
-     4
-    ]
-   ],
-   "global": {
-    "usDJI": {
-     "name": "道琼斯",
-     "price": 53414.25,
-     "chg_pct": -0.51
-    },
-    "usIXIC": {
-     "name": "纳斯达克",
-     "price": 26506.99,
-     "chg_pct": -0.29
-    },
-    "usINX": {
-     "name": "标普500",
-     "price": 7718.6,
-     "chg_pct": -0.38
-    }
-   },
-   "picks": [
-    {
-     "sym": "002913",
-     "name": "奥士康",
-     "sig_date": "2026-09-07",
-     "l2": "270200",
-     "heat": 14,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "301251",
-     "name": "威尔高",
-     "sig_date": "2026-09-07",
-     "l2": "270200",
-     "heat": 14,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "002017",
-     "name": "东信和平",
-     "sig_date": "2026-09-04",
-     "l2": "730200",
-     "heat": 8,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "002104",
-     "name": "恒宝股份",
-     "sig_date": "2026-09-02",
-     "l2": "730200",
-     "heat": 8,
-     "brk5": true,
-     "yang": true
-    }
-   ],
-   "published_at": "2026-09-07 17:42:57"
-  },
-  "2026-09-09": {
-   "date": "2026-09-09",
-   "mode": "候选观察(输入≤2026-09-08收盘)",
-   "emotion": {
-    "zt": 77,
-    "dt": 1,
-    "zhaban_rate": 33.6,
-    "max_h": 4,
-    "lianban_rate": 20.0,
-    "temp": 57.1,
-    "stage": "发酵"
-   },
-   "mainline": [
-    [
-     "220800",
-     8
-    ],
-    [
-     "110500",
-     4
-    ],
-    [
-     "220200",
-     4
-    ],
-    [
-     "720900",
-     4
-    ],
-    [
-     "430100",
-     3
-    ]
-   ],
-   "global": {
-    "usDJI": {
-     "name": "道琼斯",
-     "price": 53414.25,
-     "chg_pct": -0.51
-    },
-    "usIXIC": {
-     "name": "纳斯达克",
-     "price": 26506.99,
-     "chg_pct": -0.29
-    },
-    "usINX": {
-     "name": "标普500",
-     "price": 7718.6,
-     "chg_pct": -0.38
-    }
-   },
-   "picks": [
-    {
-     "sym": "000553",
-     "name": "安道麦A",
-     "sig_date": "2026-09-08",
-     "l2": "220800",
-     "heat": 8,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "000731",
-     "name": "四川美丰",
-     "sig_date": "2026-09-08",
-     "l2": "220800",
-     "heat": 8,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "000822",
-     "name": "山东海化",
-     "sig_date": "2026-09-08",
-     "l2": "220200",
-     "heat": 4,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "000930",
-     "name": "中粮科技",
-     "sig_date": "2026-09-07",
-     "l2": "110500",
-     "heat": 4,
-     "brk5": true,
-     "yang": true
-    }
-   ],
-   "published_at": "2026-09-08 17:51:25"
-  },
-  "2026-09-10": {
-   "date": "2026-09-10",
-   "mode": "候选观察(输入≤2026-09-09收盘)",
-   "emotion": {
-    "zt": 52,
-    "dt": 8,
-    "zhaban_rate": 35.0,
-    "max_h": 5,
-    "lianban_rate": 20.3,
-    "temp": 52.8,
-    "stage": "发酵"
-   },
-   "mainline": [
-    [
-     "110500",
-     4
-    ],
-    [
-     "450300",
-     3
-    ],
-    [
-     "421100",
-     3
-    ],
-    [
-     "630800",
-     3
-    ],
-    [
-     "410100",
-     2
-    ]
-   ],
-   "global": {
-    "usDJI": {
-     "name": "道琼斯",
-     "price": 52786.07,
-     "chg_pct": -1.18
-    },
-    "usIXIC": {
-     "name": "纳斯达克",
-     "price": 26421.41,
-     "chg_pct": -0.32
-    },
-    "usINX": {
-     "name": "标普500",
-     "price": 7673.52,
-     "chg_pct": -0.58
-    }
-   },
-   "picks": [
-    {
-     "sym": "000019",
-     "name": "深粮控股",
-     "sig_date": "2026-09-09",
-     "l2": "110500",
-     "heat": 4,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "000505",
-     "name": "京粮控股",
-     "sig_date": "2026-09-09",
-     "l2": "110500",
-     "heat": 4,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "000058",
-     "name": "深 赛 格",
-     "sig_date": "2026-09-04",
-     "l2": "450300",
-     "heat": 3,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "000061",
-     "name": "农 产 品",
-     "sig_date": "2026-09-08",
-     "l2": "450300",
-     "heat": 3,
-     "brk5": true,
-     "yang": true
-    }
-   ],
-   "published_at": "2026-09-10 09:18:00"
-  },
-  "2026-09-11": {
-   "date": "2026-09-11",
-   "mode": "候选观察(输入≤2026-09-10收盘)",
-   "emotion": {
-    "zt": 39,
-    "dt": 13,
-    "zhaban_rate": 40.0,
-    "max_h": 4,
-    "lianban_rate": 18.4,
-    "temp": 40.0,
-    "stage": "修复"
-   },
-   "mainline": [
-    [
-     "410100",
-     5
-    ],
-    [
-     "610200",
-     3
-    ],
-    [
-     "410300",
-     2
-    ],
-    [
-     "490300",
-     2
-    ],
-    [
-     "270200",
-     2
-    ]
-   ],
-   "global": {
-    "usDJI": {
-     "name": "道琼斯",
-     "price": 52380.66,
-     "chg_pct": -0.77
-    },
-    "usIXIC": {
-     "name": "纳斯达克",
-     "price": 26253.34,
-     "chg_pct": -0.64
-    },
-    "usINX": {
-     "name": "标普500",
-     "price": 7636.36,
-     "chg_pct": -0.48
-    }
-   },
-   "picks": [
-    {
-     "sym": "000690",
-     "name": "宝新能源",
-     "sig_date": "2026-09-09",
-     "l2": "410100",
-     "heat": 5,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "002608",
-     "name": "江苏国信",
-     "sig_date": "2026-09-10",
-     "l2": "410100",
-     "heat": 5,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "001236",
-     "name": "弘业期货",
-     "sig_date": "2026-09-10",
-     "l2": "490300",
-     "heat": 2,
-     "brk5": true,
-     "yang": true
-    },
-    {
-     "sym": "001299",
-     "name": "美能能源",
-     "sig_date": "2026-09-10",
-     "l2": "410300",
-     "heat": 2,
-     "brk5": true,
-     "yang": true
-    }
-   ],
-   "published_at": "2026-09-10 20:00:38"
-  }
- },
- "reviews": {
-  "2026-08-31": {
-   "buys": [],
-   "sells": [
-    {
-     "sym": "300489",
-     "ts": "15:00",
-     "reason": "止损",
-     "px": 239.75,
-     "qty": 100
-    }
-   ],
-   "notes": [],
-   "close": {
-    "300489": 239.75
-   },
-   "equity": 99244.12,
-   "circuit_break": null
-  },
-  "2026-09-02": {
-   "buys": [
-    {
-     "sym": "000882",
-     "ts": "10:50",
-     "px": 1.55,
-     "kind": "P",
-     "seg": "AM"
-    },
-    {
-     "sym": "300189",
-     "ts": "13:10",
-     "px": 6.87,
-     "kind": "D",
-     "seg": "PM"
-    }
-   ],
-   "sells": [],
-   "notes": [],
-   "close": {
-    "300468": 24.43
-   },
-   "equity": 97884.6,
-   "circuit_break": null
-  },
-  "2026-09-03": {
-   "buys": [
-    {
-     "sym": "300670",
-     "ts": "09:55",
-     "px": 7.44,
-     "kind": "P",
-     "seg": "AM"
-    }
-   ],
-   "sells": [
-    {
-     "sym": "603538",
-     "ts": "15:00",
-     "reason": "止损",
-     "px": 28.49,
-     "qty": 1500
-    }
-   ],
-   "notes": [],
-   "close": {
-    "300468": 24.0,
-    "603538": 28.49
-   },
-   "equity": 97372.58,
-   "circuit_break": null
-  },
-  "2026-09-04": {
-   "buys": [
-    {
-     "sym": "002190",
-     "ts": "09:50",
-     "px": 26.06,
-     "kind": "P",
-     "seg": "AM"
-    },
-    {
-     "sym": "002328",
-     "ts": "10:25",
-     "px": 10.31,
-     "kind": "P",
-     "seg": "AM"
-    },
-    {
-     "sym": "002760",
-     "ts": "09:45",
-     "px": 18.19,
-     "kind": "P",
-     "seg": "AM"
-    }
-   ],
-   "sells": [
-    {
-     "sym": "300468",
-     "ts": "15:00",
-     "reason": "炸板卖出",
-     "px": 27.5,
-     "qty": 1800
-    }
-   ],
-   "notes": [],
-   "close": {
-    "300468": 27.5,
-    "603538": 27.32
-   },
-   "equity": 101917.58,
-   "circuit_break": null
-  },
-  "2026-09-07": {
-   "buys": [
-    {
-     "sym": "000702",
-     "ts": "10:25",
-     "px": 6.43,
-     "kind": "P",
-     "seg": "AM"
-    },
-    {
-     "sym": "001201",
-     "ts": "09:45",
-     "px": 13.0,
-     "kind": "P",
-     "seg": "AM"
-    },
-    {
-     "sym": "001313",
-     "ts": "09:45",
-     "px": 7.87,
-     "kind": "P",
-     "seg": "AM"
-    },
-    {
-     "sym": "002157",
-     "ts": "09:50",
-     "px": 3.24,
-     "kind": "P",
-     "seg": "AM"
-    }
-   ],
-   "sells": [],
-   "notes": [],
-   "close": {
-    "300468": 25.66,
-    "603538": 27.46
-   },
-   "equity": 98815.58,
-   "circuit_break": null
-  },
-  "2026-09-08": {
-   "buys": [
-    {
-     "sym": "002104",
-     "ts": "09:50",
-     "px": 13.72,
-     "kind": "P",
-     "seg": "AM"
-    },
-    {
-     "sym": "002913",
-     "ts": "10:40",
-     "px": 66.51,
-     "kind": "P",
-     "seg": "AM"
-    },
-    {
-     "sym": "301251",
-     "ts": "09:45",
-     "px": 56.46,
-     "kind": "P",
-     "seg": "AM"
-    }
-   ],
-   "sells": [],
-   "notes": [],
-   "close": {
-    "300468": 25.3,
-    "603538": 28.07
-   },
-   "equity": 99082.58,
-   "circuit_break": null
-  },
-  "2026-09-09": {
-   "buys": [
-    {
-     "sym": "000553",
-     "ts": "09:50",
-     "px": 6.09,
-     "kind": "P",
-     "seg": "AM"
-    },
-    {
-     "sym": "000731",
-     "ts": "10:05",
-     "px": 7.6,
-     "kind": "P",
-     "seg": "AM"
-    },
-    {
-     "sym": "000822",
-     "ts": "10:45",
-     "px": 4.7,
-     "kind": "P",
-     "seg": "AM"
-    }
-   ],
-   "sells": [],
-   "notes": [],
-   "close": {
-    "300468": 24.64,
-    "603538": 27.2
-   },
-   "equity": 96589.58,
-   "circuit_break": null
-  },
-  "2026-09-10": {
-   "buys": [
-    {
-     "sym": "000061",
-     "ts": "13:20",
-     "px": 6.61,
-     "kind": "B",
-     "seg": "PM"
-    }
-   ],
-   "sells": [
-    {
-     "sym": "300394",
-     "ts": "15:00",
-     "reason": "止损",
-     "px": 269.0,
-     "qty": 100
-    }
-   ],
-   "notes": [],
-   "close": {
-    "300468": 24.1,
-    "300394": 269.0
-   },
-   "equity": 93325.36,
-   "circuit_break": null
-  }
- },
- "rules_log": [
-  {
-   "date": "2026-08-31",
-   "rule": "autonomous_paper_mandate",
-   "status": "active",
-   "source": "user_authorization_2026-08-30"
-  }
- ],
+ "_revision": 6,
+ "start_cash": 500000.0,
+ "start_date": "2026-09-14",
+ "benchmark": "all_a_equal+csi2000",
  "policy": {
-  "max_single_weight": 0.45,
   "max_positions": 2,
+  "max_single_weight": 0.3,
   "max_gross_exposure": 0.9,
   "max_new_buys_per_day": 1,
   "require_human_decision": false,
@@ -1261,61 +15,330 @@
   "terminate_drawdown_pct": 15.0,
   "transition_reduce_only": false
  },
+ "account": {
+  "cash": 350079.26840000006,
+  "positions": {
+   "001896": {
+    "qty": 11600,
+    "cost": 12.924200999999998,
+    "entry_ts": "2026-09-14 10:00",
+    "stop_px": 12.2645,
+    "days": 0
+   }
+  },
+  "fills": [
+   {
+    "date": "2026-09-14",
+    "ts": "2026-09-14 10:00",
+    "sym": "001896",
+    "side": "buy",
+    "qty": 11600,
+    "px": 12.91,
+    "reason": "e4_support",
+    "plan_ref": "offplan-2026-09-14:001896",
+    "decision_id": "dec-auto-20260914095912-3d0bffac",
+    "recorded_at": "2026-09-14 09:59:12",
+    "signal_ts": "2026-09-14 10:00",
+    "decision_ts": "2026-09-14 09:59:08",
+    "candidates_ref": "a61f3f4e154f73491da5d7d3b1d4531efa1faaa2aa1938e764b8f67eb2582f8f",
+    "plan_match": {
+     "in_plan": false,
+     "pick_id": null,
+     "plan_sha256": "64079318f64ce12d7b26fbdeaa14d7dbcdc32abe6caff8dade62e77f1dd643f2",
+     "off_plan_reason": {
+      "code": "intraday_scan_capture",
+      "detail": "engine=e4_support;chg=+9.3%;pool_rank=1"
+     }
+    }
+   }
+  ],
+  "equity_curve": [
+   {
+    "date": "2026-09-14",
+    "equity": 500763.27,
+    "cash": 350079.27,
+    "mv": 150684.0
+   }
+  ]
+ },
+ "plans": {
+  "2026-09-14": {
+   "date": "2026-09-14",
+   "mode": "候选观察(输入≤2026-09-11收盘)",
+   "emotion": {
+    "zt": 40,
+    "dt": 20,
+    "dt7": 104,
+    "zhaban_rate": 38.5,
+    "max_h": 4,
+    "lianban_rate": 17.9,
+    "temp": 41.4,
+    "stage": "修复",
+    "note": "连板率17.9%；中位数-2.19%；跌幅>7% 104 家"
+   },
+   "mainline": [
+    [
+     "270200",
+     9
+    ],
+    [
+     "410100",
+     4
+    ],
+    [
+     "730200",
+     3
+    ],
+    [
+     "650300",
+     3
+    ],
+    [
+     "610200",
+     2
+    ]
+   ],
+   "global": {
+    "usDJI": {
+     "name": "道琼斯",
+     "price": 52064.1,
+     "chg_pct": -0.6
+    },
+    "usIXIC": {
+     "name": "纳斯达克",
+     "price": 26081.72,
+     "chg_pct": -0.65
+    },
+    "usINX": {
+     "name": "标普500",
+     "price": 7591.7,
+     "chg_pct": -0.58
+    }
+   },
+   "picks": [
+    {
+     "sym": "002815",
+     "name": "崇达技术",
+     "sig_date": "2026-09-11",
+     "l2": "270200",
+     "heat": 9,
+     "brk5": true,
+     "yang": true
+    },
+    {
+     "sym": "002913",
+     "name": "奥士康",
+     "sig_date": "2026-09-11",
+     "l2": "270200",
+     "heat": 9,
+     "brk5": true,
+     "yang": true
+    },
+    {
+     "sym": "000690",
+     "name": "宝新能源",
+     "sig_date": "2026-09-09",
+     "l2": "410100",
+     "heat": 4,
+     "brk5": true,
+     "yang": true
+    },
+    {
+     "sym": "300335",
+     "name": "迪森股份",
+     "sig_date": "2026-09-10",
+     "l2": "410100",
+     "heat": 4,
+     "brk5": true,
+     "yang": true
+    }
+   ],
+   "published_at": "2026-09-13 01:52:29"
+  },
+  "2026-09-15": {
+   "date": "2026-09-15",
+   "mode": "候选观察(输入≤2026-09-14收盘)",
+   "emotion": {
+    "zt": 55,
+    "dt": 19,
+    "dt7": 41,
+    "zhaban_rate": 41.5,
+    "max_h": 4,
+    "lianban_rate": 27.5,
+    "temp": 44.3,
+    "stage": "修复",
+    "note": "连板率27.5%；中位数+0.27%；跌幅>7% 41 家"
+   },
+   "mainline": [
+    [
+     "270200",
+     6
+    ],
+    [
+     "410100",
+     3
+    ],
+    [
+     "280200",
+     3
+    ],
+    [
+     "640100",
+     3
+    ],
+    [
+     "630800",
+     3
+    ]
+   ],
+   "global": {
+    "usDJI": {
+     "name": "道琼斯",
+     "price": 52573.29,
+     "chg_pct": 0.98
+    },
+    "usIXIC": {
+     "name": "纳斯达克",
+     "price": 26333.04,
+     "chg_pct": 0.96
+    },
+    "usINX": {
+     "name": "标普500",
+     "price": 7656.98,
+     "chg_pct": 0.86
+    }
+   },
+   "picks": [
+    {
+     "sym": "002815",
+     "name": "崇达技术",
+     "sig_date": "2026-09-14",
+     "l2": "270200",
+     "heat": 6,
+     "brk5": true,
+     "yang": true
+    },
+    {
+     "sym": "002913",
+     "name": "奥士康",
+     "sig_date": "2026-09-14",
+     "l2": "270200",
+     "heat": 6,
+     "brk5": true,
+     "yang": true
+    },
+    {
+     "sym": "000565",
+     "name": "渝三峡Ａ",
+     "sig_date": "2026-09-10",
+     "l2": "220300",
+     "heat": 3,
+     "brk5": true,
+     "yang": true
+    },
+    {
+     "sym": "000690",
+     "name": "宝新能源",
+     "sig_date": "2026-09-09",
+     "l2": "410100",
+     "heat": 3,
+     "brk5": true,
+     "yang": true
+    }
+   ],
+   "published_at": "2026-09-14 17:29:56"
+  }
+ },
+ "reviews": {
+  "2026-09-14": {
+   "buys": [
+    {
+     "sym": "000690",
+     "ts": "09:46",
+     "px": 5.29,
+     "kind": "P",
+     "seg": "AM"
+    },
+    {
+     "sym": "002815",
+     "ts": "09:35",
+     "px": 20.2,
+     "kind": "P",
+     "seg": "AM"
+    },
+    {
+     "sym": "002913",
+     "ts": "09:35",
+     "px": 72.79,
+     "kind": "P",
+     "seg": "AM"
+    },
+    {
+     "sym": "300335",
+     "ts": "13:05",
+     "px": 5.69,
+     "kind": "B",
+     "seg": "PM"
+    }
+   ],
+   "sells": [
+    {
+     "sym": "001896",
+     "ts": "15:00",
+     "reason": "止损",
+     "px": 12.99,
+     "qty": 11600
+    }
+   ],
+   "notes": [],
+   "close": {
+    "001896": 12.99
+   },
+   "equity": 500763.27,
+   "circuit_break": null,
+   "kind": "audit_counterfactual",
+   "executed": false,
+   "authority": "account.fills"
+  }
+ },
+ "rules_log": [
+  {
+   "date": "2026-09-14",
+   "rule": "main_ledger_50w_rebuild",
+   "status": "active",
+   "source": "user_ruling_2026-09-12_8.1"
+  }
+ ],
  "signal_requests": {},
  "human_decisions": {},
+ "autonomous_decisions": {
+  "dec-auto-20260914095912-3d0bffac": {
+   "sym": "001896",
+   "name": "豫能控股",
+   "signal_ts": "2026-09-14 10:00",
+   "signal_px": 12.91,
+   "rule": "e4_support",
+   "candidates_ref": "a61f3f4e154f73491da5d7d3b1d4531efa1faaa2aa1938e764b8f67eb2582f8f",
+   "plan_pick_ref": null,
+   "off_plan_reason": {
+    "code": "intraday_scan_capture",
+    "detail": "engine=e4_support;chg=+9.3%;pool_rank=1"
+   },
+   "risk_gates": "ledger._validate_buy_policy",
+   "decision_id": "dec-auto-20260914095912-3d0bffac",
+   "mode": "autonomous_paper",
+   "decided_at": "2026-09-14 09:59:12"
+  }
+ },
  "risk_state": {
   "position_multiplier": 1.0,
   "paused": false,
   "terminated": false,
-  "peak_equity": 101917.58,
-  "drawdown_pct": -8.43
+  "drawdown_pct": -0.0,
+  "peak_equity": 500763.27,
+  "source_date": "2026-09-14",
+  "reason": "fresh_main_ledger"
  },
- "date": "2026-09-10",
- "updated_at": "2026-09-10 20:00:38",
- "autonomous_decisions": {
-  "dec-auto-20260903103407-918bddbc": {
-   "sym": "603538",
-   "name": "美诺华",
-   "signal_ts": "2026-09-03 10:35",
-   "signal_px": 28.28,
-   "rule": "e4_support",
-   "candidates_ref": "29e98b8e6243174443ec32b47cdde55c221ada939affa485035da9e25541026e",
-   "plan_pick_ref": null,
-   "off_plan_reason": {
-    "code": "intraday_scan_capture",
-    "detail": "engine=e4_support;chg=+9.2%;pool_rank=1"
-   },
-   "risk_gates": "ledger._validate_buy_policy",
-   "decision_id": "dec-auto-20260903103407-918bddbc",
-   "mode": "autonomous_paper",
-   "decided_at": "2026-09-03 10:34:07"
-  },
-  "dec-auto-20260910102305-50ca2b7a": {
-   "sym": "603538",
-   "signal_ts": "2026-09-10 10:23:00",
-   "signal_px": 26.19,
-   "rule": "tick_risk:stop_loss",
-   "plan_ref": "tick-risk",
-   "decision_id": "dec-auto-20260910102305-50ca2b7a",
-   "mode": "autonomous_paper",
-   "decided_at": "2026-09-10 10:23:05"
-  },
-  "dec-auto-20260910102907-c2fefed0": {
-   "sym": "300394",
-   "name": "天孚通信",
-   "signal_ts": "2026-09-10 10:30",
-   "signal_px": 275.74,
-   "rule": "e4_support",
-   "candidates_ref": "02c5177438fce7f7704f302231c2a14e4792d7279cb3079c44c6297fedd82b62",
-   "plan_pick_ref": null,
-   "off_plan_reason": {
-    "code": "intraday_scan_capture",
-    "detail": "engine=e4_support;chg=+6.9%;pool_rank=2"
-   },
-   "risk_gates": "ledger._validate_buy_policy",
-   "decision_id": "dec-auto-20260910102907-c2fefed0",
-   "mode": "autonomous_paper",
-   "decided_at": "2026-09-10 10:29:07"
-  }
- }
+ "date": "2026-09-14",
+ "updated_at": "2026-09-14 17:29:56"
 }
