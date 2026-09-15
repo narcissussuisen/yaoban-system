@@ -23,6 +23,31 @@ from config import section
 
 RISK = section("risk")
 SELL = section("sell")
+FEES = section("fees")   # ⭐ 2026-09-13 唯一真相源：交易费率（万1 / 北交所万5.75 / 不免五）
+
+# ⭐ 2026-09-13「唯一真相源」治理（用户裁定：回测直接调/派生自生产，不自己维护一套）：
+#   背景 —— 此前回测的出场/风控参数是**本文件硬编码**（止盈 15% / 比例 0.40），
+#   而生产走 `[sell.intraday]`（10% / 1÷3），且本文件的 `SELL`/`RISK` 变量**定义后从未被引用**
+#   ⇒ 回测的 toml 变量是死的 ⇒ **回测结论在原理上不代表生产**。
+#   现改为从生产参数派生（单一事实源 = `core.sell.DEFAULT_PARAMS`，它读 `[sell.intraday]`）。
+#   ⚠️ 单位差异：`[sell.intraday]` 用**百分数**（10.0 / 5.0），本配置用**小数**（0.10 / 0.05）⇒ 需 /100。
+#   ⚠️ 容错：若 `core.sell` 不可导入，回落原硬编码值，避免回测整体不可跑。
+try:
+    from core.sell import DEFAULT_PARAMS as _SELL_P  # noqa: E402
+except Exception:  # noqa: BLE001
+    _SELL_P = {}
+
+
+def _p(key: str, fallback):
+    """取生产卖出参数（缺则回落）。"""
+    v = _SELL_P.get(key)
+    return fallback if v is None else v
+
+
+def _r(key: str, fallback, scale: float = 1.0):
+    """取 [risk] 参数（缺则回落）；scale 用于百分数→小数。"""
+    v = RISK.get(key)
+    return fallback if v is None else float(v) * scale
 
 
 @dataclass
@@ -43,19 +68,31 @@ class Trade:
 
 @dataclass
 class BacktestConfig:
+    """回测配置。⭐ 出场/风控字段**从生产派生**（2026-09-13 唯一真相源治理），不再各自硬编码。
+
+    ⚠️ 派生的意义：回测与生产读**同一份**参数 ⇒ 回测结论才可能代表生产。
+    改动前的实际差异（已消除）：止盈 15% vs 生产 10% · 止盈比例 0.40 vs 1÷3。
+    ⚠️ 仍待统一：`max_positions`（本处取 `[risk]=4`，而**账本 policy 是 2**）· 佣金/印花税/滑点
+       （本处 万2.5/万5/千1，而用户 2026-08-01 给的实盘费率是**佣金万1**）⇒ 见 PARAM_CONSUMER_MAP §四。
+    """
+
     capital: float = 1_000_000.0
-    commission: float = 0.00025          # 佣金（双边）
-    min_commission: float = 5.0          # 最低佣金（元）
-    stamp_tax: float = 0.0005            # 印花税（卖出）
-    slippage: float = 0.001              # 滑点（单边）
-    max_positions: int = 4               # 同时持仓上限（分散 3~4 只）
-    single_stock_pct: float = 0.30       # 单只 ≤30%
-    profit_take_pct: float = 0.15        # 止盈触发线（赚 10~20% 区间取中）
-    profit_take_fraction: float = 0.40   # 止盈先走 1/3~1/2
-    stop_loss_pct: float = 0.05          # 单笔止损（-5%，对应 v20 预写止损）
-    time_stop_days: int = 5              # 时间止损（强势股 3~5 交易日）
-    ma5_break_action: bool = True        # 破 MA5 减半
-    ma10_break_action: bool = True       # 破 MA10 清仓
+    # ⭐ 费率从 `[fees]` 读（2026-09-13）：用户实盘 万1 / 北交所万5.75 / **不免五**。
+    #   改前硬编码 万2.5 + 最低 5 元 ⇒ 成本被高估 2.5 倍。
+    #   ⚠️ `min_commission` 由 5.0 改为 **0.0（不免五）**；北交所费率尚未按品种接入。
+    commission: float = float(FEES.get("commission_main", 0.00025))
+    min_commission: float = float(FEES.get("min_commission", 0.0))
+    stamp_tax: float = float(FEES.get("stamp_tax_sell", 0.0005))
+    slippage: float = float(FEES.get("slippage", 0.001))
+    # ↓↓↓ 以下字段一律从生产/单一源派生 ————————————————————————
+    max_positions: int = int(_r("max_positions", 4))
+    single_stock_pct: float = _r("max_single_stock_pct", 30.0, 0.01)
+    profit_take_pct: float = float(_p("profit_take_pct", 10.0)) / 100.0
+    profit_take_fraction: float = float(_p("profit_take_frac", 1.0 / 3.0))
+    stop_loss_pct: float = float(_p("stop_loss_pct", 5.0)) / 100.0
+    time_stop_days: int = int(_p("time_stop_days", 5))
+    ma5_break_action: bool = bool(_p("daily_ma5_halve", True))
+    ma10_break_action: bool = bool(_p("daily_ma10_clear", True))
 
 
 class SignalEvaluator:

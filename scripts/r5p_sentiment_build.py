@@ -2,7 +2,8 @@
 
 输出 outputs/sentiment_full_2026.csv 列:
   date, zt(涨停数), dt(跌停数), touch(触板数), zhaban(炸板数), zhaban_rate, max_h(最高连板),
-  lianban_rate(昨日涨停今日晋级率), median_pct(全市场涨幅中位数%), up_count/down_count(涨跌家数)
+  lianban_rate(昨日涨停今日晋级率), median_pct(全市场涨幅中位数%), up_count/down_count(涨跌家数),
+  dt7_count(跌幅>7% 家数), is_bingdian(冰点标记)
 
 证据口径:
   涨停判定 close ≥ round(prev×(1+limit_pct),2)-0.005; 跌停 close ≤ round(prev×(1-limit_pct),2)+0.005
@@ -11,6 +12,12 @@
   炸板 = 当日触板(high≥涨停价-0.005)且收盘未涨停
   连板率 = |昨日涨停 ∩ 今日涨停| / |昨日涨停|（v: 连板率 10% 口径）
   冰点 = zt<40 且 dt>zt（v47: 涨停34/跌停45; USAGE §1.2）
+
+⭐ R2.5（2026-09-12）新增跌侧度量 dt7_count = count(pct_chg < -0.07)：
+  依据人格 SOP `GEN-GATE-17`「恐慌度量：跌停家数 + **跌幅>7% 家数**」——
+  此前情绪表只有**涨侧**（zt/touch/zhaban），跌侧只有 dt 一个绝对数，
+  而「冰点模板」（GEN-GATE-02：涨停 34 / 跌停 45 / 涨 693 / 跌 4796）需要双向。
+  阈值严格用 `< -0.07`（与 SOP 表达式一致，非 `<=`）。
 
 用法: python scripts/r5p_sentiment_build.py [--workers 6]
 """
@@ -61,7 +68,7 @@ def main():
             prev_close = float(rows[i - 1][5]) if i >= 1 else None
             s = day_stats.setdefault(d, {'zt': 0, 'dt': 0, 'touch': 0, 'zhaban': 0,
                                          'up': 0, 'down': 0, 'n': 0, 'pcts': [],
-                                         'max_h': 0, 'zt_set': set()})
+                                         'dt7': 0, 'max_h': 0, 'zt_set': set()})
             if prev_close:
                 limit_up_px = round(prev_close * (1 + pct_limit), 2)
                 limit_dn_px = round(prev_close * (1 - pct_limit), 2)
@@ -86,6 +93,9 @@ def main():
                     s['up'] += 1
                 elif pct < 0:
                     s['down'] += 1
+                # R2.5 跌侧度量：跌幅 >7% 家数（GEN-GATE-17；严格 < -0.07，非 <=）
+                if pct < -0.07:
+                    s['dt7'] += 1
                 s['n'] += 1
             else:
                 lb = 0
@@ -110,11 +120,35 @@ def main():
                          'zhaban_rate': round(zhaban_rate, 2), 'max_h': s['max_h'],
                          'lianban_rate': round(lianban_rate, 2),
                          'median_pct': round(med, 3) if med is not None else None,
-                         'up_count': s['up'], 'down_count': s['down']})
+                         'up_count': s['up'], 'down_count': s['down'],
+                         'dt7_count': s['dt7'],
+                         # 冰点标记（GEN-GATE-02 / v47 口径：涨停<40 且 跌停>涨停）
+                         'is_bingdian': bool(zt < 40 and dt > zt)})
         prev_zt_set = s['zt_set']
     out = pd.DataFrame(rows_out)
     out_path = pathlib.Path(__file__).resolve().parent.parent / 'outputs' / OUT_TMPL.format(year=args.year)
-    out.to_csv(out_path, index=False)
+    # ── 写盘护栏（R2.5；呼应 2026-09-10 「覆盖写毁历史」事故）：
+    #    写 tmp → 断言行数 ≥ 旧值且末日期单调不减 → 原子替换。失败即非零退出，绝不静默覆盖。
+    tmp_path = out_path.with_suffix('.csv.tmp')
+    out.to_csv(tmp_path, index=False)
+    if out_path.exists():
+        try:
+            old_rows = len(pd.read_csv(out_path))
+            old_last = str(pd.read_csv(out_path)['date'].astype(str).max())
+        except Exception as e:
+            print(f'[guard] 旧文件不可读（{e}）→ 跳过对比断言', flush=True)
+            old_rows, old_last = 0, ''
+        new_last = str(out['date'].astype(str).max()) if len(out) else ''
+        if len(out) < old_rows:
+            tmp_path.unlink(missing_ok=True)
+            raise SystemExit(
+                f'[guard] 拒绝覆盖：新 {len(out)} 行 < 旧 {old_rows} 行（疑似数据源退化）')
+        if old_last and new_last < old_last:
+            tmp_path.unlink(missing_ok=True)
+            raise SystemExit(
+                f'[guard] 拒绝覆盖：末日期倒退 {old_last} → {new_last}')
+        print(f'[guard] OK 行数 {old_rows} → {len(out)}；末日期 {old_last} → {new_last}', flush=True)
+    tmp_path.replace(out_path)      # 原子替换
     print(f'写入 {out_path} ({len(out)} 行)')
     # 交叉验证: 与旧 sentiment_daily_2026.csv 的 zt/touch/zhaban/max_h 对比
     if OLD.exists():

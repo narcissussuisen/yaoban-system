@@ -135,13 +135,9 @@ def main():
     # ---- 战法池（形态筛选层）：与日计划共用**同一次** load_all_daily 遍历 ----
     # 放在日计划计算之前：战法池是 scan 侧 fail-closed（缺产物 ⇒ rc=8 ⇒ **全天禁新仓**）
     # 的硬依赖，先落盘可让「后续日计划步骤失败」不影响次日战法池的可用性。
-    # asof=pday ⇒ 严格早于 d 的真实交易日（T-1）。
-    # ⭐ 2026-09-15：lookback 4 → 6（用户裁定「今天实盘前上线」）—— 8 天选手候选池矩阵
-    #   实测：南华期货(9/10) 的 zt_huicai 信号在 asof 前 5-6 个交易日，窗口=4 抓不到；
-    #   扩到 6 后 8 天召回 30/32→31/32（叠 zt_watch 后 32/32）。⚠️ 注意这与下方 win_days
-    #   （日计划 picks 的信号窗）**不是同一口径**——池的召回窗与 picks 窗解耦，勿再"对齐"回去。
+    # asof=pday ⇒ 严格早于 d 的真实交易日（T-1），lookback=4 与下面 win_days 同口径。
     try:
-        _pat_fp, _pat_stats = build_pattern_artifact(dmap, d, pday, lookback=6)
+        _pat_fp, _pat_stats = build_pattern_artifact(dmap, d, pday, lookback=4)
     except Exception as _pat_exc:
         # ⚠️ 战法池失败**不得**打死日计划（日计划还挂在取数前序多步上，且盘前 gate 依赖它）；
         #    但绝不允许静默 —— 打 stderr 让 post-close 的 log_review 能捞到。
@@ -173,7 +169,10 @@ def main():
             touch += 1
             if not is_zt:
                 zhaban += 1
-        pcts.append(c / pc - 1)
+        _pct = c / pc - 1
+        pcts.append(_pct)
+        if _pct < -0.07:            # R2.5: 严格 < -0.07（与 GEN-GATE-17 表达式一致）
+            dt7_cnt += 1
         lb = 0; j = i
         while j >= 1 and float(df.iloc[j]["close"]) >= round(float(df.iloc[j-1]["close"]) * (1 + pl), 2) - 0.005:
             lb += 1; j -= 1
@@ -189,9 +188,10 @@ def main():
     lianban_rate = len(prev_zt_set & cur_zt_set) / len(prev_zt_set) * 100 if prev_zt_set else 0.0
     med = float(np.median(pcts)) * 100 if pcts else None
     zr = zhaban / touch * 100 if touch else 0.0
-    t = emotion_thermometer(zt, dt_cnt, zr, max_h, lianban_rate=lianban_rate, median_pct=med)
+    t = emotion_thermometer(zt, dt_cnt, zr, max_h, lianban_rate=lianban_rate, median_pct=med,
+                            deep_drop_count=dt7_cnt)
     bing = (dt_cnt > zt and zt < 40)
-    print(f'{pday} 情绪: zt={zt} dt={dt_cnt} 炸板率={zr:.1f}% 高度={max_h} 连板率={lianban_rate:.1f}% 温度={t["temp"]} {t["stage"]} 冰点={bing}', flush=True)
+    print(f'{pday} 情绪: zt={zt} dt={dt_cnt} 跌幅>7%={dt7_cnt} 炸板率={zr:.1f}% 高度={max_h} 连板率={lianban_rate:.1f}% 温度={t["temp"]} {t["stage"]} 冰点={bing}', flush=True)
     # ---- 信号扫描（信号日 ∈ [8/21, 8/26]，8/27 可买 = k≥1）
     import datetime as _dt2
     _w = []
@@ -227,10 +227,19 @@ def main():
     cdf = cdf[~cdf["symbol"].str.startswith(("688", "689", "4", "8", "92"))]
     _names = {}
     try:
-        _names = json.loads((BASE / 'data' / 'stock_names_full.json').read_text(encoding='utf-8'))
-        cdf = cdf[~cdf["symbol"].map(lambda s: 'ST' in _names.get(s, '') or str(_names.get(s, '')).startswith('*'))]
+        _doc = json.loads((BASE / 'data' / 'stock_names_stocks.json').read_text(encoding='utf-8'))
+        _names = _doc.get('names', _doc)      # 兼容两段式（_meta + names）与旧扁平结构
     except Exception:
         pass
+    # ST 过滤（R2.8 2026-09-12）：
+    #   ① 切到**只含个股**的新表 —— 旧表 35086 条里 83% 是债/基金/指数，且 `000004` 被写成「工业指数」
+    #      不含 'ST' → **ST 漏筛**（真正的 000004 = *ST国华 本该被排除）。
+    #   ② 名称缺失时**保守排除**：无法确认非 ST 就不买（与「选手模式无 ST 证据」纪律一致）。
+    _named = cdf[cdf["symbol"].map(lambda s: bool(_names.get(s, '')))]
+    if len(_named) != len(cdf):
+        print(f'[names] 因缺名保守排除 {len(cdf) - len(_named)} 只', flush=True)
+    cdf = _named[~_named["symbol"].map(
+        lambda s: 'ST' in _names.get(s, '') or str(_names.get(s, '')).startswith('*'))]
     cdf = cdf.sort_values(["heat", "brk5", "yang"], ascending=False)
     # 跨方向分散：每主线(L2)最多 2 只，依次取到 4 只——避免备选押单一方向
     top = cdf.groupby("l2", group_keys=False).head(2).head(4)
@@ -241,7 +250,7 @@ def main():
     plan = {
         "date": d,
         "mode": f"候选观察(输入≤{pday}收盘)",
-        "emotion": {"zt": zt, "dt": dt_cnt, "zhaban_rate": round(zr, 1), "max_h": max_h, "lianban_rate": round(lianban_rate, 1), "temp": t["temp"], "stage": t["stage"]},
+        "emotion": {"zt": zt, "dt": dt_cnt, "dt7": dt7_cnt, "zhaban_rate": round(zr, 1), "max_h": max_h, "lianban_rate": round(lianban_rate, 1), "temp": t["temp"], "stage": t["stage"], "note": t.get("note", "")},
         "mainline": sorted(sector_zt.items(), key=lambda x: -x[1])[:5],
         "global": _global_snapshot(),
         "picks": picks

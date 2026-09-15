@@ -41,7 +41,10 @@ CREATE TABLE IF NOT EXISTS market_activity (
 CREATE TABLE IF NOT EXISTS market_sentiment (
     date TEXT PRIMARY KEY,
     zt_count INTEGER, zb_count INTEGER, dt_count INTEGER,
-    break_rate REAL, max_height INTEGER, ladder TEXT
+    break_rate REAL, max_height INTEGER, ladder TEXT,
+    -- R2.5（2026-09-12）新增：涨跌家数中位数 + **跌侧度量**（人格 SOP GEN-GATE-02 冰点模板 / GEN-GATE-17 恐慌度量）
+    median_pct REAL, up_count INTEGER, down_count INTEGER, dt7_count INTEGER,
+    is_bingdian INTEGER
 );
 CREATE TABLE IF NOT EXISTS minute_kline (
     symbol TEXT NOT NULL, freq TEXT NOT NULL, ts TEXT NOT NULL,
@@ -63,7 +66,27 @@ class Store:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(self.db_path)
         self.conn.executescript(SCHEMA)
+        self._migrate()
         self.conn.commit()
+
+    # ---------- 迁移 ----------
+    # ⚠️ SQLite 只支持**末尾** ADD COLUMN，且**不得**把新列插到中间：
+    #    `sentiment_as_of` 原用位置索引 row[0..6]（已于 R2.5 改为按列名取值，但历史调用方仍需兼容）。
+    _MIGRATIONS = [
+        ("market_sentiment", "median_pct", "REAL"),
+        ("market_sentiment", "up_count", "INTEGER"),
+        ("market_sentiment", "down_count", "INTEGER"),
+        ("market_sentiment", "dt7_count", "INTEGER"),
+        ("market_sentiment", "is_bingdian", "INTEGER"),
+    ]
+
+    def _migrate(self):
+        """幂等补列（对已存在的库生效）。"""
+        for table, col, typ in self._MIGRATIONS:
+            try:
+                self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
+            except sqlite3.OperationalError:
+                pass          # 列已存在
 
     # ---------- 通用 ----------
     def close(self):
@@ -134,16 +157,31 @@ class Store:
         self.conn.commit()
 
     def upsert_sentiment(self, date: str, zt_count: int, zb_count: int, dt_count: int,
-                         break_rate: float, max_height: int, ladder: dict):
-        """打板情绪快照（a-stock-data limit_up_sentiment）"""
+                         break_rate: float, max_height: int, ladder: dict,
+                         median_pct: float | None = None, up_count: int | None = None,
+                         down_count: int | None = None, dt7_count: int | None = None,
+                         is_bingdian: bool | None = None):
+        """打板情绪快照。
+
+        R2.5（2026-09-12）新增 4 个**跌侧/家数**字段（均可选，向后兼容）：
+          median_pct / up_count / down_count / **dt7_count（跌幅>7% 家数）** / is_bingdian
+        来源: `scripts/r5p_sentiment_build.py` → `outputs/sentiment_full_<year>.csv`
+        依据: 人格 SOP `GEN-GATE-02`（冰点模板: 涨停34/跌停45/涨693/跌4796）、`GEN-GATE-17`（恐慌度量=跌停家数+跌幅>7%家数）
+        """
         import json
 
         self.conn.execute(
-            "INSERT INTO market_sentiment(date,zt_count,zb_count,dt_count,break_rate,max_height,ladder) "
-            "VALUES(?,?,?,?,?,?,?) ON CONFLICT(date) DO UPDATE SET "
+            "INSERT INTO market_sentiment(date,zt_count,zb_count,dt_count,break_rate,max_height,ladder,"
+            "median_pct,up_count,down_count,dt7_count,is_bingdian) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(date) DO UPDATE SET "
             "zt_count=excluded.zt_count,zb_count=excluded.zb_count,dt_count=excluded.dt_count,"
-            "break_rate=excluded.break_rate,max_height=excluded.max_height,ladder=excluded.ladder",
-            (date, zt_count, zb_count, dt_count, break_rate, max_height, json.dumps(ladder, ensure_ascii=False)),
+            "break_rate=excluded.break_rate,max_height=excluded.max_height,ladder=excluded.ladder,"
+            "median_pct=excluded.median_pct,up_count=excluded.up_count,"
+            "down_count=excluded.down_count,dt7_count=excluded.dt7_count,"
+            "is_bingdian=excluded.is_bingdian",
+            (date, zt_count, zb_count, dt_count, break_rate, max_height,
+             json.dumps(ladder, ensure_ascii=False), median_pct, up_count, down_count,
+             dt7_count, None if is_bingdian is None else int(bool(is_bingdian))),
         )
         self.conn.commit()
 
@@ -155,16 +193,24 @@ class Store:
         return self.conn.execute("SELECT * FROM market_sentiment ORDER BY date").fetchall()
 
     def sentiment_as_of(self, date: str) -> dict | None:
-        """截至 date 的最近一条情绪快照（含 ladder 解析）"""
+        """截至 date 的最近一条情绪快照（含 ladder 解析）。
+
+        ⚠️ R2.5（2026-09-12）：由**位置索引 row[0..6]** 改为**按列名取值**。
+        理由：R2.5 给 market_sentiment **末尾**加了 5 列，位置索引对「列序变化」零容错；
+        按名取值后，将来再加列也不会静默错位（这正是本次迁移暴露的脆弱点）。
+        返回字典**保留**原 7 个键，并**新增** 5 个（向后兼容：多键不影响旧调用方）。
+        """
         import json
 
-        row = self.conn.execute(
-            "SELECT * FROM market_sentiment WHERE date<=? ORDER BY date DESC LIMIT 1", (date,)).fetchone()
+        cur = self.conn.execute(
+            "SELECT * FROM market_sentiment WHERE date<=? ORDER BY date DESC LIMIT 1", (date,))
+        row = cur.fetchone()
         if not row:
             return None
-        return {"date": row[0], "zt_count": row[1], "zb_count": row[2], "dt_count": row[3],
-                "break_rate": row[4], "max_height": row[5],
-                "ladder": json.loads(row[6]) if row[6] else {}}
+        cols = [d[0] for d in cur.description]
+        rec = dict(zip(cols, row))
+        rec["ladder"] = json.loads(rec["ladder"]) if rec.get("ladder") else {}
+        return rec
 
     # ---------- 分钟线（H7.1，freq: 1m/5m/15m/30m/60m） ----------
     def upsert_minute(self, df, symbol: str, freq: str):

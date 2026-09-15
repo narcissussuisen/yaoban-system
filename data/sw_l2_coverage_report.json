@@ -1,0 +1,83 @@
+{
+ "generated_at": "2026-09-12",
+ "official_second_count": 131,
+ "l2_code_universe": 162,
+ "mapped": 132,
+ "coverage_pct": 81.5,
+ "historical": [
+  "210100",
+  "210300",
+  "220100",
+  "230100",
+  "230200",
+  "240100",
+  "250200",
+  "260200",
+  "260400",
+  "310100",
+  "320100",
+  "320200",
+  "340300",
+  "410400",
+  "420200",
+  "420400",
+  "420600",
+  "420700",
+  "440300",
+  "450100",
+  "470200",
+  "470300",
+  "470400",
+  "630400",
+  "710200",
+  "720100"
+ ],
+ "unresolved": {
+  "250100": {
+   "class": "unresolved",
+   "members_total": 3,
+   "members_live": 1,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000827",
+    "600286",
+    "600553"
+   ]
+  },
+  "420100": {
+   "class": "unresolved",
+   "members_total": 2,
+   "members_live": 1,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000022",
+    "600317"
+   ]
+  },
+  "460200": {
+   "class": "unresolved",
+   "members_total": 1,
+   "members_live": 1,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000033"
+   ]
+  },
+  "720300": {
+   "class": "unresolved",
+   "members_total": 3,
+   "members_live": 1,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000693",
+    "300104",
+    "300431"
+   ]
+  }
+ },
+ "note": "historical 无需补名（成员股已退市）；unresolved 需人工或外部源核定"
+}

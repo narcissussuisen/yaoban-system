@@ -1,9 +1,10 @@
 {
- "src": "申万宏源官方 institute-sw API 二级行业成分股对齐本地 sw_industry_history.csv",
- "fetched_at": "2026-08-31",
- "aligned": 126,
+ "src": "申万宏源官方 institute-sw 二级行业成分股 × 本地 sw_industry_history.csv 一对一最优重叠对齐",
+ "fetched_at": "2026-09-12",
+ "official_count": 131,
+ "aligned": 132,
+ "l2_code_universe": 162,
  "manual_fills": {
-  "110300": "林业Ⅱ",
   "110600": "农业综合Ⅱ"
  },
  "names": {
@@ -48,6 +49,7 @@
   "330400": "厨卫电器",
   "330500": "照明设备Ⅱ",
   "330600": "家电零部件Ⅱ",
+  "330700": "其他家电Ⅱ",
   "340400": "食品加工",
   "340500": "白酒Ⅱ",
   "340600": "非白酒",
@@ -80,6 +82,7 @@
   "450400": "专业连锁Ⅱ",
   "450600": "互联网电商",
   "450700": "旅游零售Ⅱ",
+  "460600": "体育Ⅱ",
   "460800": "专业服务",
   "460900": "酒店餐饮",
   "461000": "旅游及景区",
@@ -129,11 +132,350 @@
   "730200": "通信设备",
   "740100": "煤炭开采",
   "740200": "焦炭Ⅱ",
+  "750100": "油气开采Ⅱ",
   "750200": "油服工程",
   "750300": "炼化及贸易",
   "760100": "环境治理",
   "760200": "环保设备Ⅱ",
   "770100": "个护用品",
-  "770200": "化妆品"
- }
+  "770200": "化妆品",
+  "770300": "医疗美容"
+ },
+ "unresolved": {
+  "210100": {
+   "class": "historical",
+   "members_total": 3,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000406",
+    "000817",
+    "000956"
+   ]
+  },
+  "210300": {
+   "class": "historical",
+   "members_total": 1,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "600762"
+   ]
+  },
+  "220100": {
+   "class": "historical",
+   "members_total": 6,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000618",
+    "000763",
+    "000866",
+    "600002",
+    "600065",
+    "600772"
+   ]
+  },
+  "230100": {
+   "class": "historical",
+   "members_total": 5,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000569",
+    "600001",
+    "600005",
+    "600102",
+    "600357"
+   ]
+  },
+  "230200": {
+   "class": "historical",
+   "members_total": 1,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000535"
+   ]
+  },
+  "240100": {
+   "class": "historical",
+   "members_total": 6,
+   "members_live": 1,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000405",
+    "000689",
+    "600092",
+    "600205",
+    "600296",
+    "600472"
+   ]
+  },
+  "250100": {
+   "class": "unresolved",
+   "members_total": 3,
+   "members_live": 1,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000827",
+    "600286",
+    "600553"
+   ]
+  },
+  "250200": {
+   "class": "historical",
+   "members_total": 2,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "600263",
+    "600852"
+   ]
+  },
+  "260200": {
+   "class": "historical",
+   "members_total": 1,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "600813"
+   ]
+  },
+  "260400": {
+   "class": "historical",
+   "members_total": 3,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000660",
+    "600627",
+    "600786"
+   ]
+  },
+  "310100": {
+   "class": "historical",
+   "members_total": 2,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000549",
+    "600991"
+   ]
+  },
+  "320100": {
+   "class": "historical",
+   "members_total": 1,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000542"
+   ]
+  },
+  "320200": {
+   "class": "historical",
+   "members_total": 1,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000765"
+   ]
+  },
+  "340300": {
+   "class": "historical",
+   "members_total": 1,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "002525"
+   ]
+  },
+  "410400": {
+   "class": "historical",
+   "members_total": 4,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000730",
+    "300090",
+    "300156",
+    "600656"
+   ]
+  },
+  "420100": {
+   "class": "unresolved",
+   "members_total": 2,
+   "members_live": 1,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000022",
+    "600317"
+   ]
+  },
+  "420200": {
+   "class": "historical",
+   "members_total": 2,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000916",
+    "600003"
+   ]
+  },
+  "420400": {
+   "class": "historical",
+   "members_total": 1,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "600591"
+   ]
+  },
+  "420600": {
+   "class": "historical",
+   "members_total": 1,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "600087"
+   ]
+  },
+  "420700": {
+   "class": "historical",
+   "members_total": 1,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000594"
+   ]
+  },
+  "440300": {
+   "class": "historical",
+   "members_total": 1,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "600181"
+   ]
+  },
+  "450100": {
+   "class": "historical",
+   "members_total": 2,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "600631",
+    "600632"
+   ]
+  },
+  "460200": {
+   "class": "unresolved",
+   "members_total": 1,
+   "members_live": 1,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000033"
+   ]
+  },
+  "470200": {
+   "class": "historical",
+   "members_total": 3,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000621",
+    "600646",
+    "600899"
+   ]
+  },
+  "470300": {
+   "class": "historical",
+   "members_total": 3,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000583",
+    "000787",
+    "600799"
+   ]
+  },
+  "470400": {
+   "class": "historical",
+   "members_total": 1,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000805"
+   ]
+  },
+  "630400": {
+   "class": "historical",
+   "members_total": 1,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "600349"
+   ]
+  },
+  "710200": {
+   "class": "historical",
+   "members_total": 1,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "600701"
+   ]
+  },
+  "720100": {
+   "class": "historical",
+   "members_total": 1,
+   "members_live": 0,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "600832"
+   ]
+  },
+  "720300": {
+   "class": "unresolved",
+   "members_total": 3,
+   "members_live": 1,
+   "best_candidate": null,
+   "best_ratio": 0.0,
+   "sample": [
+    "000693",
+    "300104",
+    "300431"
+   ]
+  }
+ },
+ "note": "unresolved.class=historical 表示该码成员股已基本退市（历史残留），非当前有效行业；class=unresolved 表示仍需人工核定"
 }

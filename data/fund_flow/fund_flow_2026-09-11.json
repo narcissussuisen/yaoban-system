@@ -1,0 +1,279 @@
+{
+ "_meta": {
+  "schema_version": "1",
+  "date": "2026-09-11",
+  "built_at": "2026-09-12 21:28:16",
+  "source": "pytdx get_history_transaction_data @ 117.34.114.18:7709（TDX 逐笔成交）",
+  "why_self_built": "东财资金流端点在本机全部 RemoteDisconnected（沙箱外实测）→ 改用 TDX 逐笔自建，口径显式可审计",
+  "thresholds_yuan": {
+   "super": 1000000.0,
+   "big": 200000.0,
+   "mid": 40000.0
+  },
+  "definition": "单笔成交额 = price×vol×100；主力净额 = (超大单买−超大单卖)+(大单买−大单卖)；方向取 buyorsell",
+  "calibrated": false,
+  "calibrated_note": "⚠️ 这组金额阈值来自**行业惯例**，**不是**从选手证据标定的 —— 人格 SOP 只给「钱往哪流」的定性、未给数值。故标 calibrated=false，不假装已标定。",
+  "coverage": "候选池并集(64 files / 23 只)",
+  "n_codes": 23,
+  "n_ok": 23,
+  "n_fail": 0,
+  "failed": [],
+  "generator": "scripts/fund_flow_from_ticks.py",
+  "elapsed_sec": 28.8
+ },
+ "records": [
+  {
+   "code": "002636",
+   "ticks": 4895,
+   "pages": 3,
+   "net_main": 565662003,
+   "net_super": 555571660,
+   "net_big": 10090343,
+   "net_mid": 5042355,
+   "net_small": -32858,
+   "net_all": 570671500
+  },
+  {
+   "code": "002297",
+   "ticks": 4897,
+   "pages": 3,
+   "net_main": 483092229,
+   "net_super": 574828990,
+   "net_big": -91736761,
+   "net_mid": -20971219,
+   "net_small": -122268,
+   "net_all": 461998742
+  },
+  {
+   "code": "000070",
+   "ticks": 4834,
+   "pages": 3,
+   "net_main": 347011993,
+   "net_super": 421745635,
+   "net_big": -74733642,
+   "net_mid": 24559166,
+   "net_small": 3657303,
+   "net_all": 375228462
+  },
+  {
+   "code": "600744",
+   "ticks": 5034,
+   "pages": 3,
+   "net_main": 300840071,
+   "net_super": 217965386,
+   "net_big": 82874685,
+   "net_mid": 15148018,
+   "net_small": 3025476,
+   "net_all": 319013565
+  },
+  {
+   "code": "601606",
+   "ticks": 5066,
+   "pages": 3,
+   "net_main": 293335581,
+   "net_super": 288784012,
+   "net_big": 4551569,
+   "net_mid": -13040174,
+   "net_small": -386615,
+   "net_all": 279908792
+  },
+  {
+   "code": "000636",
+   "ticks": 4888,
+   "pages": 3,
+   "net_main": 283164402,
+   "net_super": 525624601,
+   "net_big": -242460199,
+   "net_mid": -59037871,
+   "net_small": -690011,
+   "net_all": 223436520
+  },
+  {
+   "code": "002815",
+   "ticks": 4574,
+   "pages": 3,
+   "net_main": 280913934,
+   "net_super": 327176780,
+   "net_big": -46262846,
+   "net_mid": -34497033,
+   "net_small": -11671271,
+   "net_all": 234745630
+  },
+  {
+   "code": "300319",
+   "ticks": 4858,
+   "pages": 3,
+   "net_main": 278593440,
+   "net_super": 358930185,
+   "net_big": -80336745,
+   "net_mid": 5262880,
+   "net_small": 988336,
+   "net_all": 284844656
+  },
+  {
+   "code": "603601",
+   "ticks": 5115,
+   "pages": 3,
+   "net_main": 251366607,
+   "net_super": 234378341,
+   "net_big": 16988266,
+   "net_mid": 15425713,
+   "net_small": 394187,
+   "net_all": 267186507
+  },
+  {
+   "code": "600105",
+   "ticks": 5154,
+   "pages": 3,
+   "net_main": 217300688,
+   "net_super": 64805328,
+   "net_big": 152495360,
+   "net_mid": 17871346,
+   "net_small": 42934,
+   "net_all": 235214968
+  },
+  {
+   "code": "000722",
+   "ticks": 4715,
+   "pages": 3,
+   "net_main": 98496763,
+   "net_super": 105436202,
+   "net_big": -6939439,
+   "net_mid": -3899485,
+   "net_small": 868221,
+   "net_all": 95465499
+  },
+  {
+   "code": "600127",
+   "ticks": 5102,
+   "pages": 3,
+   "net_main": 65114523,
+   "net_super": 91950625,
+   "net_big": -26836102,
+   "net_mid": -8868937,
+   "net_small": 367407,
+   "net_all": 56612993
+  },
+  {
+   "code": "603936",
+   "ticks": 4885,
+   "pages": 3,
+   "net_main": 56050166,
+   "net_super": 117948496,
+   "net_big": -61898330,
+   "net_mid": -45002517,
+   "net_small": -12424979,
+   "net_all": -1377330
+  },
+  {
+   "code": "600354",
+   "ticks": 5037,
+   "pages": 3,
+   "net_main": 54406825,
+   "net_super": 65116431,
+   "net_big": -10709606,
+   "net_mid": -7560061,
+   "net_small": 71399,
+   "net_all": 46918163
+  },
+  {
+   "code": "601086",
+   "ticks": 5032,
+   "pages": 3,
+   "net_main": 49580995,
+   "net_super": 55488,
+   "net_big": 49525507,
+   "net_mid": 9457613,
+   "net_small": 1748054,
+   "net_all": 60786662
+  },
+  {
+   "code": "603618",
+   "ticks": 5136,
+   "pages": 3,
+   "net_main": 14340492,
+   "net_super": 994315,
+   "net_big": 13346177,
+   "net_mid": 6337716,
+   "net_small": 459207,
+   "net_all": 21137415
+  },
+  {
+   "code": "300189",
+   "ticks": 4792,
+   "pages": 3,
+   "net_main": -73503035,
+   "net_super": 22828909,
+   "net_big": -96331944,
+   "net_mid": -15261740,
+   "net_small": 953831,
+   "net_all": -87810944
+  },
+  {
+   "code": "000978",
+   "ticks": 4759,
+   "pages": 3,
+   "net_main": -102007184,
+   "net_super": -86905632,
+   "net_big": -15101552,
+   "net_mid": 18073162,
+   "net_small": 5009224,
+   "net_all": -78924798
+  },
+  {
+   "code": "000823",
+   "ticks": 4607,
+   "pages": 3,
+   "net_main": -113477966,
+   "net_super": -90983347,
+   "net_big": -22494619,
+   "net_mid": -41371654,
+   "net_small": -15584547,
+   "net_all": -170434167
+  },
+  {
+   "code": "603186",
+   "ticks": 4984,
+   "pages": 3,
+   "net_main": -118723120,
+   "net_super": -184301172,
+   "net_big": 65578052,
+   "net_mid": 17772636,
+   "net_small": 124409,
+   "net_all": -100826075
+  },
+  {
+   "code": "600967",
+   "ticks": 4678,
+   "pages": 3,
+   "net_main": -147186307,
+   "net_super": 72701249,
+   "net_big": -219887556,
+   "net_mid": -91334946,
+   "net_small": -21079672,
+   "net_all": -259600925
+  },
+  {
+   "code": "000759",
+   "ticks": 4911,
+   "pages": 3,
+   "net_main": -324053398,
+   "net_super": -268920163,
+   "net_big": -55133235,
+   "net_mid": 2676376,
+   "net_small": 1640808,
+   "net_all": -319736214
+  },
+  {
+   "code": "600396",
+   "ticks": 5210,
+   "pages": 3,
+   "net_main": -377432997,
+   "net_super": -312571221,
+   "net_big": -64861776,
+   "net_mid": 727681,
+   "net_small": -162752,
+   "net_all": -376868068
+  }
+ ]
+}
