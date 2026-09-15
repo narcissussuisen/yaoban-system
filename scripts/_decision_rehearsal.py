@@ -1,7 +1,7 @@
 import copy,sys,pathlib,json
 sys.path.insert(0,r'C:\Users\YZP\WorkBuddy\Claw\方法论与研究文档\EvoAlpha\yaoban-system\portfolio')
 import ledger
-s=ledger._default_state();s['policy']['require_human_decision']=True
+s=ledger._default_state(100000.0);s['policy']['require_human_decision']=True
 rid=ledger.record_signal_request(s,{'date':'2026-08-31','sym':'000001','kind':'e4_support','suggested_px':10,'expires_at':'2026-08-31 15:00'})
 try:ledger.buy(s,'000001','2026-08-31 09:40',10,100,'e4_support')
 except Exception as e:print('missing decision blocked:',e)

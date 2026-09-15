@@ -112,14 +112,27 @@ def sell_net(px):
     return px * (1 - COMM - SLIP - STAMP)
 
 
-def _default_state() -> dict:
+class LedgerMissing(RuntimeError):
+    """账本文件不存在 —— 属**致命状态**，必须显式初始化，不得静默造一个假账本。"""
+
+
+def _default_state(capital: float) -> dict:
+    """构造全新空账本。**`capital` 必填，无默认值**（2026-09-15 用户裁定）。
+
+    旧实现内置 `start_cash=100000.0`，配合 `_read()` 的"不存在就造一个"行为，
+    会让**账本文件丢失/损坏被静默当成「10 万新账本」继续运行** —— 数字看着正常、
+    实则口径错，且无任何告警。这是历史版本残留里最危险的一种形态。
+
+    现在本金一律由调用方显式给出：生产口径见 `scripts/initialize_main_ledger.py`
+    （50 万，用户裁决 8.1）。
+    """
     return {
         "_revision": 0,
-        "start_cash": 100000.0,
+        "start_cash": float(capital),
         "start_date": "2026-08-31",
         "benchmark": "000852.SH",
         "policy": dict(DEFAULT_POLICY),
-        "account": {"cash": 100000.0, "positions": {}, "fills": [], "equity_curve": []},
+        "account": {"cash": float(capital), "positions": {}, "fills": [], "equity_curve": []},
         "plans": {}, "reviews": {}, "rules_log": [],
         "signal_requests": {}, "human_decisions": {}, "risk_state": {},
     }
@@ -138,7 +151,12 @@ def _normalize(state: dict) -> dict:
     state.setdefault("plans", {})
     state.setdefault("reviews", {})
     acct = state.setdefault("account", {})
-    acct.setdefault("cash", state.get("start_cash", 100000.0))
+    # 2026-09-15：**不得回落历史本金**。旧写法 `state.get("start_cash", 100000.0)`
+    # 会在账本缺该键时静默按 10 万出数（R0.2 后生产口径为 50 万）。
+    # 缺 start_cash 意味着账本损坏/半写 ⇒ 口径不可知 ⇒ fail-loud。
+    if state.get("start_cash") in (None, ""):
+        raise LedgerMissing(f"账本缺 start_cash（口径不可知，拒绝回落历史默认值）: {LEDGER}")
+    acct.setdefault("cash", state["start_cash"])
     acct.setdefault("positions", {})
     acct.setdefault("fills", [])
     acct.setdefault("equity_curve", [])
@@ -152,9 +170,17 @@ def _normalize(state: dict) -> dict:
 
 
 def _read() -> dict:
-    if LEDGER.exists():
-        return _normalize(json.loads(LEDGER.read_text(encoding="utf-8")))
-    return _default_state()
+    """读账本。**不存在即抛 `LedgerMissing`** —— 不再静默造一个默认账本。
+
+    2026-09-15：旧行为 `return _default_state()`（内置 10 万本金）会把"账本丢了"
+    伪装成"全新 10 万账本"，是历史版本残留中最危险的静默失效。生产账本缺失时
+    正确反应是**当场失败并告警**，而不是换个口径继续跑。
+    """
+    if not LEDGER.exists():
+        raise LedgerMissing(
+            f"账本不存在: {LEDGER}。生产账本请用 scripts/initialize_main_ledger.py 显式初始化；"
+            "若为误删，先从 yaoban_tasks/ledger_archive 恢复。")
+    return _normalize(json.loads(LEDGER.read_text(encoding="utf-8")))
 
 
 def load() -> dict:
@@ -192,7 +218,9 @@ def ledger_lock(timeout: float = 10.0):
 
 
 def _write_locked(state: dict, expected_revision: int | None = None):
-    current = _read() if LEDGER.exists() else _default_state()
+    # 2026-09-15：写入路径同样不得凭空造账本。`_read()` 在缺失时抛 LedgerMissing
+    # ⇒ 写入失败可见，而不是先造一个 10 万账本再覆盖写。
+    current = _read()
     current_rev = int(current.get("_revision", 0))
     if expected_revision is not None and current_rev != expected_revision:
         raise ConcurrentLedgerUpdate(f"ledger revision changed: expected={expected_revision} actual={current_rev}")

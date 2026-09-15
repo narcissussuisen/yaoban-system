@@ -12,7 +12,7 @@ import ledger
 
 
 def _auto_state():
-    s = ledger._default_state()
+    s = ledger._default_state(100000.0)
     s['policy']['require_human_decision'] = False
     s['policy']['account_mode'] = 'autonomous_paper'
     s['account']['cash'] = 100000.0
@@ -130,7 +130,7 @@ class LedgerProvenanceTests(unittest.TestCase):
 
     def test_human_path_still_works_with_timing(self):
         # 人工确认路径: 有效 decision_id + 时序契约 → 通过
-        s = ledger._default_state()  # require_human_decision=True
+        s = ledger._default_state(100000.0)  # require_human_decision=True
         rid = ledger.record_signal_request(s, {'sym': '000001', 'kind': 'P',
                                                 'signal_ts': '2026-08-31 09:40'})
         did = ledger.record_human_decision(s, rid, 'approve', 'EvoAlpha', 'test', 9, 11)
@@ -141,7 +141,7 @@ class LedgerProvenanceTests(unittest.TestCase):
 
     def test_human_path_stale_signal_rejected(self):
         # 人工批准过慢（>120s）→ 时序契约拒绝（蓝图: 旧信号一律拒单）
-        s = ledger._default_state()
+        s = ledger._default_state(100000.0)
         rid = ledger.record_signal_request(s, {'sym': '000001', 'kind': 'P',
                                                 'signal_ts': '2026-08-31 09:40'})
         did = ledger.record_human_decision(s, rid, 'approve', 'EvoAlpha', 'test', 9, 11)
@@ -207,7 +207,7 @@ class TickRiskSellPathTests(unittest.TestCase):
    self.tm.execute_tick_risk_sell(s,'000001','2026-08-29','09:40:00',9.8,400,'stop_loss')
 
  def test_non_autonomous_mode_rejected(self):
-  s=ledger._default_state()  # require_human_decision=True
+  s=ledger._default_state(100000.0)  # require_human_decision=True
   s['account']['positions']['000001']={'qty':1000,'cost':10.0,'entry_ts':'2026-08-28 10:06','days':0}
   with self.assertRaisesRegex(ValueError,'autonomous_paper'):
    self.tm.execute_tick_risk_sell(s,'000001','2026-08-29','09:40:00',9.8,400,'stop_loss')

@@ -17,7 +17,7 @@ def _abuy(s,sym,ts,px,qty,reason,signal_ts=None,decision_ts=None,plan_match=None
 
 class LedgerRiskTests(unittest.TestCase):
  def state(self):
-  s=ledger._default_state(); s['policy']['require_human_decision']=True; return s
+  s=ledger._default_state(100000.0); s['policy']['require_human_decision']=True; return s
  def approve(self,s,sym='000001',lo=9,hi=11):
   rid=ledger.record_signal_request(s,{'sym':sym,'kind':'test','signal_ts':'2026-08-31 09:39'})
   return ledger.record_human_decision(s,rid,'approve','EvoAlpha','test',lo,hi)
@@ -50,14 +50,14 @@ class LedgerRiskTests(unittest.TestCase):
   s=self.state(); s['policy']['transition_reduce_only']=True; d=self.approve(s)
   with self.assertRaisesRegex(ValueError,'只减不增'): self._hbuy(s,'000001','2026-08-31 09:40',10,100,'P',d)
  def test_t1_old_bottom_can_sell_after_t_buy(self):
-  s=ledger._default_state(); s['policy']['require_human_decision']=False; s['policy']['account_mode']='autonomous_paper'
+  s=ledger._default_state(100000.0); s['policy']['require_human_decision']=False; s['policy']['account_mode']='autonomous_paper'
   s['account']['cash']=100000; _abuy(s,'000001','2026-08-28 09:40',10,1000,'P')
   ledger.t_buy(s,'000001','2026-08-31 09:40',9,100)
   self.assertEqual(ledger.sellable_qty(s,'000001','2026-08-31'),1000)
   ledger.t_sell(s,'000001','2026-08-31 10:10',10,1000)
   self.assertEqual(s['account']['positions']['000001']['qty'],100)
  def test_equity_upsert(self):
-  s=ledger._default_state(); s['account']['cash']=100
+  s=ledger._default_state(100000.0); s['account']['cash']=100
   ledger.equity(s,'2026-08-31',{}); ledger.equity(s,'2026-08-31',{})
   self.assertEqual(len(s['account']['equity_curve']),1)
 
