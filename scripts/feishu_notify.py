@@ -91,6 +91,19 @@ def _ledger_state() -> dict:
         return {}
 
 
+def _capital_value(state: dict) -> float | None:
+    """账本本金（数值）。口径唯一来源 = start_cash；取不到返回 None。
+
+    **禁止回落历史数值**（2026-09-15）：旧写法 `float(state.get("start_cash") or 100000)`
+    在账本迁移到 50 万后，一旦该键缺失就会静默按 10 万算 —— 数字看着正常、实则错。
+    """
+    try:
+        cap = float(state.get("start_cash") or 0)
+    except (TypeError, ValueError):
+        return None
+    return cap if cap > 0 else None
+
+
 def _capital_label(state: dict) -> str:
     """本金标签（如「50万元」）。口径唯一来源 = 账本 start_cash。
 
@@ -98,11 +111,8 @@ def _capital_label(state: dict) -> str:
     （用户裁决 8.1，start_date=2026-09-14）后未同步，导致盘前汇报长期显示旧本金。
     **禁止写死金额**：一律从账本派生，读不到就不显示数字。
     """
-    try:
-        cap = float(state.get("start_cash") or 0)
-    except (TypeError, ValueError):
-        return ""
-    return f"{cap / 10000:g}万元" if cap > 0 else ""
+    cap = _capital_value(state)
+    return f"{cap / 10000:g}万元" if cap else ""
 
 
 def _discipline_line(state: dict) -> str:
@@ -153,7 +163,8 @@ def _close_message(day: str) -> str:
     review_path = BASE / "outputs" / "reviews" / f"trader_daily_{day}.json"
     review = json.loads(review_path.read_text(encoding="utf-8")) if review_path.exists() else {}
     equity = row.get("equity") if row else None
-    ret = ((float(equity) / float(ledger.get("start_cash", 100000)) - 1) * 100) if equity is not None else None
+    start_cash = _capital_value(ledger)
+    ret = ((float(equity) / start_cash - 1) * 100) if (equity is not None and start_cash) else None
     return "\n".join([
         f"EvoAlpha｜盘后汇报 {day}",
         f"账户净值：{equity if equity is not None else '未完成估值'}" + (f"，累计收益 {ret:+.2f}%" if ret is not None else ""),
