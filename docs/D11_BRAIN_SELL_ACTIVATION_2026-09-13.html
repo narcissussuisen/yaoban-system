@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>D11 卖出裁量（brain）开关启用核验单 · 2026-09-13</title>
+<style>
+  :root { --ink:#1a1d21; --muted:#5b6470; --line:#dfe3e8; --bg:#fbfbfc;
+          --ok:#0f7b3f; --okbg:#eef8f1; --warn:#8a5a00; --warnbg:#fff8e6;
+          --code:#f4f6f8; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:32px 28px 56px; background:var(--bg); color:var(--ink);
+         font:14px/1.7 "Microsoft YaHei","PingFang SC","Segoe UI",sans-serif; }
+  .wrap { max-width:1000px; margin:0 auto; }
+  h1 { font-size:21px; margin:0 0 6px; letter-spacing:.2px; }
+  h2 { font-size:15px; margin:30px 0 10px; padding-left:9px; border-left:3px solid #2f6fdb; }
+  .sub { color:var(--muted); font-size:12.5px; margin-bottom:20px; }
+  table { width:100%; border-collapse:collapse; background:#fff; margin:8px 0 4px; }
+  th,td { border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top; }
+  th { background:#f2f4f7; font-weight:600; font-size:12.5px; color:#39414b; }
+  td.k { width:190px; font-weight:600; color:#39414b; }
+  code { background:var(--code); border:1px solid var(--line); border-radius:3px;
+         padding:1px 5px; font-family:Consolas,"Courier New",monospace; font-size:12.5px; }
+  pre { background:#0f1115; color:#e6e6e6; border-radius:5px; padding:11px 13px;
+        overflow:auto; font-family:Consolas,"Courier New",monospace; font-size:12px; line-height:1.6; }
+  .ok { color:var(--ok); font-weight:600; }
+  .box { background:var(--okbg); border:1px solid #cbe6d5; border-radius:5px; padding:11px 14px; margin:10px 0; }
+  .box.warn { background:var(--warnbg); border-color:#f0dfae; }
+  .box.warn b { color:var(--warn); }
+  .lead { background:#fff; border:1px solid var(--line); border-radius:5px; padding:13px 16px; }
+  .lead b { font-size:15px; }
+  ul { margin:6px 0 6px 20px; padding:0; } li { margin:3px 0; }
+  .muted { color:var(--muted); font-size:12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>D11 卖出裁量（brain）开关启用 · 核验单</h1>
+  <div class="sub">EvoAlpha · 2026-09-13 20:15（周日，非交易日） · 执行人：小wb · 用户裁定：不空跑，9/14 起直接观察</div>
+
+  <div class="lead">
+    <b>结论：开关已置位并通过全部验证，9/14（周一）开盘自动生效。</b><br>
+    <span class="muted">用户级环境变量 <code>EVOALPHA_BRAIN_SELL=1</code> 已写入；生产链路 4 跳环境继承实测通过；
+    LLM 通路实测可用（未降级）；生产任务入口冒烟 exit 0 且零残留进程。当前无 daemon 在跑，因此「重启」由周一 09:30
+    计划任务拉起新进程天然完成，无需杀进程。</span>
+  </div>
+
+  <h2>① 本次变更（仅 1 项系统配置 + 2 个新增只读工具）</h2>
+  <table>
+    <tr><th>对象</th><th>内容</th><th>性质</th></tr>
+    <tr><td class="k">用户级环境变量</td>
+        <td><code>EVOALPHA_BRAIN_SELL=1</code>（<code>setx</code> → <code>HKCU\Environment</code>）。
+            前后 diff：<b>仅新增该键</b>，原有 9 项（Path / TEMP / DEEPSEEK_API_KEY…）零改动。</td>
+        <td>可一行回退</td></tr>
+    <tr><td class="k"><code>tools/brain_sell_observe.py</code></td>
+        <td>新增：D11 只读观察器（脑判定 × 执行侧事件对齐 + 5 项观察量），不写任何生产状态。</td>
+        <td>新增·只读</td></tr>
+    <tr><td class="k">自动化 <code>ff4227d8</code></td>
+        <td>新增：工作日下午 15:50 自动观察并推送日报到 EvoAlpha 飞书 hook（按日去重）。</td>
+        <td>新增·可停用</td></tr>
+    <tr><td class="k">生产脚本 / 账本 / 任务定义</td>
+        <td><b>零改动</b>（未改 tick_monitor / brain / 计划任务 / 账本）。</td>
+        <td>—</td></tr>
+  </table>
+
+  <h2>② 验证证据</h2>
+  <table>
+    <tr><th>检查项</th><th>方法</th><th>结果</th></tr>
+    <tr><td class="k">接线自检</td>
+        <td><code>tools/verify_brain_sell_wiring.py</code>（映射覆盖 / 配置对齐 / 源码锚点 / 离线干跑）</td>
+        <td class="ok">PASS 31 · RESULT OK</td></tr>
+    <tr><td class="k">开关解析</td>
+        <td>同上，显式带 <code>EVOALPHA_BRAIN_SELL=1</code></td>
+        <td class="ok">D/开关解析：启用</td></tr>
+    <tr><td class="k">环境继承链（4 跳）</td>
+        <td>用 <code>Register-ScheduledTask</code> 建<b>同形一次性探针任务</b>，逐跳落盘 env：
+            计划任务 → <code>pythonw</code>+<code>run_hidden.py</code> → <code>powershell -File</code> → python 子进程 → <code>Popen</code> 孙进程
+            （= watchdog→daemon 那一跳）</td>
+        <td class="ok">4/4 PASS，全链路读到 =1；
+            且 <code>tick_monitor.BRAIN_SELL_ENABLED is True</code>（模块层读 env ⇒ 必须重启进程才生效，已实证）</td></tr>
+    <tr><td class="k">LLM 通路</td>
+        <td><code>brain.sell_verdict</code> 全链路演练（day=2026-09-11 / 600519 / stop_loss / persist=False）+ 直连 <code>llm.consult</code></td>
+        <td class="ok">status=ok、degraded=False、1.3~1.5s；<code>action=clear_all</code>、<code>sop_rule=GEN-HOLD-28</code>、<code>sop_weak=False</code></td></tr>
+    <tr><td class="k">生产入口冒烟</td>
+        <td>手动触发 <code>YaobanTickDaemon</code>（周日 → 交易日守卫应静默退出）</td>
+        <td class="ok">exit_code=0，stdout「非交易日，全线静默退出 (mode=tick)」；<b>零残留</b> tick/watchdog 进程</td></tr>
+    <tr><td class="k">周一确为交易日</td>
+        <td><code>trading_calendar.py check --date 2026-09-14</code></td>
+        <td class="ok">state=trading（源 baostock，cache 2026-09-12）</td></tr>
+    <tr><td class="k">开关唯一消费者</td>
+        <td>全仓检索 <code>EVOALPHA_BRAIN_SELL</code> / <code>BRAIN_SELL_ENABLED</code></td>
+        <td class="ok">仅 <code>scripts/tick_monitor.py</code>（+ tests / tools），无跨项目影响</td></tr>
+  </table>
+
+  <h2>③ 生效时点（为什么不需要「重启」）</h2>
+  <ul>
+    <li>实测当前<b>无 tick daemon / watchdog 在跑</b>（周末链路本就不启动）⇒ 不存在持旧环境块的常驻进程。</li>
+    <li>9/14 09:30 <code>YaobanTickDaemon</code> 拉起的是<b>全新进程</b>，直接读注册表新 env ⇒ <b>周一开盘即生效</b>。</li>
+    <li>残留的 9/11 <code>_tick_daemon.lock</code>（持锁 pid 31444 已死 + mtime 远 &gt;120s）由 daemon
+        <code>_acquire_daemon_lock</code> 与 watcher <code>_clear_dead_daemon_lock</code> 双向兜底回收，无需人工清。</li>
+  </ul>
+
+  <h2>④ 观察口径（判据先登记，逐日填）</h2>
+  <div class="box">
+    每日一条命令：<code>python -X utf8 tools/brain_sell_observe.py --date &lt;日&gt;</code>；或由自动化 <code>ff4227d8</code> 15:50 自动推送。
+  </div>
+  <table>
+    <tr><th>#</th><th>指标</th><th>判据</th></tr>
+    <tr><td>①</td><td class="k" style="width:auto">降级率</td><td>应为 0%。&gt;0 表示 LLM 通路不稳，当日脑近似空转（护栏会机械兜底，行为等同接线前）</td></tr>
+    <tr><td>②</td><td class="k" style="width:auto">脑判不卖笔数（<code>brain_hold</code>）</td>
+        <td><b>复刻保真度的核心观察量</b>：机械要卖、脑判不卖。每一笔都要能解释「为什么」</td></tr>
+    <tr><td>③</td><td class="k" style="width:auto">日锁唯一性</td>
+        <td>同一 (标的 × 卖点) 当日应只有 1 条真判定（<code>sha256(scope|day|code|trigger)</code> + TTL 到收盘）</td></tr>
+    <tr><td>④</td><td class="k" style="width:auto">弱依据占比</td>
+        <td><code>vwap_halve</code>（SOP 动作是「走」非「减半」）与 <code>vwap_break_all</code>（SOP 零命中）单独统计，不与有依据者混算</td></tr>
+    <tr><td>⑤</td><td class="k" style="width:auto">执行侧可对齐</td>
+        <td>有脑判定就应有对应 <code>risk_events.jsonl</code> 事件（hold → <code>brain_hold</code>；其余 → <code>execute</code>/<code>alert_only</code>）</td></tr>
+  </table>
+  <div class="muted">证据文件：<code>outputs/decision_chain/brain/brain_&lt;日&gt;.jsonl</code>（含全部 facts）、
+    <code>outputs/intraday/risk_events.jsonl</code>、<code>outputs/decision_chain/llm/cache/</code>。</div>
+
+  <h2>⑤ 回退（一行，无需改代码）</h2>
+  <pre>setx EVOALPHA_BRAIN_SELL 0        &amp; 重启 tick daemon
+::   或删除该变量：reg delete HKCU\Environment /v EVOALPHA_BRAIN_SELL /f</pre>
+  <div class="muted">护栏语义（调用方实现，未改 brain 内部）：只有「brain 真裁量成功且判 hold」才跳过该笔；
+    其余（降级 / 异常 / schema 失败）<b>一律机械原量执行</b> ⇒ LLM 故障时止损类卖点仍会执行，不引入新失效洞。</div>
+
+  <h2>⑥ 同批修复：`.ps1` 无 BOM 吞行**簇**（用户裁定后已执行）</h2>
+  <div class="box warn">
+    <b>不是单文件问题：全量扫描 31 个生产 .ps1，命中 7 个。</b>
+    已逐字节备份并统一补 UTF-8 BOM（只改头 3 字节、内容零改动）；复验 31 文件解析错误 0、吞行指纹 0。
+  </div>
+  <table>
+    <tr><th>文件</th><th>被吞的代码</th><th>修复前后果</th></tr>
+    <tr><td class="k">`yaoban_tasks\launch.ps1`</td><td><code>$runId=('run-'+$stamp)</code></td>
+        <td>最近 6 个交易日 <b>4171/4171</b> 条 task_log <code>run_id</code> 恒为 <code>null</code>；
+            设计中的 G1「task_log.run_id == close_decision.run_id」精确等值核对恒不成立</td></tr>
+    <tr><td class="k">`scripts\run_board_refresh.ps1`</td><td>交易日历检查行</td>
+        <td><b>非交易日静默守卫失效</b>（守卫读的 <code>$LASTEXITCODE</code> 从未被设置，节假日会照跑）</td></tr>
+    <tr><td class="k">`scripts\run_daily_iteration.ps1`</td>
+        <td><code>$ErrorActionPreference='Stop'</code> + 日历检查行</td>
+        <td>守卫失效 + 出错不再中止（静默继续）</td></tr>
+    <tr><td class="k">`scripts\run_daily.ps1`</td><td><code>$ErrorActionPreference='Continue'</code></td>
+        <td>契约破（Continue 恰为默认值，无实际后果）</td></tr>
+    <tr><td class="k">`scripts\register_daily_iteration.ps1`</td>
+        <td><code>param([switch]$VerifyOnly,[switch]$Unregister)</code></td>
+        <td>脚本实际<b>不接受</b>这两个参数（调用即报错）</td></tr>
+    <tr><td class="k">`scripts\_setup_cmd_runners.ps1` / `yaoban_tasks\_silence_tasks.ps1`</td>
+        <td>扫描未命中吞行</td><td>同一风险类，一并补 BOM 防患</td></tr>
+  </table>
+  <table>
+    <tr><th>项</th><th>内容</th></tr>
+    <tr><td class="k">可回滚</td>
+        <td>原件逐字节备份于 <code>yaoban_tasks\_backup_ps1_bom_20260913\*.bak</code>（已校验与「去掉 BOM 后」完全一致）</td></tr>
+    <tr><td class="k">端到端复证</td>
+        <td>逐字节复制 <code>launch.ps1</code> + 在 <code>exit $code</code> 前插取证行运行：
+            修复前 <code>{"runIdIsNull":true}</code> → 修复后
+            <code>{"runId":"run-20260913_202352_878","runIdIsNull":false,"envYAOBAN":"run-20260913_202352_878"}</code></td></tr>
+    <tr><td class="k">测试回归</td>
+        <td><code>test_close_pipeline + test_daily_acceptance + test_acceptance_continuity + test_brain_sell_wiring</code>
+            = <b>66 passed</b>；修复后 <code>test_ps1_encoding_guard + test_close_pipeline</code> = 20 passed</td></tr>
+    <tr><td class="k">新增回归护栏</td>
+        <td><code>tests/test_ps1_encoding_guard.py</code>：含非 ASCII 的 .ps1 必须带 BOM；关键入口
+            （<code>run_trading_task.ps1</code>/<code>post_close_chain.ps1</code>/<code>launch.ps1</code>）单独钉死 BOM；
+            含「扫到文件数 ≥10」防空转断言。<b>负向对照已做</b>：临时造缺 BOM 文件 → 测试确实 FAILED（非恒绿空转）</td></tr>
+    <tr><td class="k">原根因（AST 实证）</td>
+        <td>无 BOM（首 3 字节 <code>112,97,114</code>）+ LF 行尾 ⇒ PS 5.1 按 CP936 读；注释末尾的
+            <code>。</code>(E3 80 <b>82</b>) / <code>）</code>(EF BC <b>89</b>) 末字节落在 GBK 前导区 ⇒
+            <b>吞掉换行</b> ⇒ 下一行代码整体并进注释、静默不执行</td></tr>
+    <tr><td class="k">为何既有测试没拦住</td>
+        <td><code>tests/test_close_pipeline.py::test_launch_wrapper_injects_shared_run_id</code> 是<b>源码字符串断言</b>
+            （文本在、执行被吞）—— 同族「返回码 0 ≠ 成功」盲区；故改用<b>编码契约</b>护栏</td></tr>
+    <tr><td class="k">⚠️ 审查纪律（两次踩坑）</td>
+        <td>① 不能用「注释 token 跨行」判吞行 —— 被吞的 <code>0x0A</code> 在 PS 里不存在、<code>Start==End</code> 永不跨行；
+            正确判据 = <b>独立代码行的文本被完整包含在注释 token 的 Text 里</b>。
+            ② <code>Measure-Object -Property {}</code> 在 PS 5.1 不支持 scriptblock 属性、<b>静默返回 0</b>（用它数行数导致 31/31 误报）。
+            ③ 物理行号比 PS 语句行号会把真阳性误判为假阳性（吞行后 PS 行号整体前移）。<b>判据一律落到文本包含。</b></td></tr>
+  </table>
+
+  <div class="muted" style="margin-top:26px">
+    证据原件：<code>_scratch/preflight_brainsell.txt</code> · <code>_scratch/env_probe_final.txt</code> ·
+    <code>_scratch/set_brainsell_evidence.txt</code> · <code>_scratch/smoke_tickdaemon.txt</code> ·
+    <code>_scratch/launch_ast.txt</code> · <code>_scratch/ps1_bom_fix.txt</code>（簇修复+复验）·
+    <code>_scratch/ps1_targeted_ast.txt</code>（逐文件 AST 取证）·
+    <code>_scratch/launch_runid_probe2.txt</code>（修复后端到端复证）·
+    <code>yaoban_tasks/evoalpha_tickdaemon_task.xml</code>；
+    回滚备份：<code>yaoban_tasks\_backup_ps1_bom_20260913\*.bak</code>
+  </div>
+
+</div>
+</body>
+</html>
