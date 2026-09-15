@@ -108,6 +108,24 @@ def _mtime_day(p: pathlib.Path) -> str:
         return ""
 
 
+def _start_cash(state: dict) -> float | None:
+    """从账本取起始本金；**不得回落到历史口径**（2026-09-15 修复）。
+
+    旧实现为 `float(ledger.get("start_cash", 100000) or 100000)` —— R0.2 主账本迁移到 50 万后，
+    一旦账本缺该键（损坏/半写），卡片会**静默按 10 万**算累计收益：数字看着正常、实则错，
+    而且没有任何告警。现改为显式降级：取不到返回 None，调用方改为「不显示」，并记一条 warning。
+    """
+    raw = state.get("start_cash")
+    try:
+        value = float(raw)
+        if value > 0:
+            return value
+    except (TypeError, ValueError):
+        pass
+    _warnings.append(f"账本 start_cash 不可用({raw!r})，累计收益改为不显示（不回落到历史本金）")
+    return None
+
+
 def _short(text, n: int) -> str:
     s = str(text)
     return s if len(s) <= n else s[: n - 1] + "…"
@@ -639,8 +657,8 @@ def _n_close(day: str, now: datetime.datetime):
     curve = acct.get("equity_curve", []) or []
     row = next((x for x in reversed(curve) if x.get("date") == day), None)
     equity = (row or {}).get("equity", cd.get("equity"))
-    start_cash = float(ledger.get("start_cash", 100000) or 100000)
-    ret = (float(equity) / start_cash - 1) * 100 if equity is not None else None
+    start_cash = _start_cash(ledger)
+    ret = (float(equity) / start_cash - 1) * 100 if (equity is not None and start_cash) else None
     # 2026-09-11 修复(口径): close_decision 是"规则全天会怎么打"的**审计反事实**产物, 文件自带
     # kind=audit_counterfactual / executed=false / authority=account.fills 三键 —— 它不是成交。
     # 原实现直接把它的 buys/sells 当"当日成交"展示, 9/11 实录: 账本真实为 2 笔卖出

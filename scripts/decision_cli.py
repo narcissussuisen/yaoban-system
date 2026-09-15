@@ -4,7 +4,10 @@ list: 列出待确认请求
 approve REQUEST_ID --actor EvoAlpha --reason ... [--px-min --px-max] [--execute-px]
 reject REQUEST_ID --actor EvoAlpha --reason ...
 
-批准可选立即执行模拟单；数量由账本按45%单票、90%敞口、现金和100股整数倍重算。
+批准可选立即执行模拟单；数量由账本 policy 的 max_single_weight / max_gross_exposure、
+可用现金和 100 股整数倍重算。
+（**不在此写死阈值数值**：唯一真相源是账本 policy —— 写死会漂移，
+如 2026-09-13 已将 max_single_weight 由 0.45 调为 0.30。）
 """
 from __future__ import annotations
 import argparse, json, pathlib, sys
