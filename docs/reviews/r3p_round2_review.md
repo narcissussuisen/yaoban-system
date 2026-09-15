@@ -1,7 +1,7 @@
 # R3' 卖出层第二轮（组合级接口）独立评审报告
 
 > 评审人：量化专家 agent（独立，复算优先，不采信申报）｜日期：2026-08-27
-> 评审对象：docs/R3P_round2.md · src/core/combo_sell.py · src/core/sell.py（规则 2.5/2.6 + simulate_hold 透传）· config/concepts.json · scripts/r3p_combo_replay.py
+> 评审对象：docs/archive/R3P_round2.md · src/core/combo_sell.py · src/core/sell.py（规则 2.5/2.6 + simulate_hold 透传）· config/concepts.json · scripts/r3p_combo_replay.py
 > 数据：F盘前复权分钟线 parquet_qfq_2026（240 根/日）· data/sw_industry_history.csv · config/concepts.json（人工映射）
 > 结论：**⚠️ 有条件放行**（四项 gate 机械复算全部通过；附 3 项文档数字更正 + 4 项接线期整改）
 

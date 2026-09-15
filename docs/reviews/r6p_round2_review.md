@@ -1,7 +1,7 @@
 # R6' 第二轮评审裁定（独立复算）
 
 > 评审人：独立量化评审 agent（复算优先，不采信申报）· 日期：2026-08-27
-> 评审对象：docs/R6P_round2.md + scripts/r6p_replication.py（2f1b64e 版，13:46 快照——评审基准）+ outputs/r6p_eq_v2_{base,C2_ride,C4_conc,C5_heat}.csv + _fills.csv
+> 评审对象：docs/archive/R6P_round2.md + scripts/r6p_replication.py（2f1b64e 版，13:46 快照——评审基准）+ outputs/r6p_eq_v2_{base,C2_ride,C4_conc,C5_heat}.csv + _fills.csv
 > 数据：outputs/r6p_candidates_2026.csv（16,305 行/98 信号日）+ outputs/sentiment_full_2026.csv + outputs/r6p_sector_heat_2026.csv（12,884 行/98 天/131 板块）+ F:/WorkBuddyItem/a股分钟线/parquet_qfq_2026
 > 复算：① 独立全窗口复跑 4 配置（base / C2 ride / C4 集中度 / C5 板块热度）逐字节比对交付 CSV；② 交付 fills 离线 k=1..5 溯源（禁止 k=0）；③ 代码级前视审计（intraday/sell/combo_sell）；④ 板块热度机制与负发现裁定
 > 环境备注：评审期间作者并行推进第三轮（与 R1 轮同模式）——14:40 起脚本新增 --require-gate（未提交）并运行 C8_gate、C9（--max-k 1 --require-gate --ride-limit）、重建 2025 候选表；本评审以 2f1b64e（提交版，13:46 快照）与交付 CSV 为基准，不含 --require-gate；作者实验与评审复跑共享 CPU/F 盘 I/O，复跑耗时 3.5h（base 14:46 / C2 15:40 / C4 16:10 / C5 17:05 完成）。

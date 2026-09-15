@@ -1,5 +1,8 @@
 # EvoAlpha 单日时间线还原 · 2026-09-10（星期四）
 
+> status: active
+> verified_at: 2026-09-15
+
 > 人读版叙事时间线。机器证据表见 `outputs/reviews/timeline_2026-09-10.md`（280 事件，0 缺失源，由 `scripts/day_timeline.py` 生成）。
 > 全部结论挂本地证据路径；`preflight_*.json` 会被重跑覆盖，门禁历史态一律以 `outputs/selfcheck/*.md` 为准。
 > 本文件只描述系统行为，不含任何交易动作建议。
@@ -105,7 +108,7 @@
   → 一次瞬时半更新快照同时打挂 4 项 check → pass=false → rc=2
   → 验收 live_tick=false + tasks=false → 当日计入非正常日
 ```
-同一失效模式自 **9/3 起连续 6 个交易日**发生（见 `docs/FAIL_RCA_2026-09-03_to_2026-09-10.md` §4.1）。旁证：13:00:05 scan 报 `tick stale >2m`；当日 watcher 启动 4 次。
+同一失效模式自 **9/3 起连续 6 个交易日**发生（见 `docs/archive/FAIL_RCA_2026-09-03_to_2026-09-10.md` §4.1）。旁证：13:00:05 scan 报 `tick stale >2m`；当日 watcher 启动 4 次。
 
 ---
 

@@ -1,7 +1,7 @@
 # R1' 选股层（上升回档复刻）复审裁定（整改闭环后）
 
 > 评审人：独立量化专家（subagent）· 日期：2026-08-26 · **结论：✅ 通过（四项 gate 全部达标）**
-> 评审对象：docs/R1P_remediation.md + scripts/r1p_final_test.py + src/core/strategies.py::detect_huigui_v5（整改后）
+> 评审对象：docs/archive/R1P_remediation.md + scripts/r1p_final_test.py + src/core/strategies.py::detect_huigui_v5（整改后）
 > 复算方式：评审独立重跑 r1p_final_test.py、重算零假设（用**当前检测器**）、复核 6 只剔除锚与 5 只补入锚、对剔除决策做反事实检验
 
 ## 一、gate 四项裁定（独立复算）

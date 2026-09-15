@@ -1,7 +1,7 @@
 # R2' 买点层第一轮评审裁定（独立复算）
 
 > 评审人：独立量化评审 agent（复算优先，不采信申报）· 日期：2026-08-26 · **结论：⚠️ 有条件通过（探索性迭代，gate 从宽）**
-> 评审对象：docs/R2P_findings.md + src/core/intraday.py::detect_dibu_buy + scripts/r2p_bpoint_validate.py + 3 只 OCR 锚修正
+> 评审对象：docs/archive/R2P_findings.md + src/core/intraday.py::detect_dibu_buy + scripts/r2p_bpoint_validate.py + 3 只 OCR 锚修正
 > 数据：F:/WorkBuddyItem/a股分钟线/parquet_qfq_2026（6000 只，48 只锚全部在库，无 NO_DATA）
 > 复算方式：① 任务指定 python（pyarrow 25.0.1 / pandas 3.0.3）原样重跑 r2p_bpoint_validate.py；② 独立写 4 个校验脚本复算锚区间/④③触发/分类/形态；③ 逐项对照申报值
 

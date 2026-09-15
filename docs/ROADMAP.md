@@ -1,5 +1,8 @@
 # 妖板交易系统落地路线图 v1.0
 
+> status: superseded
+> superseded_by: _INDEX.md §2.3（旧版路线图，已被 ROADMAP_v5* 取代）
+
 > 负责人视角的落地路线：从书面手册到可运行、可自迭代的完整系统。
 > 决策记录：范围=全 7 阶段（模拟盘，不碰实盘）；位置=`yaoban-system/`；开工=P0/P1 先行。
 

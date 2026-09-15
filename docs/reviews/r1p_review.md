@@ -5,7 +5,7 @@
 
 ## 评审对象
 - 阶段：R1'（选股层：上升回档 v24 通用版复刻，第一轮）
-- 交付物：src/core/strategies.py::detect_huigui_v5、docs/R1P_selfreview.md、scripts/r1p_grouped_test.py、docs/PLAYER_TRADES_ANCHOR.md、docs/V5_ALIGNMENT.md
+- 交付物：src/core/strategies.py::detect_huigui_v5、docs/archive/R1P_selfreview.md、scripts/r1p_grouped_test.py、docs/PLAYER_TRADES_ANCHOR.md、docs/V5_ALIGNMENT.md
 - 数据/样本：F 盘前复权日线（2025+2026 跨年拼接，42 只上升回档锚，锚期 2026-04-07 ~ 08-18）
 - 复算：评审独立运行 r1p_grouped_test.py，**复现 22/42 = 52%** ✅；对全部 42 锚做逐条件诊断、锚价-日线区间核对、信号密度与零假设 bootstrap
 

@@ -1,8 +1,8 @@
 # R4' + R5' 联合评审（仓位层×情绪层第一轮）裁定（独立复算）
 
 > 评审人：独立量化评审 agent（复算优先，不采信申报）· 日期：2026-08-27 · **结论：⚠️ 有条件通过（探索性迭代，gate 从宽；放行范围见 §八，硬性整改清单见 §九）**
-> 评审对象：docs/R4P_findings.md + scripts/r4p_env_anchor.py + scripts/r4p_t_replay.py（R4' 仓位层）
-> 　　　　　docs/R5P_findings.md + src/core/sentiment.py + scripts/r5p_sentiment_build.py + scripts/r5p_thermometer_validate.py + outputs/sentiment_full_2026.csv（R5' 情绪层）
+> 评审对象：docs/archive/R4P_findings.md + scripts/r4p_env_anchor.py + scripts/r4p_t_replay.py（R4' 仓位层）
+> 　　　　　docs/archive/R5P_findings.md + src/core/sentiment.py + scripts/r5p_sentiment_build.py + scripts/r5p_thermometer_validate.py + outputs/sentiment_full_2026.csv（R5' 情绪层）
 > 数据：data/yaoban.db（index_daily 155 行至 8/24）+ outputs/sentiment_daily_2026.csv（旧表）+ outputs/sentiment_full_2026.csv（新表）+ F:/WorkBuddyItem/a股分钟线/parquet_qfq_2026（6000 只）
 > 复算方式：① 指定 python（3.13.14 / pandas 3.0.3 / pyarrow 25.0.1）原样重跑三个脚本；② 独立重写 6 个校验程序复算涨停判定/连板率/中位数/指数区间/分钟成交/北交所口径；③ 逐项对照申报值并溯源证据文档（A_情绪周期与市场环境.md / E_出场持有做T洗盘.md / ocr_text v48/v49 / sentiment_cycle_findings.md / GAP 系列）
 
@@ -227,7 +227,7 @@
 
 # 十一、复审结论（R4R5_remediation.md 整改闭环，2026-08-27）
 
-> 复审对象：docs/R4R5_remediation.md + scripts/r5p_sentiment_build.py（容差+BJ）+ scripts/r5p_bingdian_check.py + src/data/qfq_minute.py（market_suffix）+ src/core/sell.py（limit_pct_of）+ scripts/r6p_replication.py（temp_cap/min_day）+ 重建后 outputs/sentiment_full_2026.csv
+> 复审对象：docs/archive/R4R5_remediation.md + scripts/r5p_sentiment_build.py（容差+BJ）+ scripts/r5p_bingdian_check.py + src/data/qfq_minute.py（market_suffix）+ src/core/sell.py（limit_pct_of）+ scripts/r6p_replication.py（temp_cap/min_day）+ 重建后 outputs/sentiment_full_2026.csv
 > 复审方式：① 独立重写程序按修复后规则（±0.005 容差、920xxx→BJ 30%、900→SH B股）重算抽样日并与重建 CSV 逐值比对；② 原样重跑 r5p_bingdian_check.py、r5p_thermometer_validate.py；③ 对 r6p_replication.temp_cap/min_day 做单元级驱动验证；④ 追溯 P1 证据链（sentiment_verification.py 代码 + outputs/sentiment_verification.md）核实「冰点=下跌中继」的口径
 > **结论：⚠️ 整改基本闭环，有条件通过复审。6 项发现中 4 项完全闭环（① ② ④ ⑤）、2 项部分闭环（③ 根因表述错误需修正 + P1 证据文档需标注；⑥ 仅 R5P 更正、R4P 未更正）；新增 1 项 P1（P1 证据文档的「次日」口径 bug 需修正标注）。**
 

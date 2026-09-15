@@ -1,7 +1,7 @@
 # R2' 买点层第二轮评审裁定（独立复算）
 
 > 评审人：独立量化评审 agent（复算优先，不采信申报）· 日期：2026-08-26 · **结论：⚠️ 有条件通过（5 项整改中 2 项全绿、3 项须更正数字/表述后放行）**
-> 评审对象：docs/R2P_round2.md + src/core/intraday.py（detect_dibu_buy realtime / detect_pullback_buy / day_confirm_gate）+ scripts/r2p_round2_validate.py + scripts/_r2p_realtime_scan.py
+> 评审对象：docs/archive/R2P_round2.md + src/core/intraday.py（detect_dibu_buy realtime / detect_pullback_buy / day_confirm_gate）+ scripts/r2p_round2_validate.py + scripts/_r2p_realtime_scan.py
 > 数据：F:/WorkBuddyItem/a股分钟线/parquet_qfq_2026（6001 只，48 锚全部在库）；任务指定 python（3.13.14 / pandas 3.0.3 / pyarrow 25.0.1）
 > 复算方式：① 任务指定 python 原样重跑发货脚本（r2p_round2_validate.py 两次 / _r2p_realtime_scan.py）；② 独立编写 6 个校验脚本（outputs/_r2p_round2_reviewer_check.py ~ check6.py、_r2p_realtime_semantics.py）从数据层逐项复算；③ 逐条对照申报值与文档表述
 

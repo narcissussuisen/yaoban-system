@@ -1,7 +1,7 @@
 # R6' 全流程 2026 复现第一轮评审裁定（独立复算）
 
 > 评审人：独立量化评审 agent（复算优先，不采信申报）· 日期：2026-08-27 · **结论：❌ 本轮结果不成立——交付数字可完全复现、诚实性通过，但 1.51× 系选择层前视的产物；无前视口径复算 = 0.90×（-10%）、回撤 -13.6%，差距归因三要素不成立**
-> 评审对象：docs/R6P_round1.md + scripts/r6p_replication.py（git 922ab78 第一轮版）+ outputs/r6p_equity_v1.csv
+> 评审对象：docs/archive/R6P_round1.md + scripts/r6p_replication.py（git 922ab78 第一轮版）+ outputs/r6p_equity_v1.csv
 > 数据：outputs/r6p_candidates_2026.csv（16,306 行/98 信号日）+ outputs/sentiment_full_2026.csv（154 行）+ F:/WorkBuddyItem/a股分钟线/parquet_qfq_2026（QFQStore 只读）
 > 复算：① 第一轮脚本全窗口重跑（仪器化变体，与 922ab78 逻辑逐字节一致，仅加 fills 落盘）——**净值 CSV 与交付逐字节一致**；② 无前视探针（窗口 k=1..5 + 排名去未来属性）全窗口重跑；③ 交付 CSV 106 行逐值复算；④ 候选表离线重建选择层；⑤ 逐文件代码审查
 > 环境备注：**评审期间工作区被作者推进到第二轮**（00:05Z 脚本加 --alloc-frac/--ride-limit/--sector-heat，00:08Z 提交 53bc064，00:12Z 状态提交 d43d2e7；作者并行运行 C2_ride 实验 = 1.474×，同样继承 k=0..4 前视窗口）。本评审以 922ab78 与交付 CSV 为基准。

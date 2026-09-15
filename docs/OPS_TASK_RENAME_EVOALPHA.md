@@ -1,8 +1,11 @@
 # 计划任务命名统一：Yaoban* → EvoAlpha*
 
+> status: active
+> verified_at: 2026-09-15
+
 > 状态：**待执行（需维护窗口）**　提出：2026-09-11 15:30（用户裁定"全面改名"）
 > 范围：17 个在生产计划表中的 `Yaoban*` 任务 + 17 个引用脚本
-> 相关：`docs/INCIDENT_LOG.md` INC-2026-09-11-01、`docs/EVOALPHA_VISION_ALIGNMENT.md §1.7`
+> 相关：`docs/archive/INCIDENT_LOG.md` INC-2026-09-11-01、`docs/EVOALPHA_VISION_ALIGNMENT.md §1.7`
 
 ## 1. 背景
 

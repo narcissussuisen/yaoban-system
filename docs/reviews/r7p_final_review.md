@@ -2,7 +2,7 @@
 
 > 评审人：独立量化评审 agent（复算优先，不采信申报）· 日期：2026-08-27 · **总体裁定：⚠️ 有条件放行（基板定位=决策支持/信号跟踪成立；信号无前视；试运行报告逐字节复现；模拟盘阻塞如实记录——但存在泛化表 3 处数字勘误、基板执行参考价 off-by-one、调度链未接 v5 且现状损坏，须按 §六 整改后正式定稿）**
 > **复审定稿（见 §七，2026-08-27）：四项必须整改全部独立验证通过 → 上线基板（人工运行模式）正式定稿放行；「全自动」验收闭环（调度链实跑通过，另补 1 行 chcp 消除编码环境依赖）。**
-> 评审对象：docs/R7P_generalization.md + scripts/daily_pipeline_v5.py + outputs/signals/2026-08-21_signal_report_v5.md + docs/R7P_spec.md（HEAD 9a6671d）+ 模拟盘阻塞申报（state.json data_days_now=2）
+> 评审对象：docs/archive/R7P_generalization.md + scripts/daily_pipeline_v5.py + outputs/signals/2026-08-21_signal_report_v5.md + docs/archive/R7P_spec.md（HEAD 9a6671d）+ 模拟盘阻塞申报（state.json data_days_now=2）
 > 复算：① 独立复跑 daily_pipeline_v5.py --date 2026-08-21（后台全量，逐字节比对报告）；② 独立重算温度计组件/板块热度/候选池/备选 top-4（不经管线自身打印）；③ 四年 equity CSV 逐字段复算（期末倍数/月收益/最大回撤/候选日均）；④ 代码级前视审计（detect_huigui_v5 逐行数据边界 + 管线信号日/执行日口径 + 报告参考价语义）；⑤ 调度链与数据积累实证核查
 > 复算产物：_r7p_review_{eqcheck,monthly,candcount,monthconv,dd,dd2,zuoshou,indep,countprobe}.py + outputs/signals/_r7p_review_{pipeline_run,indep}.log（复现报告已与交付逐字节一致）
 

@@ -1,7 +1,7 @@
 # R6' 第三轮（终局）评审裁定（独立复算）
 
 > 评审人：独立量化评审 agent（复算优先，不采信申报）· 日期：2026-08-27 · **总体裁定：⚠️ 有条件通过（终局结论成立；C8/C9 gate 实验存在实现缺陷须整改重标/复算；R7' 放行有条件）**
-> 评审对象：docs/R6P_round3.md + scripts/r6p_replication.py（HEAD 5342fbd）+ 交付 outputs/r6p_eq_v2_{C6_k1,C8_gate,C9_all}.csv + outputs/r6p_eq_2025_base.csv（+_fills.csv）
+> 评审对象：docs/archive/R6P_round3.md + scripts/r6p_replication.py（HEAD 5342fbd）+ 交付 outputs/r6p_eq_v2_{C6_k1,C8_gate,C9_all}.csv + outputs/r6p_eq_2025_base.csv（+_fills.csv）
 > 数据：outputs/r6p_candidates_2026.csv（16,305 行/98 信号日）+ outputs/r6p_candidates_2025.csv（42,860 行）+ sentiment_full_{2025,2026}.csv + r6p_sector_heat_{2025,2026}.csv + F:/WorkBuddyItem/a股分钟线/parquet_qfq_{2025,2026}
 > 复算：① 独立全窗口重跑 4 配置（C6 --max-k 1 / C8 --require-gate / C9 --max-k 1 --require-gate --ride-limit / 2025 --year 2025）逐字节比对交付 CSV；② 交付 fills 离线 k=1..5 溯源与候选语义核验；③ 代码级 gate 实现审计（本轮新增发现）；④ 2025 四步管线年份参数化差异核验
 > 环境备注：评审期间作者并行推进 R7' 2023/2024 泛化批处理（17:23 起多 python 进程，6 核 CPU 共享）；评审复跑 4 配置并行，耗时受共享 I/O 显著拉长

@@ -1,5 +1,8 @@
 # 盘前自检（preflight）使用说明
 
+> status: active
+> verified_at: 2026-09-15
+
 > 对齐 tpoint `selfcheck_daily.py` 能力升级（2026-09-01）：在原有两阶段门禁（fail-closed 契约不变）之上，
 > 新增 Markdown 报告、异常日志、处理建议表、彩色控制台摘要、资源检查与飞书状态卡片推送。
 

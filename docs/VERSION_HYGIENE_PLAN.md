@@ -1,5 +1,8 @@
 # 版本卫生与资料整理编排方案
 
+> status: active
+> verified_at: 2026-09-15
+
 > 提出：2026-09-15 09:15（用户裁定："不能让任何历史版本残留导致严重错误" + "资料很多但很杂乱，要按可读复用的标准重新整理编排"）
 > 状态：**方案待确认，分阶段执行**。T−0（交易日）只做 B 类，C 类排到收盘后。
 > 前置事实：2026-09-15 已把工作区积压的 117 项未提交改动按工作线分 **11 个 commit** 落库并推送
@@ -64,9 +67,9 @@
 
 ### 2.4 史实（**保留不改**，但要标注状态）
 
-`docs/INCIDENT_LOG.md`(18) · `docs/reviews/*` · `docs/R6_GATE_DECISION.md` · `docs/TRADING_TEAM.md` ·
-`docs/BOARD_SPEC.md` · `docs/RUNBOOK_0831.md` · `docs/DELIVERY_REPORT.md` · `docs/STAGE_STATUS.md` ·
-`docs/AUTONOMOUS_START_2026-08-31.md` —— 它们记录的是**当时的决策与数字**，改动会破坏可追溯性。
+`docs/archive/INCIDENT_LOG.md`(18) · `docs/reviews/*` · `docs/archive/R6_GATE_DECISION.md` · `docs/TRADING_TEAM.md` ·
+`docs/BOARD_SPEC.md` · `docs/RUNBOOK_0831.md` · `docs/archive/DELIVERY_REPORT.md` · `docs/archive/STAGE_STATUS.md` ·
+`docs/archive/AUTONOMOUS_START_2026-08-31.md` —— 它们记录的是**当时的决策与数字**，改动会破坏可追溯性。
 **但必须加上状态标签**（见 §3），否则会被当成现行规范——这正是"杂乱感"的来源。
 
 ⚠️ 例外：`docs/AUTONOMOUS_PAPER_MANDATE.md`（授权书）与 `docs/PREMARKET_SELFCHECK.md`（盘前自检说明）

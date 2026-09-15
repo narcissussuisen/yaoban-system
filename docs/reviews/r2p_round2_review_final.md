@@ -1,7 +1,7 @@
 # R2' 买点层第二轮复审裁定（整改落地核验）
 
 > 评审人：独立量化评审 agent（复算优先，不采信申报）· 日期：2026-08-26 · **结论：✅ 放行三引擎（realtime=True, max_pct=3 默认）+ day_confirm_gate 软评分进入 R6'；附 4 项文档更正**
-> 复审对象：docs/R2P_round2.md（更正版）+ src/core/intraday.py::detect_pullback_buy（三阶段状态机重写）+ scripts/r2p_round2_validate.py
+> 复审对象：docs/archive/R2P_round2.md（更正版）+ src/core/intraday.py::detect_pullback_buy（三阶段状态机重写）+ scripts/r2p_round2_validate.py
 > 复算方式：① 任务指定 python 原样重跑发货脚本（base + --surface）；② 独立重写 5 个校验脚本（outputs/_r2p_round2_final_check.py ~ check5.py、_r2p_dedup_scan.py）逐项复算
 
 ## 一、复算结果核对（申报 vs 独立复算）

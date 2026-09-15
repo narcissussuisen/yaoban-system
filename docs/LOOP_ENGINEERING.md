@@ -1,5 +1,8 @@
 # LOOP ENGINEERING 机制（模式迭代工程化）
 
+> status: superseded
+> superseded_by: _INDEX.md §2.3（YaobanLoopEngine 任务已于 2026-09-14 退役）
+
 > 目标：把"妖板选手"的口头模式（视频语料 OCR 提取）工程化为可回测、可评审、
 > 可复盘的量化策略循环。每轮循环 = 模式定义 → 数据支撑 → 回测验证 → 专家评审 →
 > 基线固化 → 模拟盘跟踪 → 迭代优化。本文档固化该循环本身，使模式改进可持续。
@@ -8,7 +11,7 @@
 
 | 阶段 | 内容 | 交付物 | 状态 |
 |---|---|---|---|
-| R0 | 语料提取 + 模式清单 | docs/GAP_intraday_mode.md 等 | ✅ |
+| R0 | 语料提取 + 模式清单 | docs/archive/GAP_intraday_mode.md 等 | ✅ |
 | R1 | 回踩形态池 | pullback_pool_findings.md | ✅ 评审通过 |
 | R2 | 板块/情绪过滤 | board_findings.md / sentiment | ✅ 板块不稳健已记录 |
 | R3 | 打板模式（5+连板） | daban_findings.md + daban_audit_* | ❌ **基线作废**（P3 阻断项：止损 HIGH/LOW bug+幻影成交，修复后 2023-2025 显著为负，聚类 t=-3.5~-8.1） |
