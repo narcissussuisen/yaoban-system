@@ -15,7 +15,7 @@
 - outputs/intraday/risk_events.jsonl 当日风控事件（halt/watch_limit）
 - outputs/preflight_<date>_{infra,post_plan}.json 门禁失败项
 - outputs/validation/morning_check_<date>.json 晨检
-- portfolio/tick_guard_state.json 看门狗隔离状态
+- outputs/intraday/tick_guard_state.json 看门狗隔离状态
 - 前 3 个交易日 acceptance：重复失败升级（streak）
 
 自迭代边界：本脚本只"发现+提案"（进化闭环第一环），不做自动改码；修复由 L-A 会话
@@ -76,7 +76,12 @@ FAILURE_KEY_HINTS = [
 
 def _json(p: pathlib.Path):
     try:
-        return json.loads(p.read_text(encoding="utf-8"))
+        # 2026-09-10 修复(漏采事故): task_logs/<date>/*.json 由 PowerShell 写出, 带 UTF-8 BOM。
+        # 原 encoding="utf-8" 会让 json.loads 抛 "Unexpected UTF-8 BOM" 并被下面的 except 吞掉,
+        # 导致 read_task_failures() 恒返回 [] —— 8 类错误源里最大的「任务失败」整体静默丢失。
+        # 实测 9/3-9/9 五个交易日共漏采 1131 次任务失败(v1 读到 0 次)。
+        # utf-8-sig 对无 BOM 的纯 UTF-8 文件解码结果与 utf-8 完全一致, 故其余消费方无行为变化。
+        return json.loads(p.read_text(encoding="utf-8-sig"))
     except Exception:
         return None
 
@@ -374,11 +379,22 @@ def main() -> int:
         warnings.append(f"TDX 行情源停供中（自 {tdx.get('since')}, 最近探测 {tdx.get('last_check')}）——生产运行在腾讯备胎; 恢复由 YaobanTdxProbe 通知")
 
     # 8) 看门狗隔离状态
-    gs = _json(BASE / "portfolio" / "tick_guard_state.json")
-    if gs and gs.get("state") == "restart_exhausted":
-        errors.append({"source": "看门狗", "summary": "tick 看门狗重启额度耗尽（隔离状态）",
+    # 2026-09-10 修复(路径错): 看门狗状态实际写在 outputs/intraday/, 不是 portfolio/。
+    # 原路径 portfolio/tick_guard_state.json 不存在, 导致第 8 类错误源「看门狗隔离态」永久失效
+    # (写入方见 scripts/_tick_watch.py: OUT = BASE/'outputs'/'intraday')。
+    gs = _json(BASE / "outputs" / "intraday" / "tick_guard_state.json")
+    # 2026-09-11: 判据扩展到双信号 —— 只看 state=restart_exhausted 会漏掉
+    # "degraded 已置位但 state 被后续写入覆盖"以及"进程死/数据不新鲜"两类守护失败。
+    if gs and (gs.get("state") == "restart_exhausted" or gs.get("degraded") is True
+               or gs.get("daemon_alive") is False or gs.get("tick_fresh") is False):
+        _sig = (f"state={gs.get('state')} daemon_alive={gs.get('daemon_alive')} "
+                f"tick_fresh={gs.get('tick_fresh')}")
+        errors.append({"source": "看门狗", "summary": f"tick 看门狗守护异常（{_sig}）",
                        "detail": json.dumps(gs, ensure_ascii=False)[:200], "evidence": "",
-                       "category": "看门狗", "hint": "人工复活 daemon 记 watch_recovered；评估重启根因（锁/数据源）", "stderr_sample": ""})
+                       "category": "看门狗",
+                       "hint": ("先看 daemon_alive：False 才是进程死（人工复活记 watch_recovered）；"
+                                "True 而 tick_fresh=False 属数据路径卡住，查 tick_monitor/TDX"),
+                       "stderr_sample": ""})
 
     new_proposals = classify(errors)
     # 合并 trader_daily 已有提案

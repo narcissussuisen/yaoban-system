@@ -3,8 +3,11 @@ import pathlib,unittest
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 class GateFreshnessTests(unittest.TestCase):
  def test_failure_message_includes_gate_details(self):
+  # 2026-09-11 更新: Send-Failure 的文案已按用户裁定本地化(品牌 EvoAlpha + 「字段：值」中文风格),
+  # 旧断言锁的是英文串 'Failed checks:'/'Report:' —— 文案改了但断言没跟上, 属"断言过期"。
+  # 这里改为断言**语义**仍在: 失败项明细、报告路径、以及按 critical 过滤的结构。
   source=(ROOT/'scripts'/'run_trading_task.ps1').read_text(encoding='utf-8')
-  for token in ('Failed checks:', 'Report:', '$j.results', 'critical'):
+  for token in ('未通过检查：', '报告：', '$j.results', 'critical'):
    self.assertIn(token,source)
 
  def test_wrapper_rejects_stale_gate(self):

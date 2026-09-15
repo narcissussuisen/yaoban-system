@@ -20,12 +20,18 @@ from __future__ import annotations
 import argparse,json,os,pathlib,subprocess,sys
 from datetime import datetime
 BASE=pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE / "portfolio"))
+from ledger import LEDGER  # noqa: E402  env-aware (EVOALPHA_LEDGER) — R0.2 单一真相源
 OUT=BASE/'outputs'/'acceptance'
 REBUILT_DIR=pathlib.Path('F:/WorkBuddyItem/a股level2/daily_rebuilt')
 # 信息采集含 Rebuild(可见性); 必需清单不含(任务已禁用, 完成性走产物证据)
 TASKS=['YaobanAuctionMonitor','YaobanPreflight','YaobanPremarket','YaobanPlanGate','YaobanTickDaemon','YaobanScanConfirm','YaobanIntradayMonitor','YaobanEventNotify','YaobanClosePipeline','YaobanDailyRebuild','VibeResearchLiveTickValidation']
 REQUIRED_TASKS=[n for n in TASKS if n!='YaobanDailyRebuild']
 FINAL_NOT_BEFORE=(15,5)  # 墙钟门槛: 当日 15:05 起（收盘后）
+# 2026-09-12 R0.2: 主账本重建为 50 万独立主账本(8.1 裁决), start_date 随之变更。
+# 原为字面量 '2026-08-31' 内联在 checks 里 —— 抽成单一常量, 避免账本重建时漏改。
+# 该检查的语义 = "账户未被静默重建"; R5 版本 registry 上线后应由当前净值段的起点驱动。
+EXPECTED_LEDGER_START='2026-09-14'
 
 def task_info(name):
  ps=f"$i=Get-ScheduledTaskInfo -TaskName '{name}';[pscustomobject]@{{last_run=$i.LastRunTime.ToString('yyyy-MM-dd HH:mm:ss');last_result=$i.LastTaskResult;next_run=$i.NextRunTime.ToString('yyyy-MM-dd HH:mm:ss')}}|ConvertTo-Json -Compress"
@@ -41,6 +47,49 @@ def atomic(path,value):
  path.parent.mkdir(parents=True,exist_ok=True);tmp=path.with_name(path.name+f'.{os.getpid()}.tmp')
  with tmp.open('w',encoding='utf-8') as f:json.dump(value,f,ensure_ascii=False,indent=2);f.flush();os.fsync(f.fileno())
  os.replace(tmp,path)
+
+def llm_health(day, days=7, max_fail=0.20):
+    """R3.2 裁量层健康度：最近 `days` 个自然日内 LLM 调用的 **schema 通过率**。
+
+    ⚠️ 为什么按「最近 N 天滚动」而不是「当日」：链序里 `acceptance` 排在 `decision-chain`
+       **之前**（`acceptance` 是 15:35 链里"唯一正式验收入口"，位置固定）→ 当天验收时
+       当日 LLM 记录**还没产生**，按当日算会恒空。滚动窗口既避开时序，又能反映趋势。
+
+    ⚠️ 为什么纳入 `checks`：`schema_failed` 会让裁量**回落保守档**（=降级），直接削弱决策质量；
+       但它**不是链故障**（不并入 `$codes`/`$dataFailed`），而是「当日评级」事件 → 由本检查承载，
+       呈现在 alert 卡片上，既不误报链故障、又不静默。
+
+    返回 `(ok, detail)`。**从未运行过时返回 ok**（避免上线首日误报）。
+    """
+    import datetime as _dt
+    import json as _json
+    root = pathlib.Path(__file__).resolve().parents[1] / "outputs" / "decision_chain" / "llm"
+    if not root.exists():
+        return True, {"n": 0, "note": "尚无裁量记录"}
+    cut = (_dt.date.fromisoformat(day) - _dt.timedelta(days=days)).isoformat()
+    tot = bad = 0
+    by = {}
+    for fp in root.rglob("*.json"):
+        if "cache" in fp.parts:
+            continue
+        try:
+            d = _json.loads(fp.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        dt = str(d.get("date") or "")
+        if not dt or dt < cut:
+            continue
+        tot += 1
+        st = str(d.get("status"))
+        by[st] = by.get(st, 0) + 1
+        if st != "ok":
+            bad += 1
+    if tot == 0:
+        return True, {"n": 0, "window_days": days}
+    rate = bad / tot
+    return (rate <= max_fail), {"n": tot, "bad": bad, "fail_rate": round(rate, 4),
+                               "window_days": days, "threshold": max_fail, "by_status": by}
+
 
 def task_log_times(day,mode):
  rows=[]
@@ -110,7 +159,7 @@ def main(argv=None,now=None):
    return 4
   regenerated=True
  # ---- 数据采集 ----
- tasks={n:task_info(n) for n in TASKS};ledger=read_json(BASE/'portfolio'/'ledger.json') or {}
+ tasks={n:task_info(n) for n in TASKS};ledger=read_json(LEDGER) or {}
  infra=read_json(BASE/'outputs'/f'preflight_{day}_infra.json');post=read_json(BASE/'outputs'/f'preflight_{day}_post_plan.json')
  live=read_json(BASE.parent/'Vibe-Research'/'validation'/'live-ticks'/'latest.json');next_plans=sorted((BASE/'outputs'/'plans').glob('*_plan.json'))
  fills=[x for x in ledger.get('account',{}).get('fills',[]) if x.get('date')==day]
@@ -126,6 +175,20 @@ def main(argv=None,now=None):
    except Exception:pass
  guard_fail=[e for e in day_risk_events if e.get('trigger')=='watch_limit' or (e.get('trigger')=='data_failure' and e.get('action')=='halt')]
  guard_restarts=sum(1 for e in day_risk_events if e.get('trigger')=='watch_restart')
+ # 2026-09-11: 看门狗判据补两个盲区 ——
+ #   ① daemon_crash（tick_monitor 致命异常退出, 新增留痕）必须计入守护失败;
+ #   ② 隔离态不止来自 watch_limit 事件: 收盘时 tick_guard_state 仍停在
+ #      restart_exhausted/degraded, 或双信号显示"进程死/数据不新鲜", 同样算守护失败。
+ #      旧实现只看 watch_limit 事件, 一旦隔离由其它路径写成就会从验收口径漏掉。
+ guard_state=read_json(BASE/'outputs'/'intraday'/'tick_guard_state.json') or {}
+ guard_state_fail=bool(guard_state.get('date')==day and (
+     str(guard_state.get('state')) in ('restart_exhausted',)
+     or guard_state.get('degraded') is True
+     or guard_state.get('daemon_alive') is False
+     or guard_state.get('tick_fresh') is False))
+ guard_crash=[e for e in day_risk_events if e.get('trigger')=='daemon_crash']
+ guard_fail=guard_fail+guard_crash
+ guard_fail_closed=bool(guard_fail) or guard_state_fail
  plan_syms={p.get('sym') for p in (ledger.get('plans',{}).get(day,{}).get('picks') or []) if isinstance(p,dict)}
  offplan_today=[]
  for f in fills:
@@ -142,6 +205,8 @@ def main(argv=None,now=None):
  continuity_checks,continuity_stats=continuity(day)
  next_plan_ok=any((lambda p: p.stem[:10]>day and read_json(p).get('date')==p.stem[:10] and bool(read_json(p).get('picks')))(p) for p in next_plans)
  rebuild_ok=rebuild_products_ok(day)
+ # R3.2 裁量层健康度（滚动 7 天 schema 通过率；阈值 20%）
+ llm_ok,llm_detail=llm_health(day)
  # ---- 输入完整性枚举（missing != fail） ----
  inputs={
   'preflight_infra':'ok' if infra else 'missing',
@@ -168,12 +233,14 @@ def main(argv=None,now=None):
   'live_tick':bool(live and live.get('pass') is True and live.get('expected_date')==day),
   # P0 硬性项(2026-09-04): 收盘新鲜度(进程存在≠数据更新) + 看门狗未耗尽 + 无计划外成交
   'tick_snapshot':bool(tick_snapshot and tick_snapshot.get('date')==day and str(tick_snapshot.get('time',''))>='14:55'),
-  'tick_watchdog':not guard_fail,
+  'tick_watchdog':not guard_fail_closed,
   'offplan_fills':not offplan_today,
   'ledger_mode':ledger.get('policy',{}).get('account_mode')=='autonomous_paper',
-  'ledger_start':ledger.get('start_date')=='2026-08-31',
+  'ledger_start':ledger.get('start_date')==EXPECTED_LEDGER_START,
   'next_plan':next_plan_ok,
   'rebuild_products':rebuild_ok,
+  # R3.2: LLM 裁量层 schema 通过率（滚动 7 天，阈值 20%）—— 降级率过高即"当日评级"不通过
+  'llm_health':llm_ok,
  }
  # 修复后引擎的挂账纪律: 当日 fill 无 decision_id 视为数据质量问题(2026-09-01 起 P0.2+P0.4 落地前先观测)
  task_checks={n:str(tasks[n].get('last_run','')).startswith(day) and int(tasks[n].get('last_result',-1))==0 for n in REQUIRED_TASKS}
@@ -188,10 +255,13 @@ def main(argv=None,now=None):
  report={'date':day,'generated_at':now.isoformat(timespec='seconds'),'status':status,'final':is_final,
   'probe_reason':probe_reason,'regenerated':regenerated,'inputs':inputs,
   'checks':checks,'task_checks':task_checks,'required_tasks':REQUIRED_TASKS,'tasks':tasks,
-  'ledger':{'revision':ledger.get('_revision'),'cash':ledger.get('account',{}).get('cash'),'positions':len(ledger.get('account',{}).get('positions',{})),'fills_today':len(fills),'risk_state':ledger.get('risk_state',{})},
+ 'llm_health':llm_detail,
+  'ledger':{'revision':ledger.get('_revision'),'cash':ledger.get('account',{}).get('cash'),'start_date':ledger.get('start_date'),'expected_start':EXPECTED_LEDGER_START,'positions':len(ledger.get('account',{}).get('positions',{})),'fills_today':len(fills),'risk_state':ledger.get('risk_state',{})},
   'deliveries':[{'kind':x.get('kind'),'event_key':x.get('event_key'),'ok':x.get('ok'),'message_sha256':x.get('message_sha256')} for x in deliveries],
   'continuity_checks':continuity_checks,'continuity_stats':continuity_stats,'auction_latest':auction_latest,'auction_freeze':auction_freeze,'tick_snapshot':tick_snapshot,'live_tick':live,'next_plan':next_plans[-1].name if next_plans else None,
-  'tick_watchdog':{'restart_events':guard_restarts,'fail_events':guard_fail},'offplan_fills_today':offplan_today}
+  'tick_watchdog':{'restart_events':guard_restarts,'fail_events':guard_fail,
+                   'state_fail':guard_state_fail,
+                   'state':{k:guard_state.get(k) for k in ('state','daemon_alive','tick_fresh','degraded') if k in guard_state}},'offplan_fills_today':offplan_today}
  atomic(path,report)
  print(json.dumps({'status':status,'final':is_final,'probe_reason':probe_reason,'missing_inputs':missing_inputs,'path':str(path)},ensure_ascii=False))
  if probe_reason:return 3

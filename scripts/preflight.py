@@ -8,6 +8,8 @@ from __future__ import annotations
 import argparse,hashlib,json,os,pathlib,subprocess,sys,tempfile,time,urllib.request
 from datetime import datetime
 BASE=pathlib.Path(__file__).resolve().parent.parent; OUT=BASE/'outputs'; PY=sys.executable
+sys.path.insert(0, str(BASE / "portfolio"))
+from ledger import LEDGER  # noqa: E402  env-aware (EVOALPHA_LEDGER) — R0.2 单一真相源
 SELFCHK_DIR=OUT/'selfcheck'; ANOMALY_LOG=SELFCHK_DIR/'anomalies.log'
 SECRET_FILE=pathlib.Path(os.environ.get("YAOBAN_FEISHU_SECRET_FILE", r"C:\Users\YZP\WorkBuddy\yaoban_tasks\feishu_webhook.txt"))
 DISK_WARN_PCT=90; DISK_FAIL_PCT=95; MEM_WARN_PCT=85; CPU_WARN_PCT=80; CPU_FAIL_PCT=95
@@ -34,7 +36,8 @@ TRIGGER_EXPECTED={'YaobanPreflight':['08:35'],'YaobanSelfHeal':['08:36'],'Yaoban
  'YaobanAuctionMonitor':['09:15'],'YaobanEventNotify':['09:15'],'YaobanTickDaemon':['09:30'],
  'YaobanScanConfirm':['09:30'],'YaobanIntradayMonitor':['09:30'],'YaobanClosePipeline':['15:10'],
  'YaobanPostCloseChain':['15:35'],'YaobanEveningCheck':['17:30'],'YaobanTdxServerVerify':['10:00'],
- 'YaobanBoardRefresh':['09:35','13:05']}
+ 'YaobanBoardRefresh':['09:35','13:05'],
+ 'YaobanStatusPush':['08:36','08:50','08:55','09:00','09:30','09:35','11:30','13:05','13:10','15:05','15:40','17:45','18:30']}
 TDX_CATEGORIES=[0,4,9,7]
 TDX_TCP_TIMEOUT=1.0  # P0-7: TCP预筛超时(秒), 快速排除死节点
 
@@ -370,7 +373,7 @@ def main():
  # ledger + complete position data + invariants
  try:
   import pandas as pd
-  led=json.loads((BASE/'portfolio'/'ledger.json').read_text(encoding='utf-8'));acct=led['account'];pos=acct['positions'];missing=[];marks={};mark_days={}
+  led=json.loads(LEDGER.read_text(encoding='utf-8'));acct=led['account'];pos=acct['positions'];missing=[];marks={};mark_days={}
   for s in pos:
    f=pathlib.Path(f'F:/WorkBuddyItem/a股level2/daily_rebuilt/{s}.parquet')
    if not f.exists():missing.append(s);continue

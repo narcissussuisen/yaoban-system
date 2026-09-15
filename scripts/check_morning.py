@@ -1,5 +1,5 @@
 """P0 开盘前晨检脚本（每个交易日 08:58 运行）。
-检查 08:45-08:55 盘前任务链、preflight 报告和失败推送，输出 PASS/FAIL 报告。
+检查 08:35-08:55 盘前任务链、preflight 报告和失败推送，输出 PASS/FAIL 报告。
 2026-09-02 修复: 推送 tpoint 式交互卡片到 EvoAlpha webhook(此前仅 stdout/落盘,
 用户无任何可见通知——9/2 gate 全灭事件暴露的报告盲区)。
 2026-09-09: 双自检合并——本卡为唯一盘前自检推送(PlanGate 08:55 不再推 preflight
@@ -22,7 +22,7 @@ OUT = BASE / 'outputs'
 # 2026-09-01 重构(用户评审): 系统检验必须在 09:00 前完成(09:15 集合竞价/09:30 开盘)。
 # 晨检 08:58 只检查"开盘前就绪"链; 盘中连续性(scan/monitor/notify/auction)由收盘后 acceptance 覆盖。
 CHAIN = [
-    ('YaobanPreflight', '08:45'), ('YaobanPremarket', '08:50'), ('YaobanPlanGate', '08:55'),
+    ('YaobanPreflight', '08:35'), ('YaobanPremarket', '08:50'), ('YaobanPlanGate', '08:55'),
 ]
 NEXT_DAY = [('YaobanPostCloseChain', '16:30'), ('YaobanClosePipeline', '15:10')]
 # 与 feishu_notify.py 同源的生产 webhook(用户 2026-08-30 23:14 设置, 2026-09-02 确认为 EvoAlpha 专用)
@@ -91,7 +91,7 @@ def build_card(report: dict) -> dict:
     elements = [
         {'tag': 'div', 'text': md(f"**运行状态：{icon} {label}**　　　时间：{report['date']} 08:58")},
         {'tag': 'hr'},
-        {'tag': 'div', 'text': md('**🔧 盘前任务链（08:45-08:55）**')},
+        {'tag': 'div', 'text': md('**🔧 盘前任务链（08:35-08:55）**')},
     ]
     for name, at in CHAIN:
         c = report['chain'][name]

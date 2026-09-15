@@ -25,6 +25,8 @@ from datetime import datetime
 import pandas as pd
 
 BASE = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE / "portfolio"))
+from ledger import LEDGER  # noqa: E402  env-aware (EVOALPHA_LEDGER) — R0.2 单一真相源
 OUT = BASE / "outputs"
 REBUILT = pathlib.Path("F:/WorkBuddyItem/a股level2/daily_rebuilt")
 
@@ -143,7 +145,7 @@ def check_next_plan(day):
 
 def check_rebuilt(day, sample=200):
     try:
-        led = _json(BASE / "portfolio" / "ledger.json") or {}
+        led = _json(LEDGER) or {}
         holds = list((led.get("account", {}).get("positions") or {}).keys())
         files = list(REBUILT.glob("*.parquet"))
         if not files:
@@ -201,7 +203,7 @@ def _ts(x):
 
 
 def check_fills(day):
-    led = _json(BASE / "portfolio" / "ledger.json") or {}
+    led = _json(LEDGER) or {}
     fills = [f for f in (led.get("account", {}).get("fills") or []) if f.get("date") == day]
     decs = led.get("autonomous_decisions") or {}
     snaps = sorted(glob.glob(str(OUT / "intraday" / ("confirm_" + day.replace("-", "") + "*.json"))))
