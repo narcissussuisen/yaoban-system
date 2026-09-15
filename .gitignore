@@ -28,3 +28,10 @@ Thumbs.db
 .git_corrupted_20260901/
 tmphcrsvf6c/
 tmplvguwe_p/
+
+# 分钟级行情（体量大：2026-09-15 实测 86MB / 2060 文件；本地保留，不入库）
+data/minute/
+
+# 一次性命令输出与脚本临时备份（2026-09-15 清理：bom.out / mv.out / *.bak_<日期>）
+*.out
+*.bak_*
