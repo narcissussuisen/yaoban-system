@@ -16,6 +16,8 @@ import urllib.request
 from datetime import datetime
 
 BASE = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE / "portfolio"))
+from ledger import LEDGER  # noqa: E402  env-aware (EVOALPHA_LEDGER) — R0.2 单一真相源
 OUT = BASE / "outputs" / "notifications"
 SECRET_FILE = pathlib.Path(os.environ.get("YAOBAN_FEISHU_SECRET_FILE", r"C:\Users\YZP\WorkBuddy\yaoban_tasks\feishu_webhook.txt"))
 
@@ -81,22 +83,69 @@ def send_text(text: str, *, event_key: str, kind: str, timeout: float = 8.0) -> 
     return ok
 
 
+def _ledger_state() -> dict:
+    """读账本（仅供文案渲染）。失败返回 {} —— 文案渲染异常绝不能拖垮推送本身。"""
+    try:
+        return json.loads(LEDGER.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _capital_label(state: dict) -> str:
+    """本金标签（如「50万元」）。口径唯一来源 = 账本 start_cash。
+
+    2026-09-15 缺陷修复：原为硬编码「10万元」，在 R0.2 主账本迁移至 50 万
+    （用户裁决 8.1，start_date=2026-09-14）后未同步，导致盘前汇报长期显示旧本金。
+    **禁止写死金额**：一律从账本派生，读不到就不显示数字。
+    """
+    try:
+        cap = float(state.get("start_cash") or 0)
+    except (TypeError, ValueError):
+        return ""
+    return f"{cap / 10000:g}万元" if cap > 0 else ""
+
+
+def _discipline_line(state: dict) -> str:
+    """风控纪律行，数值一律从账本 policy 派生（同上，禁止硬编码）。
+
+    2026-09-15 缺陷修复：原硬编码「单票≤45%」，而 policy 已于 2026-09-13 裁决为
+    max_single_weight=0.30（对齐 SOP 单票≤30%），文案与生产闸口不一致。
+    """
+    pol = state.get("policy") or {}
+    parts = []
+    try:
+        if pol.get("max_positions"):
+            parts.append(f"最多持有{int(pol['max_positions'])}只")
+        if pol.get("max_single_weight") is not None:
+            parts.append(f"单票≤{float(pol['max_single_weight']) * 100:g}%")
+        if pol.get("max_gross_exposure") is not None:
+            parts.append(f"总敞口≤{float(pol['max_gross_exposure']) * 100:g}%")
+        if pol.get("max_daily_loss_pct") is not None:
+            parts.append(f"单日-{float(pol['max_daily_loss_pct']):g}%熔断")
+    except (TypeError, ValueError):
+        pass
+    parts.append("关键数据失效则禁止新仓")
+    return "纪律：" + "，".join(parts) + "。"
+
+
 def _plan_message(day: str) -> str:
     path = BASE / "outputs" / "plans" / f"{day}_plan.json"
     plan = json.loads(path.read_text(encoding="utf-8"))
     emotion = plan.get("emotion", {})
     picks = plan.get("picks", [])
+    state = _ledger_state()
+    cap = _capital_label(state)
     lines = [f"EvoAlpha｜盘前汇报 {day}",
-             f"模式：10万元A股全自主模拟盘（真实资金未接入）",
+             "模式：" + (f"{cap}A股全自主模拟盘" if cap else "A股全自主模拟盘") + "（真实资金未接入）",
              f"数据口径：{plan.get('mode', '未标注')}",
              f"市场温度：{emotion.get('temp', '未获取')}，阶段：{emotion.get('stage', '未获取')}",
              "候选观察：" + ("、".join(str(p.get("sym", "")) for p in picks) or "无"),
-             "纪律：单票≤45%，总敞口≤90%，单日-5%熔断；关键数据失效则禁止新仓。"]
+             _discipline_line(state)]
     return "\n".join(lines)
 
 
 def _close_message(day: str) -> str:
-    ledger = json.loads((BASE / "portfolio" / "ledger.json").read_text(encoding="utf-8"))
+    ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
     account = ledger.get("account", {})
     curve = account.get("equity_curve", [])
     row = next((x for x in reversed(curve) if x.get("date") == day), None)
