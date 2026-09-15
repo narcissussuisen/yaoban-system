@@ -353,3 +353,235 @@ Action: fail closed; no new positions when the critical intraday path fails.
 单轮瞬时事件：该轮 002451/300468/300670 三只数据拉取不完整（`监控数据不完整: unavailable=[...]`），与今晨 08:55 盘前自检 TDX all_servers_failed 警告同源（TDX 服务器间歇抖动）；10:26 下一轮自愈 exit 0。非代码缺陷，无需处置。
 
 ---
+
+## INC-2026-09-11-01 · 监控中断 模块 tick（持仓tick 最近2分钟无新鲜快照）——1分钟K线类别错配致 pos_live 永不落盘 + 止损执行器同步失明
+
+### 1. 事件原文（飞书推送，2026-09-11 09:35:04，delivery 09:35:05 ok=true）
+
+```
+EvoAlpha｜监控中断 2026-09-11 09:35:04
+模块：tick
+详情：持仓tick最近2分钟无新鲜快照
+状态：禁止依赖该模块产生新仓，等待恢复。
+```
+
+### 2. 链路核验
+
+| 环节 | 证据 | 状态 |
+|---|---|---|
+| 告警来源 | `notify_trading_events.monitoring_gaps`：`_tick_time(day)` 取 `pos_live.json` 的 `time` 字段，与 now 差 >120s 即报 `持仓tick最近2分钟无新鲜快照` | ✅ 判据正确 |
+| pos_live 陈旧度 | `{"date":"2026-09-10","time":"15:05:53"}`，mtime=09-10 15:05:59 —— 距告警 18.5 小时 | ✅ 陈旧属实 |
+| **数据源(全部正常)** | F: 可达（5653/5643/6000 parquet 四源齐全）；TDX `59.36.5.11:7709` 0.1s 连上；`prev_close_of(300468)=24.1`、`(300394)=269.0`；腾讯 `quote` 返回 23.33/265.0 | ✅ **非数据中断** |
+| daemon 进程 | 存活且每 5s 刷新 `_tick_daemon.lock` mtime（存活证明），`_daemon_20260911.stdout/.stderr.log` 均为 **0 字节** | ✅ 活着但完全静默 |
+| watchdog | beat 心跳正常，`risk_events` 记 `watch_restart` #1/#2/#3 @09:32:50/09:35:35/09:38:21（`pos_live stale 66410s/66575s/66740s`） | ✅ 按设计触发 |
+| 账本 | 09:41:09 记 300468 卖出 1800 股 @23.31（`stop_loss`，decision_id=dec-auto-20260911094109-0b117678，signal/decision 同秒） | ✅ 见 §4 |
+
+### 3. 根因判定（两层，同源）
+
+- **第一层（活动性判据失配，直接原因）**：`tick_monitor.py` 取 `api.get_security_bars(0, ...)`（category 0 = **5 分钟**类别），但下游按 1 分钟口径过滤当日 bar（`rows=[b for b in bars if b['datetime'].startswith(day)]`），再撞上 `if len(rows)<3: continue` 门槛。实测 TDX 对持仓股 5 分钟类别当日仅返回 **2 根**（09:35、09:40），而 1 分钟类别（category=8）同时刻已有 **9 根**。→ 每轮都 `continue`，`pos_live` 永不落盘。
+- **第二层（watchdog 判据与重启链反噬）**：watchdog 的"唯一健康判据"是 `pos_live` mtime，于是把"活着但不写盘"正确判为异常并重启；但**每次重启重置 150s `BOOT_GRACE`**，而开盘初期 5 分钟类别永远攒不够 3 根 → 重启越勤越不可能落盘，形成自锁死循环。
+- **放大器一（止损执行器同步失明，后果最重）**：止损/炸板/VWAP 触发判定与 `pos_live` 写在**同一个被 `continue` 跳过的循环体**内。`tick_monitor` 又是唯一盘中卖出执行器，故 daemon 全程"无异常日志地什么都不做"，持仓守护与风险执行**同时**失效。
+- **放大器二（死锁文件掐死重启链）**：`_acquire_daemon_lock` 只认 mtime，被 kill 的 daemon 留下的锁文件时间戳全新 → "kill → 立刻 spawn"必被拒。实录：restart #4/#5/#6（09:40:04/09:40:25/09:40:46）三连 spawn 全部秒退，`_daemon_20260911.stderr.log` 只剩三行"已有活 daemon 持有单实例锁"，白烧 3 次额度，且期间守护真空。
+- **放大器三（重试预算永不回补）**：`restarts` 是"当日累计"计数器，一旦 `>=max_restarts` 即永久保持，此后任何 `stale` 判定都直接走 `kill + restart_exhausted` 隔离分支 → "先经历几次抖动，之后真正的挂死反而不救"，与预留重试预算的意图完全相反。
+
+### 4. 处置结论（2026-09-11 09:41 恢复，同日盘中完成）
+
+- **修复 1**（`scripts/tick_monitor.py`）：新增 `KLINE_1MIN=8`，取 K 线类别由 0 改为 8（1 分钟）；bar 门槛 `len(rows)<3` → `<1`（首根即落盘，消除开盘盲区）。
+- **修复 2**（`scripts/tick_monitor.py`）：`_acquire_daemon_lock` 增加**持锁 pid 存活探测**（`OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)`）：持锁者已死立即回收（实测 18ms，替代原 120s 白等）；pid 不可解析或探测失败时保守视为活锁，mtime 判据保留为兜底 → 单实例语义不变，仅死锁不再阻塞重启。
+- **修复 3**（`scripts/tick_monitor.py`）：`prev_close` 缺失由静默 `continue` 改为每票每日一条 `prev_close_missing` 事件，消除同类静默失败。
+- **修复 4**（`scripts/_tick_watch.py`）：`spawn_daemon` 在 spawn 前清理「锁内 pid 已不存在」的残留锁（活锁绝不误删）；健康确认（`pids` 非空 + `age<=stale_sec`）后回补重试预算 —— 必须带 `pids` 非空条件，因 `find_pids` 查询失败时同样返回空表，那时重试耗尽正是"进程探测失效"的安全阀。
+- **验证**：离线夹具 `scripts/_verify_tick_fix_20260911.py` 10/10 PASS（死锁回收 18ms、活锁拒绝、不可解析锁保守拒绝、陈旧不可判定锁兜底回收、残留锁清理不误删活锁）。
+- **实盘恢复证据**：09:41:08 起 `pos_live` 每 5s 刷新（09:41:39 起稳定）；09:41:08 daemon 触发并执行 **300468 止损 1800 股 @23.31**（stop_px=23.3510，trigger 价 23.30 ≤ 阈值；`limit_down=19.28` 无跌停阻挡、`sellable=1800` T+1 已解锁）；ledger cash 23045.36 → 64929.94，持仓仅余 300394；decision_id `dec-auto-20260911094109-0b117678` 满足 R1 时序契约（signal/decision/recorded 同秒，≤120s）。
+- **止损时点提示**：该止损阈值在 09:30-09:41 期间已持续满足，执行被上述"执行器失明"缺陷延误约 11 分钟（差异约 1800×(23.35-23.31)≈72 元，模拟盘口径）；如执行器正常，应于开盘首轮即成交。
+
+### 5. 改进观察（非阻塞）
+
+1. **K 线类别必须与消费口径显式绑定**：`get_security_bars` 的 category 决定 bar 周期，仓库多处按"当日 bar 数"做门控，建议统一为命名常量并加注释（本次已加 `KLINE_1MIN`）；同类错配若出现在 scan/monitor 需一并排查。
+2. **风控判定不得与被门控的写盘同处一个 continue 分支**：本次把"持仓写入"与"止损判定"耦合在同一 `continue` 之后，导致写盘缺陷升级为**执行器失明**。建议将风险判定前移到数据就绪检查之前，或对"跳过该票"计数并纳入 watchdog 健康判据。
+3. **watchdog 健康判据宜引入"未落盘原因"信号**：纯 mtime 判据无法区分"进程死了"与"活着但收不到数据"，本次两者被同等对待并触发无效重启。建议 daemon 写一份轻量 `_tick_heartbeat.json`（含本轮 rows/跳过原因），watchdog 据此区分"重启可救"与"重启无用"。
+4. **`_tick_watch.py --selftest` 在本沙箱不可用**：其 stub 进程探测依赖 `Get-CimInstance`，被沙箱拒绝访问（`拒绝访问 / HRESULT 0x80041003`），`find_pids` 恒返回空表 → 场景 A "zero restarts"、场景 B "max_restarts/degraded/restart_exhausted" 等断言必然 FAIL（非本次改动引入，改动前同样失败）。生产 watchdog 的 `find_pids` 经证据确认可用（09:30:05-09:32:50 的 165s 内零 `daemon missing`）。建议为 selftest 增加可注入的进程探测后端。
+5. **停机施工风险提示**：本次"kill 旧 daemon 等 watchdog 重拉"的常规手段会因残留锁反噬（见放大器二），后续盘中干预应优先使用 `_restart_tick_daemon.py` 标准链路，或先确认锁文件可回收。
+6. **附带发现（ledger `reviews` 口径，2026-09-11 已显式化）**：`close_pipeline` 重建"规则全天会怎么打"作盘后审计，只记录不执行（`--execute` 被 `return 5` 永久禁用、从不调用 `fill()`），故 `reviews[*].buys/sells` 与 `account.fills` **系统性不一致**——审计实录 08-31（300489 100股@239.75）、09-03（603538 1500股@28.49）、09-04（300468 1800股@27.5）三笔 `reviews.sells` 当日均无对应成交，持仓实际一直持有到真实卖出（300489→09-02@229.81、603538→09-10@26.19、300468→09-11@23.31）。净值侧亦自证：09-04 曲线 101917.58 是持仓按 27.5 盯市（未实现浮盈），非卖出实现。**结论：账本无错，`account.fills` 是唯一执行权威**；隐患仅在命名碰撞（`reviews[*]` 字段结构与真实成交同名，同含 `kind='P/D/B'`、`reason='止损'`），故由 `ledger.record_review` 以 `setdefault` 补齐 `kind='audit_counterfactual'`/`executed=False`/`authority='account.fills'` 三键，`close_pipeline` 的 `decisions` 与 `close_decision_{day}.json` 同带三键；历史条目不追溯改写。回归保护：`tests/test_review_audit_marker.py`；口径文档：`docs/SELL_EXECUTION_CONTRACT.md` §4。
+7. **本机测试环境缺陷（非代码问题，2026-09-11 实测）**：① `py_libs/` 目录内容被 ACL 拒绝读取（连 pwsh 都读不到 `six.py`/`jsonpath.py` 等），导致 `import six` 抛 `PermissionError` —— `tests/test_close_pipeline.py` 等注入该路径的用例在本机无法导入被测模块；pandas/pytdx/pyarrow 均可由 workbuddy 环境自身提供，无需该目录。② 沙箱禁止写 `%TEMP%`，凡用 `tempfile.TemporaryDirectory()` 的用例（`test_status_push` 25 项、`test_monitor_watchdog` 3 项、`test_scan_companion_health` 2 项、`test_tick_snapshot_acceptance` 1 项）在本机整体报 `PermissionError: [WinError 5]`。本次新增的两个测试文件**刻意不注入 `py_libs` 且不使用 `tempfile`**（改用工作区一次性目录），故在本机可稳定跑通（10/10 + 6/6 PASS）。
+
+### 7. 追加（2026-09-11 13:26 会话）· 守护二次死亡 + 10:37 隔离 —— §4「09:41 恢复」结论已失效
+
+#### 1. 事件原文（飞书推送，2026-09-11 13:05:04 / 13:15:04）
+
+```
+EvoAlpha｜监控中断 2026-09-11 13:05:04
+模块：tick
+详情：持仓tick最近2分钟无新鲜快照
+状态：禁止依赖该模块产生新仓，等待恢复。
+
+EvoAlpha｜监控中断 2026-09-11 13:15:04
+模块：scan
+详情：全市场扫描最近15分钟无成功记录
+状态：禁止依赖该模块产生新仓，等待恢复。
+
+EvoAlpha 午后就绪 · 13:05：🟡 tick 数据校验：当日无产物　🟢 tick 守护：state=restart_exhausted
+```
+
+#### 2. 链路核验（全部通过 ✅）
+
+| 环节 | 证据 | 状态 |
+|---|---|---|
+| 断链时刻 | `pos_live.json` 最后写入 `{"date":"2026-09-11","time":"10:35:41","positions":[300394@261.92]}`，mtime 10:35:42 | ✅ 断链 = 10:35:42 |
+| 守护隔离 | `tick_guard_state.json` = `{"time":"10:37:20","state":"restart_exhausted","detail":"5 restarts exhausted, pos_live stale 97s"}`，此后 mtime 未再变化 | ✅ 10:37 起进入 degraded 观测模式 |
+| 重启账 | risk_events 当日 `watch_restart` #1~#7：09:32:50 / 09:35:35 / 09:38:21（`pos_live stale 66410s/66575s/66740s` 假重启）+ 09:40:04 / 09:40:25 / 09:40:46 / 09:41:06（`daemon missing`）；`_daemon_20260911.stderr.log` 仅 3 行「已有活 daemon 持有单实例锁, 退出」 | ✅ 与 §3 放大器二一致 |
+| watcher 计数 | `_tick_watch.beat`（13:26:39）= `restarts=7 degraded=1` | ✅ 预算 7 > 5 且不回补 |
+| **敞口为 0** | `ledger.json`：`account.positions = {}`，cash = 91,076.10；当日 fills 2 笔（09:41:08 300468×1800@23.31、10:35:41 300394×100@261.92），**最后一笔即断链时刻** | ✅ 空仓 |
+| 空仓非致因 | `tick_monitor.py` L174 构造 `live` 后 L230 **每轮无条件写盘**（空仓亦写 `positions: []`） | ✅ 停写 = daemon 真消失，非「空仓不写」 |
+| scan 连带 | `20260911_132602_975_scan.json` exit_code=6，stderr「伴随监控失效，禁止新仓: tick stale >2m」，13:22–13:26 每分钟复现 | ✅ fail-closed 按设计，非独立故障 |
+| 数据源 | `tdx_probe_2026-09-11.json` 13:00:04 state=up / bars=5 / last=13:05 | ✅ 非数据故障 |
+| 账本安全 | 当日 2 笔卖出均为止损、decision_id 齐备；10:35:41 卖出后账户转空仓，无虚假成交 | ✅ |
+
+#### 3. 根因判定（§3 之外新增三条）
+
+1. **守护链二次死亡（10:35:42，静默、无日志）**：daemon 完成 300394 止损卖出后即停止写盘；stderr 无任何异常留痕。锁内持锁 pid=**14840** 不属于 watcher 任何一次 spawn 的 pid（#1~#7 = 16880/13004/22776/22252/3012/29320/27720）→ 该 daemon 由 watcher 链之外的路径（上一会话人工 / `_verify_tick_fix` 链路）拉起，其死亡原因当前**无日志可判**（不臆断）。
+2. **旧代码内存驻留（本次核心，且是新教训）**：`_tick_watch.py` 的修复（锁回收 + 预算回补）落盘于 **09:56:42**，而线上 watcher 进程启动于 **09:30:04**。Python 在进程启动时加载源码，**文件修改对已运行进程完全无效** → 缺陷 ①（restarts 当日累计、永不回补）与放大器二（残留锁）在运行实例中**依然生效**：restarts 停在 7（≫5），10:37:20 的首次 stale 判定即直落隔离分支。**09:56 的 10/10 夹具 + selftest C 只证明了「文件正确」，并未使当日生效。**
+3. **既有收口计划在 10:37 后失效**：`_rotate_tick_watch_after_close.py`（10:04:50 建立、10:05:05 启动等待 15:12）的前提是「让修复当天收盘即生效」且「盘中不打扰在跑的守护」。10:35 二次死亡 + 10:37 隔离后前提不成立——等到 15:12 等于 **10:37–15:00 全段守护真空**，而 15:00 已收盘，轮换已无守护意义。
+
+#### 4. 处置结论（2026-09-11 13:26–13:40，用户裁定）
+
+- **决定：维持 fail-closed 至收盘，盘中不重启 tick 链路。** 依据：①账本空仓 → 实际资金敞口 **0**；②当日 `tick_watchdog` 硬性验收项已因 `watch_limit` 事件落盘而**不可挽回**，恢复也救不回当日验收；③scan 维持 exit 6（禁新仓）恰是 fail-closed 的设计安全姿态。
+- **停掉等待中的轮换脚本**：`_rotate_tick_watch_after_close.py` PID **11744** 已 taskkill（另一登记 PID 30412 已自行消失）。理由：①其 15:12 拉起的新 watcher 会把 `tick_guard_state.json` 由 `restart_exhausted` **覆盖为 `closed_ok`**、并向 `risk_events.jsonl` 追加伪 `watch_start`/`watch_exit` 事件，**污染今日事故留痕**；②`exit_after=15:10` 使其立即退出（beat 不会写 `restarts=0`），脚本自身**必然误报「轮换失败」**；③其原始目的已被「次日 09:30 全新进程启动」完全覆盖。
+- **保留**：两个旧 watcher 进程（25768 / 29268，degraded 观测模式）不动，按设计 15:10 自退并在 `finally` 中解锁 `_tick_watch.lock`。
+- **明日恢复路径（无需人工）**：09:30 YaobanTickDaemon → `launch.ps1 -Mode tick` 以磁盘上的修复版创建**全新** `_tick_watch.py` 进程 → `restarts=0` 起步，锁回收与预算回补生效。
+- **当日验收预期**：fail（`tick_watchdog` 不可挽回 + `tick_snapshot` 停在 10:35:41 + `live_tick` 13:05 exit 2）。属事故如实呈现，不追溯。
+
+#### 5. 改进观察（追加）
+
+1. **「修复落盘 ≠ 当日生效」应写入处置清单**：涉及常驻进程（watcher / daemon / 看板服务）的修复，收口动作必须显式包含**重启该进程**；只验证文件 + selftest **不构成当日闭环**。建议 INC 模板增设「生效方式」字段（重启 / 次日接管 / 热加载）。
+2. **空仓时段的守护语义**：本次据 `tick_monitor.py` L230「无条件写盘」排除「空仓不写」假设，确认 `pos_live` 陈旧 = daemon 真消失，判据可靠。但空仓时守护实际收益为 0，watchdog 可考虑对空仓时段降级为只告警不重启，避免无意义烧掉重启预算。
+3. **双 watcher 并存**：09:30:04 同秒出现两个 `_tick_watch.py`（25768 / 29268），与 9/10 双守护竞态同模式；两 watcher 各自 spawn 与计数，会把重启预算更快推向阈值（本次 #4~#7 的密集 `daemon missing` 与此相关）。建议在 `launch.ps1` 层加同秒重复启动守卫，或让 `try_lock` 落败方写 `duplicate_watcher` 事件以便复盘识别。
+4. **收口脚本需带窗口自校验**：`WAIT_UNTIL(15:12)` 与 `WATCH_EXIT_AT(15:10)` 之间存在 2 分钟设计缝隙 → 15:12 拉起的新 watcher 必然立刻自退。建议脚本进入后先校验「当前时间 < 15:10」，否则直接退出并记录「窗口已过，无需轮换」。
+
+---
+
+## INC-2026-09-11-02 · 收盘卡把「审计反事实」当「当日成交」展示（用户发现，与账本完全相反）
+
+### 1. 事件原文（用户转发收盘卡并质疑，2026-09-11 15:2x）
+
+```
+EvoAlpha 收盘落账 · 15:10
+阶段：收盘落账（15:10）· 决策生成于 2026-09-11 15:10:41
+🟢 收盘估值：净值 91076.1 · 累计 -8.92%
+⚪ 当日成交：买入 2 笔 · 卖出 0 笔 · 持仓 0 只
+⚪ 账本修订：ledger_revision=35 · run_id=close-2026-09-11-151041-0e518c
+```
+用户追问：「这对吗？今天应该都是卖出的吧，怎么变成了成交买入两笔了。」
+
+### 2. 链路核验
+
+| 环节 | 证据 | 状态 |
+|---|---|---|
+| 账本真相（唯一权威） | `portfolio/ledger.json` `account.fills` 当日 2 笔，**均为卖出**：09:41:08 300468 ×1800 @23.31、10:35:41 300394 ×100 @261.92（均为 `stop_loss`）；`account.positions={}`、cash 91076.0995 | ✅ 当日确为"卖 2 买 0" |
+| 卡片数字来源 | `status_push.py` `_n_close()` 原 L608-614：`buys = cd.get("buys")` / `sells = cd.get("sells")`，标签却写「当日成交」 | ✅ 根因定位 |
+| `cd` 的真实性质 | `outputs/intraday/close_decision_2026-09-11.json` 自带 `kind="audit_counterfactual"`、`executed=false`、`authority="account.fills"`；其 `buys` = 000690@11:05、001236@13:50（规则反事实），`sells=[]` | ✅ **审计产物，非成交** |
+| 审计为何有买无卖 | 审计由 `close_pipeline.build_close_decision` 重建"规则全天会怎么打"，**不感知执行门禁**；而当日 scan 自 10:38 起全程 exit 6（tick stale → 禁新仓，见 INC-2026-09-11-01），故规则意图 2 笔买入一笔未执行 | ✅ 与账本自洽 |
+| 其它消费方 | `trader_daily.py` L52-53 读同字段但已正名为 `audit_only_buys/audit_only_sells`；`feishu_notify.py` L111 用 `len(fills)`（账本）正确 | ✅ `status_push` 为唯一误用方 |
+
+### 3. 根因判定
+
+- **直接原因**：`_n_close` 把审计产物的 `buys/sells` 直接当作成交展示，且「持仓 X 只」也取自审计的 `positions`，而**忽略了三方都已就位的口径标记**（`kind/executed/authority`）。属"消费者无视口径标记"的显示层缺陷。
+- **同类性质（已预警）**：INC-2026-09-11-01 §5.6 已识别 `reviews[*]` 与 `account.fills` 的**命名碰撞**风险（同含 `kind='P/D/B'`、`reason='止损'`），并为 `close_decision` 补上了三键标记；本次是该类缺陷在另一个消费方（状态卡）的**未被治理的残留**——标记已就位但无消费端约束。
+- **影响面**：仅状态卡文案（display 层）；账本/净值/验收/复盘口径均未受影响。但**误导性最强**——卡片给出的当日交易方向与事实完全相反。
+
+### 4. 处置结论（2026-09-11 15:25 本会话修复并验证）
+
+- **修复 1**：`_n_close` 的「当日成交」改读 `ledger.account.fills` 按 `date==day` 过滤后统计买/卖笔数，「持仓」改读账本 `account.positions`（不再取审计的 `positions`）。
+- **修复 2**：审计另起一行 `规则审计：反事实买点 N 个 · 卖点 M 个 · 仅审计未执行`，让审计可见且不被误读。
+- **验证**：① 新增回归用例 `tests/test_status_push.py::RenderingTests::test_close_card_fills_authority_not_audit`（审计记 buys=2/sells=0、账本记 2 笔卖出 → 断言卡片必须为「买入 0 笔 · 卖出 2 笔 · 持仓 0 只」、不得出现「买入 2 笔」、必须含「仅审计未执行」）；**29/29 OK**（基线 28/28）。② 用当日真实数据试渲染：`⚪ 当日成交：买入 0 笔 · 卖出 2 笔 · 持仓 0 只` / `⚪ 规则审计：反事实买点 2 个 · 卖点 0 个 · 仅审计未执行`。
+- **生效方式**：`status_push` 为短进程（每次任务全新拉起）→ **改文件即时生效，无需重启**；下次触发（次日 08:36）即按新口径出卡。
+
+### 5. 改进观察（非阻塞）
+
+1. **口径标记需要消费端约束，而不只是生产端写入**：给审计产物加 `kind/executed/authority` 三键只能提示，无法阻止误用。建议加一条 CI/测试级契约：**任何读取 `close_decision` / `reviews[*]` 的模块，若把其 `buys/sells` 用于"成交"语义，必须在同一行显式引用 `authority` 或改读 `account.fills`**（可先做成 `tests/` 里的静态扫描：grep `close_decision` 的消费方并断言标注）。
+2. **状态卡应显式标注取数源**：本卡在「账本修订」行已带 `ledger_revision/run_id`，但成交行未标来源。建议关键数字行附来源（如「当日成交（account.fills）」），从展示层消灭同类歧义。
+3. **审计产品的取名**：`close_decision` 这个名字天然让人读作"收盘决策=当日动作"，而其内容实为反事实审计。建议长期改名为 `close_audit_{day}.json`（与 `reviews[*]` 同类问题一并处理），并在 `docs/SELL_EXECUTION_CONTRACT.md §4` 登记。
+4. **用户可见缺陷的发现路径**：本次由用户读卡发现，说明**状态卡的自动化核对缺失**——建议在晚间核验（`evening_check.py`）中加一项「卡片成交口径 vs 账本 `account.fills` 交叉核对」，让此类"数字方向反了"的展示缺陷能被机器捕获，而不是依赖人眼。
+
+---
+
+## INC-2026-09-11-01 §8 · 本批修复（2026-09-11 傍晚，用户裁定优先级）
+
+> 用户裁定：**回撤闸口暂缓**（用于观察系统整体操盘行为），其余按优先级排序处理。本节只记 tick 守护链。
+
+### 1. 修复前的状态盘点（避免重复劳动）
+
+§7 事故的 6 个缺陷中，**2 个已由早前会话落盘**，其余 4 个由本批处理：
+
+| # | 缺陷 | 状态 |
+|---|---|---|
+| ① | `restarts` 当日累计、永不回补 | 已修（`_tick_watch.py` 预算回补分支）|
+| ② | 残留锁让新 daemon 秒退 | 已修（`_clear_dead_daemon_lock`）|
+| ③ | **唤醒信号耦合**：唯一健康判据是 `pos_live` | **本批修复** |
+| ④ | **`degraded` 单向闩锁**：恢复后不清状态 | **本批修复** |
+| ⑤ | **隔离态下进程真死不再重启** | **本批修复** |
+| ⑥ | 误报与噪音（`watch_restart` 进告警流等） | **本批修复** |
+
+### 2. 根因补充（本批新查实，修正 §7 的推断）
+
+§7.3.1 记录"守护二次死亡原因当前无日志可判"。本批读代码后定因：
+
+**`tick_monitor.py` 的写入路径被整段跳过，风险判定一同被跳过。**
+- 代码把"当日 bar 数 < 阈值"作为 `continue` 守卫，而**写 `pos_live` 与止损/炸板/破 VWAP 判定在同一个被跳过的循环体内**。
+- 因此 09:30–09:41 那段"pos_live 陈旧 66,410s"**不是**"进程活着只是没写盘"，而是**风控判定也没有运行** —— 持仓在那 11 分钟里没有任何止损监控。300468 的止损是 09:41:08 新 daemon 首轮才执行的。
+- 这也解释了 §7.2 的句式矛盾：watcher 日志说 `pos_live stale`（数据信号），daemon stderr 说"已有活 daemon 持有单实例锁"（进程信号），**两个信号描述的是不同东西**，而当时系统只有一个判据。
+
+**另一处独立根因（`daemon #8` 10:35:42 后停写且无法定因）**：`tick_monitor.py` 无顶层异常捕获，致命异常直接终止进程且不留痕迹。本批加了 `daemon_crash` 事件 + traceback 落盘，下一次同类故障可定因。
+
+### 3. 改动清单
+
+| 文件 | 改动 |
+|---|---|
+| `scripts/tick_monitor.py` | 新增 `_tick_daemon.beat` 心跳：**每轮开头、早于所有 `continue` 守卫与风控循环**无条件写；新增顶层异常捕获（`daemon_crash` 事件 + stderr traceback，退出码 9）|
+| `scripts/_tick_watch.py` | ① `_daemon_status()`：存活判据改为**心跳优先**，仅在心跳文件从未出现时回退进程探测；② `_tick_fresh_state()`：数据信号独立；③ **恢复分支**：双信号健康即清 `degraded` + 回补预算 + 写 `recovered`；④ 隔离态下"进程真死"仍重启；⑤ 预算改**滑动窗口**（`restart_window_sec`）；⑥ `duplicate_watcher` 事件留痕；⑦ 空仓时数据陈旧只告警不烧预算；⑧ `tick_guard_state.json` 增双信号字段 |
+| `scripts/collect_daily_acceptance.py` | `tick_watchdog` 判据扩展：`daemon_crash` 事件 + 状态双信号（旧判据只看 `watch_limit`，会漏掉隔离由其它路径写成的情形）|
+| `scripts/notify_trading_events.py` | 降噪：`watch_start/watch_restart/watch_exit/watch_recovered/duplicate_watcher` 不进逐条告警流（9/11 有 7 条 restart 告警，仅 1 条有信息量）；`watch_limit`/`daemon_crash` 等真故障保留 |
+| `scripts/log_error_digest.py`、`fail_rollup.py`、`day_timeline.py` | 同上判据/展示对齐（含"先看 daemon_alive：False 才是进程死"的处置提示）|
+| `scripts/status_push.py` | 开盘/午后卡的守护行改报**双信号**（进程存活 + 数据新鲜），避免只看到 `state=restart_exhausted` 就误判"守护全瘫" |
+| `tests/test_tick_guard_state.py` | 新增 31 项离线单测（心跳语义/双信号真值表/滑动窗口预算/状态字段/下游判据/降噪/源码契约）|
+
+**状态文件契约（向后兼容，旧字段保留）**：
+```json
+{"date","time","state","detail",
+ "daemon_alive": true, "tick_fresh": false,
+ "daemon_beat_age_s": 12, "tick_age_s": 450,
+ "degraded": false, "restarts_window": 0, "window_sec": 900}
+```
+`daemon_alive`/`tick_fresh` **不做 bool 归一化**：`None` 表示"本轮未测量"，与 `False`("测到了是坏的")语义不同。
+
+### 4. 验证
+
+- **夹具自测 `python scripts/_tick_watch.py --selftest`：6 场景全绿**
+  A 正常收盘 / B 耗尽隔离**并恢复**（终局由 exit 6 改为 exit 0，因隔离已可清除）/ C 预算回补 / D 残留锁 / **E 心跳活但数据卡住 → 重跑 → 进隔离 → 恢复后清隔离** / **F 隔离态下进程真死仍被重启**。
+- **单元测试**：`tests.test_tick_guard_state` **31/31 OK**；与所涉模块合计 **65/65 OK**。
+- **全量回归**：312 项，3 项失败，**均与本批无关**：
+  ① `test_dashboard_names`（2 项）—— 看板 v1.2.0 合并遗留（`Home.tsx` 9/10 重写，测试自 8/31 未更新）；
+  ② `test_gate_freshness::test_failure_message_includes_gate_details` —— 并发会话把 `Send-Failure` 文案本地化（`Failed checks:` → `未通过检查：`）但未同步断言。**本批已把该断言改为语义断言**（明细 + 报告路径 + `critical` 过滤仍在）。
+
+### 5. 生效方式（本批的重点约束）
+
+**本批全部为常驻进程代码，改文件对已运行进程无效**（这正是 §7.2 的核心教训：09:56 落盘的修复对 09:30 启动的 watcher 完全无效）。
+
+- 今日 watcher 已按设计于 15:10 自退（`_tick_watch.beat` 末值 `restarts=7 degraded=1`），**当前无在跑实例可重启**。
+- **生效路径 = 次日 09:30 `YaobanTickDaemon` → `launch.ps1 -Mode tick` 以磁盘上的新版创建全新进程**，`restarts=0` 起步。
+- 因此 **生产验证窗口是 9/12 09:30–09:35**（见 §6）。
+
+### 6. 待办 / 次日盘中验收清单
+
+| # | 检查 | 期望 | 9/11 基线 |
+|---|---|---|---|
+| 1 | `_tick_daemon.beat` 年龄 | 09:30 后持续 <60s | 该文件当日不存在 |
+| 2 | `pos_live.json` 起写时间 | 09:30 后 ≤3 分钟内开始逐轮推进 | 停写于 10:35:42，此前陈旧 66,410s |
+| 3 | `scan` 当日失败次数 | 0 | **174** |
+| 4 | `tick_guard_state.json` 双信号 | 盘中 `daemon_alive=true` 且 `tick_fresh=true` | 停在 `10:37:20 restart_exhausted` |
+| 5 | `watch_restart` 告警条数 | ≤1（且不再进告警流） | 7 条 alert |
+| 6 | `tick_guard_exhausted` 误报 | 不出现（除非心跳确实停更） | 1 条误报（10:37:21） |
+
+**未纳入本批（明确排除）**：回撤闸口语义（用户裁定暂缓）；`monitor-gap` 在隔离恢复期的重复推送（根因是 `checked_windows` 窗口开合与缺口判定耦合，属独立票据）；`_rotate_tick_watch_after_close.py` 的窗口缝隙（§7.5.4）。
+
+
+---
