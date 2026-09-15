@@ -67,6 +67,12 @@ PATTERN_DIR = BASE / 'outputs' / 'patterns'
 #    ⚠️ 板块热度是**当日盘中**概念 ⇒ 放在确认队列构造处，不放进 T-1 的战法池产物（保持池静态可复现）。
 HOT_L2_TOP = 12
 
+# 量能闸（2026-09-15 改：**量比取代「当日累计换手 3–30%」**）。
+#   `None` = **只落痕不拦**（当前状态）；标定后设为数值即生效（标定入 WP5）。
+#   为什么换掉累计换手、为什么用索引 49 的量比：见 `rough_screen` 内注释与
+#   `market_scan.fetch_batch` 的 `vr` 字段注释。
+VOL_RATIO_MIN: float | None = None
+
 
 def load_strong_mainline(day: str):
     """读取 **T-1** 的「强主线」板块集合（选手口径的三标准 M1/M2/M3）。
@@ -185,18 +191,24 @@ def prev_close(sym: str, day: str):
     return prev_close_of(sym, day)
 
 
-# ⚠️ 换手门槛的口径残留（2026-09-15 已登记，待标定，**未擅自改**）：
-#   与成交额同理，`turn` 也是**当日累计**换手，其「T−1 全天」口径**当前无法实现** ——
-#   本地数据层没有流通股本（`data/yaoban.db::stock_daily` 只有 OHLCV+amount；
-#   仓库内无 shares/float 表）⇒ 算不出 T−1 换手。
-#   实测影响有限：9/15 09:46 选手 4 只的**累计**换手 = 艾华 3.43% / 协和 4.60% /
-#   沃特 5.93% / 国脉 1.27% ⇒ 只有国脉被这道闸挡（成交额闸才是 4/4 全挡）。
-#   ⇒ 先修成交额口径（收益最大），换手留待「补流通股本表 or 改量比（腾讯原始串索引 49）」
-#     的方案标定后定档。按本仓纪律不得凭直觉改 1%/2%。
+# 量能闸的演进（2026-09-15，两阶段）—— 施工中发现方案里的原设想不可行，已按用户裁定改道：
+#   ① 原状：`3 <= turn <= 30`，而 `turn` 是**当日累计**换手 ⇒ 累计量在早盘系统性偏低，
+#      而选手发池时点正是 09:35–09:47 ⇒ **时段性误杀**（9/15 实测四只候选累计换手
+#      3.43 / 4.60 / 5.93 / 1.27% ⇒ 国脉 1.27% 被挡）。
+#   ② 为什么"改成 T−1 全天换手"这条走不通：**本地算不出来** —— 缺流通股本
+#      （`data/yaoban.db::stock_daily` 只有 OHLCV+amount；仓库内无 shares/float 表）。
+#   ③ 现方案（用户 2026-09-15 裁定「改用量比」）：改用**量比** —— 腾讯原始串索引 49
+#      （出处 `vendor_astock_skill.md:794`「实测校准 2026-05-03」），**零新数据源**、
+#      天然按时段自校准，且与选手「分时有量」同构（GEN-DRAGON-10 / 9-10 分时三档①最优档）。
+#      ⚠️ 阈值**尚未标定** ⇒ `VOL_RATIO_MIN = None` = **只落痕、不拦**（本仓纪律
+#      「不引入未标定阈值」）；由 WP5 标定表定档后启用。`turn` 入参仍保留给
+#      「涨停/一字买不进」那条判据。
+#   🔎 备查：索引 44 = 流通市值(亿) ⇒ `44*1e8/现价` 可反推流通股本，是恢复「换手率」口径的零成本路径。
 
 
 def rough_screen(sym: str, chg: float, turn: float, amt: float, min_amt: float = 1.0,
                  prev_amt_yi: float | None = None,
+                 vr: float | None = None,
                  reject_reasons: dict | None = None) -> str | None:
     """选手模式粗筛（盘前形态信息 + 异动特征）。
 
@@ -230,9 +242,21 @@ def rough_screen(sym: str, chg: float, turn: float, amt: float, min_amt: float =
             reject_reasons['amt_legacy_basis'] = reject_reasons.get('amt_legacy_basis', 0) + 1
         if amt < min_amt:
             return _rej('amt_intraday_cum')
-    # 量能特征：换手 3-30%（活跃非一字）—— ⚠️ 口径仍为当日累计，见文件内 TODO
-    if turn is None or not (3 <= turn <= 30):
-        return _rej('turn_band')
+    # 量能特征（2026-09-15 改）：**量比**取代「当日累计换手 3–30%」。
+    #   原因：累计换手在早盘**系统性偏低** —— 选手发池时点是 09:35–09:47，那时正常标的的
+    #   累计换手常 <3%（9/15 实测：艾华 3.43 / 协和 4.60 / 沃特 5.93 / 国脉 1.27%）⇒ 时段性误杀。
+    #   量比 = (当日累计量/已开盘分钟) ÷ (过去5日均量/240)，**天然按时段自校准**，
+    #   且与选手「分时有量」同构（`GEN-DRAGON-10` 量柱六形态 / 9-10 分时三档①最优档）。
+    #   ⚠️ 量比阈值**尚未标定** ⇒ `VOL_RATIO_MIN is None` 时**只落痕、不拦**（本仓纪律
+    #      「不引入未标定阈值」：先攒样本再定档，见 WP5）。标定后把该常量设为数值即生效。
+    #   `turn` 入参仍保留 —— 「涨停/一字买不进」那条需要它。
+    if vr is not None:
+        if reject_reasons is not None:
+            reject_reasons['vr_lt_1'] = reject_reasons.get('vr_lt_1', 0) + (1 if vr < 1.0 else 0)
+    elif reject_reasons is not None:
+        reject_reasons['vr_missing'] = reject_reasons.get('vr_missing', 0) + 1
+    if VOL_RATIO_MIN is not None and (vr is None or vr < VOL_RATIO_MIN):
+        return _rej('vol_ratio')
     # 涨幅窗口（**候选观察窗，不是买入窗**）：单窗口 -1%~9.8%。
     #   ⚠️ 2026-09-14 修正此注释：原文写作「引擎触发时刻涨幅≤3% 为实际买入上界」，但当时
     #      `e4_support` 分支并无上界（详见 E4_MAX_PCT 处注释），注释与代码不符。
@@ -442,6 +466,7 @@ def main():
             #    内部退回当日累计并计入 `_rej_stats['amt_legacy_basis']`（不静默）。
             if rough_screen(sym, v['chg'], v['turn'], v['amt'] / 10000, min_amt=args.min_amt,
                             prev_amt_yi=_pmap[sym].get('prev_amt_yi'),
+                            vr=v.get('vr'),
                             reject_reasons=_rej_stats) is None:
                 continue   # 形态合格但今日买不进/不活跃 → 不进队列（非丢弃，下轮再来）
             n_pat_active += 1
@@ -454,7 +479,8 @@ def main():
             _p = _pmap[sym]
             _plan_hit = plan_picks.get(sym) is not None
             confirm_queue.append({'sym': sym, 'name': v['name'], 'chg': v['chg'],
-                                  'turn': v['turn'], 'amt': v['amt'],
+                                  'turn': v['turn'], 'amt': v['amt'], 'vr': v.get('vr'),
+                                  'prev_amt_yi': _pmap[sym].get('prev_amt_yi'),
                                   'l2': _l2, 'l2_rank': _l2_rank.get(_l2),
                                   'l2_name': _SW_NAMES.get(_l2, ''),
                                   'in_hot': _in_hot, 'strong_mainline_only': _in_strong,
@@ -494,7 +520,9 @@ def main():
                                'n_queue_capped': len(confirm_queue),
                                # ⭐ 活跃闸判据拒绝明细（2026-09-15，WP5 落痕）。键 = 判据码，值 = 只数：
                                #   amt_prev_day=成交额<T−1门槛；amt_intraday_cum=退回当日累计后仍不够；
-                               #   turn_band=换手不在 3–30%；chg_window=涨幅不在 −1%~9.8%；
+                               #   vol_ratio=量比<VOL_RATIO_MIN（当前 VOL_RATIO_MIN=None ⇒ 恒为 0）；
+                               #   vr_lt_1=量比<1 的只数（**标定用影子计数**，与是否拦无关）；
+                               #   vr_missing=行情源无量比字段的只数；chg_window=涨幅不在 −1%~9.8%；
                                #   limit_up_unbuyable=涨停/一字买不进；
                                #   amt_legacy_basis=**走了退回口径的只数**（>0 ⇒ 池缺 prev_amt_yi，需查）
                                'rejects': dict(_rej_stats)}}

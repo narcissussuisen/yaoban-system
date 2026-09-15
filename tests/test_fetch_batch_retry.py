@@ -27,8 +27,15 @@ class _Resp:
 
 
 def _row(code='sz000001', name='平安银行', price='11.50', prev='11.40',
-         vol='123456', amt='98765.4', turn='1.23', pe='5.67') -> str:
-    parts = [''] * 40
+         vol='123456', amt='98765.4', turn='1.23', pe='5.67', vr='1.20',
+         n_fields=50) -> str:
+    """构造一条腾讯行情串。
+
+    ⚠️ `n_fields` 需 ≥50 —— 2026-09-15 起 `fetch_batch` 会读**索引 49（量比）**；
+    长度不足时该字段按 `None` 处理（不报错），但那样就**测不到解析**，
+    所以默认给 50，另外专门有一个用例用 40 验证"缺字段 ⇒ None"。
+    """
+    parts = [''] * n_fields
     parts[0] = '51'
     parts[1] = name
     parts[2] = code[2:]
@@ -38,6 +45,8 @@ def _row(code='sz000001', name='平安银行', price='11.50', prev='11.40',
     parts[37] = amt
     parts[38] = turn
     parts[39] = pe
+    if n_fields > 49:
+        parts[49] = vr
     return 'v_' + code + '="' + '~'.join(parts) + '";'
 
 
@@ -116,7 +125,19 @@ class FetchBatchRetryTests(unittest.TestCase):
         self.assertEqual(out['000001']['vol'], 123456.0)
         self.assertEqual(out['000001']['amt'], 98765.4)
         self.assertEqual(out['000001']['turn'], 1.23)
+        self.assertEqual(out['000001']['vr'], 1.20)      # 索引 49 量比（2026-09-15 新增）
         self.assertEqual(out['000002']['name'], '万科A')
+
+    def test_vol_ratio_none_when_field_absent(self):
+        """串长不足 50（老格式/被截断）⇒ `vr=None`，**不报错、也不得给 0**。
+
+        给 0 会被消费侧误判成"缩量"从而误杀（与 `prev_amt_yi` 取不到必须给 None 同理）。
+        """
+        body = (_row(n_fields=40)).encode('gbk')
+        with self._patch([_Resp(body)]):
+            out = mkt.fetch_batch(['sz000001'])
+        self.assertIsNone(out['000001']['vr'])
+        self.assertEqual(out['000001']['px'], 11.50)      # 其余字段不受影响
 
     def test_empty_body_returns_empty_dict_without_retry(self):
         """空响应体是「该批无数据」，不是异常 ⇒ 不重试、返回 {}（保持原行为）。"""

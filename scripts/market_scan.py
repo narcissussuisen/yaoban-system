@@ -112,9 +112,19 @@ def fetch_batch(codes: list[str]) -> dict:
             amount = float(parts[37]) if len(parts) > 37 and parts[37] else 0  # 万元
             turnover = float(parts[38]) if len(parts) > 38 and parts[38] else None  # 换手%
             pe = float(parts[39]) if len(parts) > 39 and parts[39] else None
+            # ⭐ 量比（2026-09-15 新增，索引 = 49，出处 `vendor_astock_skill.md:794`
+            #    「腾讯财经字段索引速查（实测校准 2026-05-03）」）。
+            #    为什么需要它：活跃闸原用「当日累计换手 3–30%」——**累计量在早盘系统性偏低**
+            #    （选手 09:35–09:47 发池，开盘十几分钟正常票的累计换手常 <3%）⇒ 时段性误杀。
+            #    量比 = (当日累计量/已开盘分钟) ÷ (过去5日均量/240)，**天然按时段自校准**，
+            #    且与选手「分时有量」的口径同构（GEN-DRAGON-10 量柱六形态 / 9-10 分时三档）。
+            #    ⚠️ 阈值**尚未标定** ⇒ 消费侧先只落痕不拦（见 scan_and_confirm.VOL_RATIO_MIN）。
+            # 🔎 备查：索引 44 = 流通市值(亿)、45 = 总市值(亿) ⇒ `44*1e8/现价` 可反推流通股本，
+            #    是将来恢复「换手率」口径（本地缺流通股本）的零成本路径。切勿把 44/45 混用。
+            vol_ratio = float(parts[49]) if len(parts) > 49 and parts[49] else None
             code = m.group(1)[2:]
             out[code] = {'px': price, 'chg': chg, 'vol': vol, 'amt': amount,
-                         'turn': turnover, 'name': parts[1]}
+                         'turn': turnover, 'name': parts[1], 'vr': vol_ratio}
         except (ValueError, IndexError):
             continue
     return out
