@@ -367,12 +367,20 @@ prior_gain_min_pct = 12.0    # 2026-09-14 标定：8.0 → 12.0（前期一波�
 [strategy.zt_huicai]
 # 涨停回踩低吸（v07 五口诀 → 参数化 3 条）
 enabled = true
-pullback_days_min = 2
-pullback_days_max = 7
+pullback_days_min = 1
+pullback_days_max = 5       # 2026-09-11 口径修复：原 2~7 偏长（实测案例为 2 日 / 3 日）
 hold_ma = 5                 # 回踩守住 5 日线
 hold_above_ma = 20          # 价站 20 日线上方
-not_break_limit_low = true  # 不破涨停板实体
-volume_shrink_ratio = 0.7
+not_break_limit_low = true  # 不破涨停板实体低点
+# 2026-09-11 口径修复（依据 tools/_diag_zthuicai.py 实测，证据见 docs/ITERATION_2026-09-11.md）：
+#   「缩量回踩」字面口径**已被证伪**——真实样本回踩期相对涨停柱反而放量
+#   （茶花股份 1.07、山东玻纤 1.19、金富科技 1.26），0/6 真实样本满足 ≤0.7。
+#   故缩量过滤器默认**关闭**（volume_shrink_ratio 留作可选上限，由影子回归判定增量价值）。
+#   原实现还把「倍量柱」硬编码为 2×MA5(V)，实测过严（605006 涨停柱仅 1.33×）。
+volume_surge_base_ma = 5    # 「放量」基准：前 N 日均量
+volume_surge_min = 1.2      # 涨停柱量能下限倍数（实测真实样本区间 0.93~2.62，中位 ~1.4）
+volume_shrink_ratio = 0.0   # 0 = 不启用缩量过滤器（保留键以便回归对比；设为 >0 才生效）
+volume_shrink_basis = "peak"  # peak=相对涨停柱量 / pre=相对涨停前均量（对比用）
 
 [strategy.qu_shi_fanbao]
 # 趋势反包
@@ -452,6 +460,18 @@ sh_min_surge = 5.0
 daily_ma5_halve = true
 daily_ma10_clear = true
 time_stop_days = 5
+
+# ⭐ 交易费率（**唯一真相源**）—— 来源：用户 2026-09-13 提供；**不免五**（无最低 5 元豁免）。
+#   ⚠️ 2026-09-13 之前：回测与生产都硬编码佣金 0.00025（万 2.5）⇒ **成本被高估 2.5 倍**，
+#      全部历史回测的净收益被系统性压低。见 docs/PARAM_CONSUMER_MAP.md。
+#   ⚠️ 北交所费率已登记，但 `buy_net`/`sell_net` 目前**不区分品种**（统一用 commission_main）
+#      ⇒ 北交所 **待接入**；港股通印花税口径与 A 股不同，同样待接入（现亦用 stamp_tax_sell）。
+[fees]
+commission_main = 0.0001     # 沪深 / ETF / 可转债 / 港股通：万分之一
+commission_bse = 0.000575    # 北交所：万分之 5.75
+min_commission = 0.0         # 0 = 不免五（无最低佣金）
+stamp_tax_sell = 0.0005641   # 印花税（**仅股票卖出**，万 5.641；ETF / 可转债 / 债券现券无）
+slippage = 0.001             # 滑点（单边，千 1）⚠️ 非用户给定，沿用旧值待确认
 
 [data]
 index_symbols = ["sh000001", "sz399001", "sz399006", "sh000688"]

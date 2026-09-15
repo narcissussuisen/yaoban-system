@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $python = 'C:\Users\YZP\.workbuddy\binaries\python\envs\default\Scripts\python.exe'
 $script = Join-Path $root 'scripts\build_board.py'

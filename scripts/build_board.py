@@ -48,10 +48,12 @@ _NAME_MAP = None
 def stock_name(sym: str) -> str:
     global _NAME_MAP
     if _NAME_MAP is None:
-        fp_n = BASE / 'data' / 'stock_names_full.json'
+        # R2.8: 切到只含个股的新表（旧表 83% 是债/基金/指数）
+        fp_n = BASE / 'data' / 'stock_names_stocks.json'
         if fp_n.exists():
             try:
-                _NAME_MAP = json.loads(fp_n.read_text(encoding='utf-8'))
+                _doc = json.loads(fp_n.read_text(encoding='utf-8'))
+                _NAME_MAP = _doc.get('names', _doc)
             except Exception:
                 _NAME_MAP = {}
         else:

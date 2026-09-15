@@ -28,21 +28,38 @@ EXCLUDE_FILES = {"ledger.lock"}          # 运行期锁文件，不具存证语�
 SCOPES = [
     "scripts",       # 全部生产/研究脚本与 *.ps1/*.cmd/*.xml 任务定义
     "src",           # 核心库
+    "tools",         # 2026-09-12 补入：run_intraday_counterfactual / snapshot_minute / _diag_* 等关键研究代码
     "config",        # parameters.toml / universe.toml / concepts.json
     "portfolio",     # ledger.json 权威账本 + ledger.py + 备份账本
     "data",          # yaoban.db / journal.db / 行业与股票名映射
-    "docs/loops",    # state.json 与阶段结论（状态机存证）
+    "docs",          # 2026-09-12 由 docs/loops 扩为全量：含 INCIDENT_LOG / reviews / 复盘结论
     "templates",
     "tests",
 ]
 ROOT_FILES = ["README.md", "vendor_astock_skill.md"]
 ROOT_GLOBS = ["*.py"]                    # 根目录 _r7p_* 等探针脚本
 
+# 2026-09-12 更新：与 scripts/register_schedule.ps1 的 $Schedule 表对齐（19 项，单一真相源）
 TASK_NAMES = [
-    "YaobanDailyCandidates",
-    "YaobanDailySignal",
-    "YaobanLoopEngine",
-    "YaobanTickCollect",
+    "YaobanPreflight",
+    "YaobanSelfHeal",
+    "YaobanPremarket",
+    "YaobanPlanGate",
+    "YaobanMorningCheck",
+    "YaobanTdxProbe",
+    "YaobanAuctionMonitor",
+    "YaobanEventNotify",
+    "YaobanTickDaemon",
+    "YaobanScanConfirm",
+    "YaobanIntradayMonitor",
+    "YaobanClosePipeline",
+    "YaobanPostCloseChain",
+    "YaobanEveningCheck",
+    "YaobanTdxServerVerify",
+    "YaobanBoardRefresh",
+    "YaobanStatusPush",
+    "VibeResearchDashboardServices",
+    "VibeResearchLiveTickValidation",
 ]
 
 
@@ -82,6 +99,25 @@ def collect_files() -> list[Path]:
     return sorted(set(files), key=lambda p: p.relative_to(REPO_ROOT).as_posix())
 
 
+def _decode_console(raw: bytes) -> str:
+    """schtasks 按控制台代码页（zh-CN 为 GBK）输出，直接按 utf-8 解码会得到乱码。"""
+    for enc in ("utf-8", "gbk", "cp936", "latin-1"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
+# 兼容英文与 zh-CN 本地化的字段标签（不依赖系统语言）
+_TASK_KEEP_KEYS = (
+    "TaskName", "Task To Run", "Schedule Type", "Start Time", "Status",
+    "Last Run Time", "Last Result", "Task To Run As",
+    "任务名", "要运行的任务", "计划类型", "开始时间", "状态",
+    "上次运行时间", "上次结果", "运行用户", "下次运行时间",
+)
+
+
 def snapshot_tasks(out_path: Path) -> None:
     lines = ["# Windows 计划任务注册状态快照", 
              f"# generated_at: {dt.datetime.now().isoformat(timespec='seconds')}", ""]
@@ -89,17 +125,16 @@ def snapshot_tasks(out_path: Path) -> None:
         try:
             r = subprocess.run(
                 ["schtasks", "/query", "/tn", name, "/fo", "LIST", "/v"],
-                capture_output=True, text=True, timeout=30, encoding="utf-8", errors="replace")
+                capture_output=True, timeout=30)
             status = "REGISTERED" if r.returncode == 0 else "NOT_FOUND"
             lines.append(f"== {name} == status: {status}")
             if r.returncode == 0:
-                keep = [ln for ln in (r.stdout or "").splitlines()
-                        if any(k in ln for k in ("TaskName", "Task To Run", "Schedule Type",
-                                                 "Start Time", "Status", "Last Run Time",
-                                                 "Last Result", "Task To Run As"))]
+                stdout = _decode_console(r.stdout or b"")
+                keep = [ln for ln in stdout.splitlines()
+                        if any(k in ln for k in _TASK_KEEP_KEYS)]
                 lines.extend(keep)
             else:
-                lines.append(r.stderr.strip() or "(no detail)")
+                lines.append(_decode_console(r.stderr or b"").strip() or "(no detail)")
             lines.append("")
         except Exception as exc:  # pragma: no cover
             lines.append(f"== {name} == ERROR: {exc}")
@@ -107,9 +142,60 @@ def snapshot_tasks(out_path: Path) -> None:
     out_path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def git_provenance() -> dict:
+    """代码来源存证：HEAD commit / 分支 / 是否有未提交改动。"""
+    out: dict = {}
+    for key, args in (("head", ["git", "rev-parse", "HEAD"]),
+                      ("branch", ["git", "rev-parse", "--abbrev-ref", "HEAD"]),
+                      ("dirty", ["git", "status", "--porcelain"])):
+        try:
+            r = subprocess.run(args, cwd=str(REPO_ROOT), capture_output=True,
+                               text=True, timeout=30, encoding="utf-8", errors="replace")
+            val = (r.stdout or "").strip()
+            if key == "dirty":
+                out["dirty_files"] = len([ln for ln in val.splitlines() if ln.strip()])
+            else:
+                out[key] = val or None
+        except Exception as exc:  # pragma: no cover
+            out[key] = f"ERROR: {exc}"
+    return out
+
+
+def collect_freeze_window() -> dict:
+    """记录 decision_digest 重放用的冻结基线窗口。
+
+    ledger_window = 主账本 equity_curve 的日期区间与点数（净值判定起算窗口）。
+    日线/分钟数据窗口由 R2 数据层另行登记（数据不在本 repo 内，此处不猜路径）。
+    """
+    out: dict = {}
+    ledger_path = REPO_ROOT / "portfolio" / "ledger.json"
+    try:
+        st = json.loads(ledger_path.read_text(encoding="utf-8"))
+        acct = st.get("account") or {}
+        curve = acct.get("equity_curve") or []
+        dates = sorted({r.get("date") for r in curve if isinstance(r, dict) and r.get("date")})
+        out["ledger_window"] = {
+            "start": dates[0] if dates else None,
+            "end": dates[-1] if dates else None,
+            "points": len(dates),
+            "start_cash": st.get("start_cash"),
+            "start_date": st.get("start_date"),
+            "fills": len(acct.get("fills") or []),
+            "positions": len(acct.get("positions") or {}),
+            "revision": st.get("_revision"),
+            "risk_state": st.get("risk_state"),
+        }
+    except Exception as exc:
+        out["ledger_window"] = {"error": str(exc)}
+    return out
+
+
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--baseline-id", required=True, help="如 baseline-0-pre-fix")
+    ap.add_argument("--baseline-id", required=True, help="如 baseline-v2-pre-restructure")
+    ap.add_argument("--purpose", default="P0.1 缺陷版存证 manifest（Phase 0 修复前冻结）")
     args = ap.parse_args()
 
     out_dir = REPO_ROOT / "baseline" / "manifests" / args.baseline_id
@@ -145,7 +231,7 @@ def main() -> int:
 
     summary = {
         "baseline_id": args.baseline_id,
-        "purpose": "P0.1 缺陷版存证 manifest（Phase 0 修复前冻结）",
+        "purpose": args.purpose,
         "generated_at": dt.datetime.now().isoformat(timespec="seconds"),
         "repo_root": str(REPO_ROOT),
         "manifest_hash": manifest_hash,
@@ -158,7 +244,11 @@ def main() -> int:
         "exclude_suffixes": sorted(EXCLUDE_SUFFIXES),
         "exclude_files": sorted(EXCLUDE_FILES),
         "task_names_checked": TASK_NAMES,
-        "acceptance": "同一输入可重放同一 Top 5（P0.2-P0.4 完成后另行生成 baseline-0 v1 manifest 作为三轨评价基准）",
+        "git": git_provenance(),
+        "freeze_window": collect_freeze_window(),
+        "acceptance": "同一输入可重放同一 Top 5",
+        "replay_note": "freeze_window.ledger_window 的 [start, end] 即 decision_digest 重放的冻结基线窗口；"
+                       "日线/分钟数据窗口由 R2 数据层另行登记（数据不在本 repo 内）。",
     }
     (out_dir / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")

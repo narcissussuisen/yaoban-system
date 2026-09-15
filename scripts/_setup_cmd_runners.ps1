@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $root = 'C:UsersYZPWorkBuddyClaw方法论与研究文档yaoban-system'
 $libs = 'C:UsersYZPWorkBuddyClaw方法论与研究文档py_libs'
 $py = 'C:UsersYZP.workbuddyinariespythonenvsdefaultScriptspython.exe'

@@ -116,8 +116,21 @@ class TestBoardRefreshContract(unittest.TestCase):
         self.assertNotIn("portfolio.ledger.save", build)
         self.assertNotIn("ledger.save(", build)
         tick = (ROOT / 'scripts' / 'tick_monitor.py').read_text(encoding='utf-8')
-        self.assertIn("exec_window=('09:30'<=hm2<='11:30')or('13:00'<=hm2<='15:00')", tick)
-        self.assertIn("if exec_window and trig and (sym,trig) not in fired:", tick)
+        # 2026-09-12 R0.8: 成交窗口判定由「写死字面量」收敛为**共用函数**（三处调用点曾各写一遍）。
+        # 断言随之升级为锁**契约**：共用函数存在 + 盘后窗口边界正确 + 触发点未被改动。
+        # 原断言锁的是字符串 "…or('13:00'<=hm2<='15:00')"，它恰好会把"窗口被误缩回 15:00"当成通过。
+        self.assertIn("def in_exec_window(", tick)
+        self.assertIn("AFTER_HOURS_START, AFTER_HOURS_END = '15:05', '15:30'", tick)
+        self.assertIn("exec_window=in_exec_window(hm2)", tick)
+        # 2026-09-12 R0.5: 触发点由「单条 if + (sym,trig) 去重」改为「trigs 列表 + 循环执行」，
+        # 因为一个 tick 可能同时产生多个引擎理由（含 legacy 秒级硬止损）。
+        # 断言**意图不变**：① 只在可成交窗口内成交 ② 同一触发不重复执行。
+        self.assertIn("if not exec_window:break", tick)
+        self.assertIn("if (sym,trig,fts) in fired:continue", tick)
+        self.assertIn("fired.add((sym,trig,fts))", tick)
+        # 三处调用点都必须走共用函数，不允许再有写死的时间字面量
+        self.assertNotIn("'13:00'<=hm2<='15:00'", tick)
+        self.assertNotIn("hm2>'15:05'", tick)
 
 
 class TestIntradayAlertContract(unittest.TestCase):
